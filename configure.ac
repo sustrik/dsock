@@ -28,7 +28,7 @@ AC_PREREQ([2.53])
 
 AC_INIT([millsocks], [m4_esyscmd([./package_version.sh])],
    [libmill@freelists.org], [millsocks], [http://libmill.org/])
-AC_CONFIG_SRCDIR([millsocks.pc.in])
+AC_CONFIG_SRCDIR([libmillsocks.pc.in])
 AM_INIT_AUTOMAKE([1.6 foreign subdir-objects tar-ustar])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
@@ -41,9 +41,9 @@ AC_CANONICAL_HOST
 AC_PROG_SED
 AC_PROG_AWK
 
-MILL_ABI_VERSION=m4_esyscmd([./abi_version.sh])
-MILL_PACKAGE_VERSION=m4_esyscmd([./package_version.sh])
-MILL_LIBTOOL_VERSION=m4_esyscmd([./abi_version.sh -libtool])
+MILLSOCKS_ABI_VERSION=m4_esyscmd([./abi_version.sh])
+MILLSOCKS_PACKAGE_VERSION=m4_esyscmd([./package_version.sh])
+MILLSOCKS_LIBTOOL_VERSION=m4_esyscmd([./abi_version.sh -libtool])
 
 AC_SUBST(MILLSOCKS_ABI_VERSION)
 AC_SUBST(MILLSOCKS_PACKAGE_VERSION)
@@ -75,6 +75,9 @@ fi
 #  Feature checks.                                                             #
 ################################################################################
 
+AC_CHECK_LIB([mill], [iplocal])
+AC_CHECK_FUNCS([iplocal])
+
 # SunOS has sockets in a separate library.
 AC_CHECK_LIB([socket], [socket])
 
@@ -90,6 +93,6 @@ LT_INIT
 
 AC_CONFIG_MACRO_DIR([m4])
 
-AC_OUTPUT([Makefile millsocks.pc])
+AC_OUTPUT([Makefile libmillsocks.pc])
 cp confdefs.h config.h
 

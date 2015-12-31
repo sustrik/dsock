@@ -23,26 +23,39 @@
 ACLOCAL_AMFLAGS = -I m4
 
 ################################################################################
-#  mill library                                                                #
+#  millsocks library                                                           #
 ################################################################################
 
-millincludedir = $(includedir)
-millinclude_HEADERS = millsocks.h
+millsocksincludedir = $(includedir)
+millsocksinclude_HEADERS = millsocks.h
 
 lib_LTLIBRARIES = libmillsocks.la
 
-libmill_la_SOURCES =
+libmillsocks_la_SOURCES = \
+    bstream.c \
+    buf.h \
+    buf.c \
+    debug.h \
+    debug.c \
+    ip.h \
+    ip.c \
+    tcp.c
+
+libmillsocks_la_LDFLAGS = -no-undefined -version-info @MILLSOCKS_LIBTOOL_VERSION@
+
+libmillsocks_la_CFLAGS = \
+    -fvisibility=hidden\
+    -DMILLSOCKS_EXPORTS
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = millsocks.pc
-
-libmill_la_LDFLAGS = -no-undefined -version-info @MILLSOCKS_LIBTOOL_VERSION@
+pkgconfig_DATA = libmillsocks.pc
 
 ################################################################################
 #  automated tests                                                             #
 ################################################################################
 
-check_PROGRAMS =
+check_PROGRAMS = \
+    tests/tcp
 
 LDADD = libmillsocks.la
 

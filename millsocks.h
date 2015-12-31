@@ -25,6 +25,10 @@
 #ifndef MILLSOCKS_H_INCLUDED
 #define MILLSOCKS_H_INCLUDED
 
+#include <libmill.h>
+#include <stddef.h>
+#include <stdint.h>
+
 /******************************************************************************/
 /*  ABI versioning support                                                    */
 /******************************************************************************/
@@ -69,8 +73,43 @@
 #endif
 
 /******************************************************************************/
+/*  Bytestream.                                                               */
+/******************************************************************************/
+
+struct mill_bstream {
+    void (*send)(struct mill_bstream **self, const void *buf, size_t len,
+        int64_t deadline);
+    void (*flush)(struct mill_bstream **self, int64_t deadline);
+    void (*recv)(struct mill_bstream **self, void *buf, size_t len,
+        int64_t deadline);
+};
+
+typedef struct mill_bstream **bstream;
+
+MILLSOCKS_EXPORT void bstream_send(bstream s, const void *buf, size_t len,
+    int64_t deadline);
+MILLSOCKS_EXPORT void bstream_flush(bstream s, int64_t deadline);
+MILLSOCKS_EXPORT void bstream_recv(bstream s, void *buf, size_t len,
+    int64_t deadline);
+
+/******************************************************************************/
 /*  TCP                                                                       */
 /******************************************************************************/
+
+typedef struct mill_tcp_sock *tcp_sock;
+
+MILLSOCKS_EXPORT tcp_sock tcp_listen(ipaddr addr, int backlog);
+MILLSOCKS_EXPORT int tcp_port(tcp_sock s);
+MILLSOCKS_EXPORT tcp_sock tcp_accept(tcp_sock s, int64_t deadline);
+MILLSOCKS_EXPORT ipaddr tcp_addr(tcp_sock s);
+MILLSOCKS_EXPORT tcp_sock tcp_connect(ipaddr addr, int64_t deadline);
+MILLSOCKS_EXPORT void tcp_send(tcp_sock s, const void *buf, size_t len,
+    int64_t deadline);
+MILLSOCKS_EXPORT void tcp_flush(tcp_sock s, int64_t deadline);
+MILLSOCKS_EXPORT void tcp_recv(tcp_sock s, void *buf, size_t len,
+    int64_t deadline);
+MILLSOCKS_EXPORT void tcp_close(tcp_sock s);
+MILLSOCKS_EXPORT bstream tcp_bstream(tcp_sock s);
 
 #endif
 
