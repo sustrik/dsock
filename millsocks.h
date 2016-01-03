@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2015 Martin Sustrik
+  Copyright (c) 2016 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -73,43 +73,39 @@
 #endif
 
 /******************************************************************************/
-/*  Bytestream.                                                               */
+/*  Generic socket.                                                           */
 /******************************************************************************/
 
-struct mill_bstream {
-    void (*send)(struct mill_bstream **self, const void *buf, size_t len,
-        int64_t deadline);
-    void (*flush)(struct mill_bstream **self, int64_t deadline);
-    void (*recv)(struct mill_bstream **self, void *buf, size_t len,
-        int64_t deadline);
+typedef struct mill_sock *sock;
+
+struct mill_sock_vfptr {
+    void (*brecv)(sock s, void *buf, size_t len, int64_t deadline);
+    void (*bsend)(sock s, const void *buf, size_t len, int64_t deadline);
+    void (*bflush)(sock s, int64_t deadline);
 };
 
-typedef struct mill_bstream **bstream;
+struct mill_sock {
+    struct mill_sock_vfptr *vfptr;
+};
 
-MILLSOCKS_EXPORT void bstream_send(bstream s, const void *buf, size_t len,
+MILLSOCKS_EXPORT void brecv(sock s, void *buf, size_t len,
     int64_t deadline);
-MILLSOCKS_EXPORT void bstream_flush(bstream s, int64_t deadline);
-MILLSOCKS_EXPORT void bstream_recv(bstream s, void *buf, size_t len,
+MILLSOCKS_EXPORT void bsend(sock s, const void *buf, size_t len,
     int64_t deadline);
+MILLSOCKS_EXPORT void bflush(sock s, int64_t deadline);
+
+/* TODO: msend, mrecv, mflush */
 
 /******************************************************************************/
 /*  TCP                                                                       */
 /******************************************************************************/
 
-typedef struct mill_tcp_sock *tcp_sock;
-
-MILLSOCKS_EXPORT tcp_sock tcp_listen(ipaddr addr, int backlog);
-MILLSOCKS_EXPORT int tcp_port(tcp_sock s);
-MILLSOCKS_EXPORT tcp_sock tcp_accept(tcp_sock s, int64_t deadline);
-MILLSOCKS_EXPORT ipaddr tcp_addr(tcp_sock s);
-MILLSOCKS_EXPORT tcp_sock tcp_connect(ipaddr addr, int64_t deadline);
-MILLSOCKS_EXPORT void tcp_send(tcp_sock s, const void *buf, size_t len,
-    int64_t deadline);
-MILLSOCKS_EXPORT void tcp_flush(tcp_sock s, int64_t deadline);
-MILLSOCKS_EXPORT void tcp_recv(tcp_sock s, void *buf, size_t len,
-    int64_t deadline);
-MILLSOCKS_EXPORT void tcp_close(tcp_sock s);
-MILLSOCKS_EXPORT bstream tcp_bstream(tcp_sock s);
+MILLSOCKS_EXPORT sock tcp_listen(ipaddr addr, int backlog);
+MILLSOCKS_EXPORT int tcp_port(sock s);
+MILLSOCKS_EXPORT sock tcp_accept(sock s, int64_t deadline);
+MILLSOCKS_EXPORT ipaddr tcp_addr(sock s);
+MILLSOCKS_EXPORT sock tcp_connect(ipaddr addr, int64_t deadline);
+MILLSOCKS_EXPORT void tcp_close(sock s);
 
 #endif
 

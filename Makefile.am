@@ -32,13 +32,13 @@ millsocksinclude_HEADERS = millsocks.h
 lib_LTLIBRARIES = libmillsocks.la
 
 libmillsocks_la_SOURCES = \
-    bstream.c \
     buf.h \
     buf.c \
     debug.h \
     debug.c \
     ip.h \
     ip.c \
+    millsocks.c \
     tcp.c
 
 libmillsocks_la_LDFLAGS = -no-undefined -version-info @MILLSOCKS_LIBTOOL_VERSION@

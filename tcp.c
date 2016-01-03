@@ -39,24 +39,30 @@
 #include "ip.h"
 #include "millsocks.h"
 
-enum mill_tcp_type {
-   MILL_TCP_LISTENER,
-   MILL_TCP_CONN
-};
+static void mill_tcp_brecv(sock s, void *buf, size_t len,
+    int64_t deadline);
+static void mill_tcp_bsend(sock s, const void *buf, size_t len,
+    int64_t deadline);
+static void mill_tcp_bflush(sock s, int64_t deadline);
 
-struct mill_tcp_sock {
-    enum mill_tcp_type type;
-};
+static struct mill_sock_vfptr mill_tcp_listener_vfptr = {
+    NULL,
+    NULL,
+    NULL};
+
+static struct mill_sock_vfptr mill_tcp_conn_vfptr = {
+    mill_tcp_brecv,
+    mill_tcp_bsend,
+    mill_tcp_bflush};
 
 struct mill_tcp_listener {
-    struct mill_tcp_sock sock;
+    struct mill_sock sock;
     int fd;
     int port;
 };
 
 struct mill_tcp_conn {
-    struct mill_tcp_sock sock;
-    struct mill_bstream *bstream;
+    struct mill_sock sock;
     int fd;
     ipaddr addr;
     struct mill_buf ibuf;
@@ -84,13 +90,13 @@ static void mill_tcp_tune(int s) {
 }
 
 static void mill_tcp_conn_init(struct mill_tcp_conn *c, int fd) {
-    c->sock.type = MILL_TCP_CONN;
+    c->sock.vfptr = &mill_tcp_conn_vfptr;
     c->fd = fd;
     mill_buf_init(&c->ibuf);
     mill_buf_init(&c->obuf);
 }
 
-tcp_sock tcp_listen(ipaddr addr, int backlog) {
+sock tcp_listen(ipaddr addr, int backlog) {
     /* Open the listening socket. */
     int s = socket(mill_ipfamily(&addr), SOCK_STREAM, 0);
     if(s == -1)
@@ -130,35 +136,36 @@ tcp_sock tcp_listen(ipaddr addr, int backlog) {
         errno = ENOMEM;
         return NULL;
     }
-    l->sock.type = MILL_TCP_LISTENER;
+    l->sock.vfptr = &mill_tcp_listener_vfptr;
     l->fd = s;
     l->port = port;
     errno = 0;
     return &l->sock;
 }
 
-ipaddr tcp_addr(tcp_sock s) {
-    if(s->type != MILL_TCP_CONN)
-        mill_panic("trying to get address from a socket that isn't connected");
+ipaddr tcp_addr(sock s) {
+    if(s->vfptr != &mill_tcp_conn_vfptr) {
+        assert(0);
+    }  
     struct mill_tcp_conn *l = (struct mill_tcp_conn*)s;
     return l->addr;
 }
 
-int tcp_port(tcp_sock s) {
-    if(s->type == MILL_TCP_CONN) {
+int tcp_port(sock s) {
+    if(s->vfptr == &mill_tcp_conn_vfptr) {
         struct mill_tcp_conn *c = (struct mill_tcp_conn*)s;
         return mill_ipport(&c->addr);
     }
-    else if(s->type == MILL_TCP_LISTENER) {
+    else if(s->vfptr == &mill_tcp_listener_vfptr) {
         struct mill_tcp_listener *l = (struct mill_tcp_listener*)s;
         return l->port;
     }
-    assert(0);
+    errno = EPROTOTYPE;
+    return -1;
 }
 
-tcp_sock tcp_accept(tcp_sock s, int64_t deadline) {
-    if(s->type != MILL_TCP_LISTENER)
-        mill_panic("trying to accept on a socket that isn't listening");
+sock tcp_accept(sock s, int64_t deadline) {
+    if(s->vfptr != &mill_tcp_listener_vfptr) {errno = EPROTOTYPE; return NULL;}
     struct mill_tcp_listener *l = (struct mill_tcp_listener*)s;
     socklen_t addrlen;
     ipaddr addr;
@@ -178,7 +185,7 @@ tcp_sock tcp_accept(tcp_sock s, int64_t deadline) {
             mill_tcp_conn_init(conn, as);
             conn->addr = addr;
             errno = 0;
-            return (tcp_sock)conn;
+            return &conn->sock;
         }
         assert(as == -1);
         if(errno != EAGAIN && errno != EWOULDBLOCK)
@@ -193,7 +200,7 @@ tcp_sock tcp_accept(tcp_sock s, int64_t deadline) {
     }
 }
 
-tcp_sock tcp_connect(ipaddr addr, int64_t deadline) {
+sock tcp_connect(ipaddr addr, int64_t deadline) {
     /* Open a socket. */
     int s = socket(mill_ipfamily(&addr), SOCK_STREAM, 0);
     if(s == -1)
@@ -239,19 +246,17 @@ tcp_sock tcp_connect(ipaddr addr, int64_t deadline) {
     }
     mill_tcp_conn_init(conn, s);
     errno = 0;
-    return (tcp_sock)conn;
+    return &conn->sock;
 }
 
-void tcp_send(tcp_sock s, const void *buf, size_t len, int64_t deadline) {
-    if(s->type != MILL_TCP_CONN)
-        mill_panic("trying to send to an unconnected socket");
+static void mill_tcp_bsend(sock s, const void *buf, size_t len, int64_t deadline) {
     struct mill_tcp_conn *c = (struct mill_tcp_conn*)s;
     /* If needed, grow the buffer to fit 'len' bytes. */
     mill_buf_resize(&c->obuf, len);
     /* If there's still not enough free space in the buffer, flush the
        pending data. */
     if(mill_buf_emptysz(&c->obuf) < len) {
-        tcp_flush(s, deadline);
+        mill_tcp_bflush(s, deadline);
         if(errno != 0)
             return;
     }
@@ -274,9 +279,7 @@ void tcp_send(tcp_sock s, const void *buf, size_t len, int64_t deadline) {
     errno = 0;
 }
 
-void tcp_flush(tcp_sock s, int64_t deadline) {
-    if(s->type != MILL_TCP_CONN)
-        mill_panic("trying to send to an unconnected socket");
+static void mill_tcp_bflush(sock s, int64_t deadline) {
     struct mill_tcp_conn *c = (struct mill_tcp_conn*)s;
     struct iovec iov[2];
     int nvecs;
@@ -302,9 +305,7 @@ void tcp_flush(tcp_sock s, int64_t deadline) {
     errno = 0;
 }
 
-void tcp_recv(tcp_sock s, void *buf, size_t len, int64_t deadline) {
-    if(s->type != MILL_TCP_CONN)
-        mill_panic("trying to receive from an unconnected socket");
+static void mill_tcp_brecv(sock s, void *buf, size_t len, int64_t deadline) {
     struct mill_tcp_conn *c = (struct mill_tcp_conn*)s;
     int nvecs;
     struct iovec iov[2];
@@ -348,16 +349,17 @@ void tcp_recv(tcp_sock s, void *buf, size_t len, int64_t deadline) {
     errno = 0;
 }
 
-void tcp_close(tcp_sock s) {
-    if(s->type == MILL_TCP_LISTENER) {
+void tcp_close(sock s) {
+    if(s->vfptr == &mill_tcp_listener_vfptr) {
         struct mill_tcp_listener *l = (struct mill_tcp_listener*)s;
         fdclean(l->fd);
         int rc = close(l->fd);
         assert(rc == 0);
         free(l);
+        errno = 0;
         return;
     }
-    if(s->type == MILL_TCP_CONN) {
+    if(s->vfptr == &mill_tcp_conn_vfptr) {
         struct mill_tcp_conn *c = (struct mill_tcp_conn*)s;
         fdclean(c->fd);
         int rc = close(c->fd);
@@ -365,13 +367,9 @@ void tcp_close(tcp_sock s) {
         mill_buf_term(&c->ibuf);
         mill_buf_term(&c->obuf);
         free(c);
+        errno = 0;
         return;
     }
-    assert(0);
-}
-
-bstream tcp_bstream(tcp_sock s) {
-    assert(s->type == MILL_TCP_CONN);
-    return &((struct mill_tcp_conn*)s)->bstream;
+    errno = EPROTOTYPE;
 }
 

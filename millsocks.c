@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2015 Martin Sustrik
+  Copyright (c) 2016 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -22,16 +22,25 @@
 
 */
 
+#include <errno.h>
+
 #include "millsocks.h"
 
-void bstream_send(bstream s, const void *buf, size_t len, int64_t deadline) {
-    (*s)->send(s, buf, len, deadline);
+void brecv(sock s, void *buf, size_t len, int64_t deadline) {
+    if(!s) {errno = EINVAL; return;}
+    if(!s->vfptr || !s->vfptr->brecv) {errno = ENOTSUP; return;}
+    s->vfptr->brecv(s, buf, len, deadline);
 }
 
-void bstream_flush(bstream s, int64_t deadline) {
-    (*s)->flush(s, deadline);
+void bsend(sock s, const void *buf, size_t len, int64_t deadline) {
+    if(!s) {errno = EINVAL; return;}
+    if(!s->vfptr || !s->vfptr->bsend) {errno = ENOTSUP; return;}
+    s->vfptr->bsend(s, buf, len, deadline);
 }
 
-void bstream_recv(bstream s, void *buf, size_t len, int64_t deadline) {
-    (*s)->recv(s, buf, len, deadline);
+void bflush(sock s, int64_t deadline) {
+    if(!s) {errno = EINVAL; return;}
+    if(!s->vfptr || !s->vfptr->bflush) {errno = ENOTSUP; return;}
+    s->vfptr->bflush(s, deadline);
 }
+

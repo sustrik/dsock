@@ -30,19 +30,19 @@
 
 coroutine void client(int port) {
     ipaddr addr = ipremote("127.0.0.1", port, 0, -1);
-    tcp_sock cs = tcp_connect(addr, -1);
+    sock cs = tcp_connect(addr, -1);
     assert(cs);
 
-    tcp_send(cs, "123456", 6, -1);
+    bsend(cs, "123456", 6, -1);
     assert(errno == 0);
-    tcp_flush(cs, -1);
+    bflush(cs, -1);
     assert(errno == 0);
 
     msleep(now() + 100);
 
-    tcp_send(cs, "ABCDEF", 6, -1);
+    bsend(cs, "ABCDEF", 6, -1);
     assert(errno == 0);
-    tcp_flush(cs, -1);
+    bflush(cs, -1);
     assert(errno == 0);
 
     tcp_close(cs);
@@ -50,10 +50,10 @@ coroutine void client(int port) {
 
 int main(void) {
     /* Create a connection. */
-    tcp_sock ls = tcp_listen(iplocal(NULL, 5555, 0), 10);
+    sock ls = tcp_listen(iplocal(NULL, 5555, 0), 10);
     assert(ls);
     go(client(5555));
-    tcp_sock as = tcp_accept(ls, -1);
+    sock as = tcp_accept(ls, -1);
 
     /* Test retrieving address and port. */
     ipaddr addr = tcp_addr(as);
@@ -63,14 +63,14 @@ int main(void) {
 
     /* Test reading data, both with an without the deadline. */
     char buf[10];
-    tcp_recv(as, buf, 4, -1);
+    brecv(as, buf, 4, -1);
     assert(errno == 0 && memcmp(buf, "1234", 4) == 0);
     int64_t deadline = now() + 50;
-    tcp_recv(as, buf, 4, deadline);
+    brecv(as, buf, 4, deadline);
     assert(errno == ETIMEDOUT);
     int64_t diff = now() - deadline;
     assert(diff > -20 && diff < 20);
-    tcp_recv(as, buf, 8, -1);
+    brecv(as, buf, 8, -1);
     assert(errno == 0 && memcmp(buf, "56ABCDEF", 8) == 0);
 
     tcp_close(as);
