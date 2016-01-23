@@ -23,10 +23,10 @@
 */
 
 #include <assert.h>
-#include <libmill.h>
+#include <libdill.h>
 #include <string.h>
 
-#include "../millsocks.h"
+#include "../dillsocks.h"
 
 coroutine void client(int port) {
     ipaddr addr = ipremote("127.0.0.1", port, 0, -1);

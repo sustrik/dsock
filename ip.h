@@ -22,17 +22,17 @@
 
 */
 
-#ifndef MILLSOCKS_IP_INCLUDED
-#define MILLSOCKS_IP_INCLUDED
+#ifndef DILLSOCKS_IP_INCLUDED
+#define DILLSOCKS_IP_INCLUDED
 
-#include <libmill.h>
+#include <libdill.h>
 #include <sys/socket.h>
 
 /* Helper functions for extracting elements from ipaddr. */
-int mill_ipfamily(ipaddr *addr);
-struct sockaddr *mill_ipsockaddr(ipaddr *addr);
-int mill_iplen(ipaddr *addr);
-int mill_ipport(ipaddr *addr);
+int dill_ipfamily(ipaddr *addr);
+struct sockaddr *dill_ipsockaddr(ipaddr *addr);
+int dill_iplen(ipaddr *addr);
+int dill_ipport(ipaddr *addr);
 
 #endif
 

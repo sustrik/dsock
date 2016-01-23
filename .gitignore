@@ -17,11 +17,11 @@ Makefile.in
 config.h
 config.log
 config.status
-libmillsocks.pc
+dillsocks.pc
 libtool
 *.o
 *.lo
-libmillsocks.la
+libdillsocks.la
 test-suite.log
 tests/.dirstamp
 tests/*.log

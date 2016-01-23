@@ -1,1 +1,1 @@
-Millsocks: Socket library for libmill
+Millsocks: Socket library for libdill

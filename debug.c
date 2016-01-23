@@ -27,7 +27,7 @@
 
 #include "debug.h"
 
-void mill_panic(const char *text) {
+void dill_panic(const char *text) {
     fprintf(stderr, "panic: %s\n", text);
     abort();
 }

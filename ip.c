@@ -26,21 +26,21 @@
 
 #include "ip.h"
 
-int mill_ipfamily(ipaddr *addr) {
+int dill_ipfamily(ipaddr *addr) {
     return ((struct sockaddr*)addr)->sa_family;
 }
 
-struct sockaddr *mill_ipsockaddr(ipaddr *addr) {
+struct sockaddr *dill_ipsockaddr(ipaddr *addr) {
     return (struct sockaddr*)addr;
 }
 
-int mill_iplen(ipaddr *addr) {
-    return mill_ipfamily(addr) == AF_INET ?
+int dill_iplen(ipaddr *addr) {
+    return dill_ipfamily(addr) == AF_INET ?
         sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
 }
 
-int mill_ipport(ipaddr *addr) {
-    return ntohs(mill_ipfamily(addr) == AF_INET ?
+int dill_ipport(ipaddr *addr) {
+    return ntohs(dill_ipfamily(addr) == AF_INET ?
         ((struct sockaddr_in*)addr)->sin_port :
         ((struct sockaddr_in6*)addr)->sin6_port);
 }

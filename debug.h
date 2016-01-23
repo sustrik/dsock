@@ -22,10 +22,10 @@
 
 */
 
-#ifndef MILLSOCKS_DEBUG_INCLUDED
-#define MILLSOCKS_DEBUG_INCLUDED
+#ifndef DILLSOCKS_DEBUG_INCLUDED
+#define DILLSOCKS_DEBUG_INCLUDED
 
-void mill_panic(const char *text);
+void dill_panic(const char *text);
 
 #endif
 

@@ -23,32 +23,32 @@
 ACLOCAL_AMFLAGS = -I m4
 
 ################################################################################
-#  millsocks library                                                           #
+#  dillsocks library                                                           #
 ################################################################################
 
-millsocksincludedir = $(includedir)
-millsocksinclude_HEADERS = millsocks.h
+dillsocksincludedir = $(includedir)
+dillsocksinclude_HEADERS = dillsocks.h
 
-lib_LTLIBRARIES = libmillsocks.la
+lib_LTLIBRARIES = libdillsocks.la
 
-libmillsocks_la_SOURCES = \
+libdillsocks_la_SOURCES = \
     buf.h \
     buf.c \
     debug.h \
     debug.c \
     ip.h \
     ip.c \
-    millsocks.c \
+    dillsocks.c \
     tcp.c
 
-libmillsocks_la_LDFLAGS = -no-undefined -version-info @MILLSOCKS_LIBTOOL_VERSION@
+libdillsocks_la_LDFLAGS = -no-undefined -version-info @DILLSOCKS_LIBTOOL_VERSION@
 
-libmillsocks_la_CFLAGS = \
+libdillsocks_la_CFLAGS = \
     -fvisibility=hidden\
-    -DMILLSOCKS_EXPORTS
+    -DDILLSOCKS_EXPORTS
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = libmillsocks.pc
+pkgconfig_DATA = dillsocks.pc
 
 ################################################################################
 #  automated tests                                                             #
@@ -57,7 +57,7 @@ pkgconfig_DATA = libmillsocks.pc
 check_PROGRAMS = \
     tests/tcp
 
-LDADD = libmillsocks.la
+LDADD = libdillsocks.la
 
 TESTS = $(check_PROGRAMS)
 

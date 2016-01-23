@@ -28,7 +28,7 @@
 
 #include "buf.h"
 
-void mill_buf_init(struct mill_buf *b) {
+void dill_buf_init(struct dill_buf *b) {
     b->data = malloc(4000);
     assert(b->data);
     b->capacity = 4000;
@@ -36,15 +36,15 @@ void mill_buf_init(struct mill_buf *b) {
     b->bytes = 0;
 }
 
-void mill_buf_term(struct mill_buf *b) {
+void dill_buf_term(struct dill_buf *b) {
     free(b->data);
 }
 
-size_t mill_buf_datasz(struct mill_buf *b) {
+size_t dill_buf_datasz(struct dill_buf *b) {
     return b->bytes;
 }
 
-int mill_buf_data(struct mill_buf *b, struct iovec *res) {
+int dill_buf_data(struct dill_buf *b, struct iovec *res) {
     if(b->head + b->bytes <= b->capacity) {
         res[0].iov_base = b->data + b->head; 
         res[0].iov_len = b->bytes;
@@ -57,11 +57,11 @@ int mill_buf_data(struct mill_buf *b, struct iovec *res) {
     return 2;
 }
 
-size_t mill_buf_emptysz(struct mill_buf *b) {
+size_t dill_buf_emptysz(struct dill_buf *b) {
     return b->capacity - b->bytes;
 }
 
-int mill_buf_empty(struct mill_buf *b, struct iovec *res) {
+int dill_buf_empty(struct dill_buf *b, struct iovec *res) {
     size_t ehead = (b->head + b->bytes) % b->capacity;
     size_t ebytes = b->capacity - b->bytes;
     if(ehead + ebytes <= b->capacity) {
@@ -76,18 +76,18 @@ int mill_buf_empty(struct mill_buf *b, struct iovec *res) {
     return 2;
 }
 
-void mill_buf_hasread(struct mill_buf *b, size_t sz) {
+void dill_buf_hasread(struct dill_buf *b, size_t sz) {
     assert(sz <= b->bytes);
     b->head = (b->head + sz) % b->capacity;
     b->bytes -= sz;
 }
 
-void mill_buf_haswritten(struct mill_buf *b, size_t sz) {
+void dill_buf_haswritten(struct dill_buf *b, size_t sz) {
     assert(b->bytes + sz <= b->capacity);
     b->bytes += sz;
 }
 
-void mill_buf_resize(struct mill_buf *b, size_t sz) {
+void dill_buf_resize(struct dill_buf *b, size_t sz) {
     if(sz <= b->capacity)
         return;
     b->data = realloc(b->data, sz);

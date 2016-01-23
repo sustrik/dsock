@@ -26,9 +26,9 @@
 
 AC_PREREQ([2.53])
 
-AC_INIT([millsocks], [m4_esyscmd([./package_version.sh])],
-   [libmill@freelists.org], [millsocks], [http://libmill.org/])
-AC_CONFIG_SRCDIR([libmillsocks.pc.in])
+AC_INIT([dillsocks], [m4_esyscmd([./package_version.sh])],
+   [libmill@freelists.org], [dillsocks], [http://libdill.org/])
+AC_CONFIG_SRCDIR([dillsocks.pc.in])
 AM_INIT_AUTOMAKE([1.6 foreign subdir-objects tar-ustar])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
@@ -41,16 +41,16 @@ AC_CANONICAL_HOST
 AC_PROG_SED
 AC_PROG_AWK
 
-MILLSOCKS_ABI_VERSION=m4_esyscmd([./abi_version.sh])
-MILLSOCKS_PACKAGE_VERSION=m4_esyscmd([./package_version.sh])
-MILLSOCKS_LIBTOOL_VERSION=m4_esyscmd([./abi_version.sh -libtool])
+DILLSOCKS_ABI_VERSION=m4_esyscmd([./abi_version.sh])
+DILLSOCKS_PACKAGE_VERSION=m4_esyscmd([./package_version.sh])
+DILLSOCKS_LIBTOOL_VERSION=m4_esyscmd([./abi_version.sh -libtool])
 
-AC_SUBST(MILLSOCKS_ABI_VERSION)
-AC_SUBST(MILLSOCKS_PACKAGE_VERSION)
-AC_SUBST(MILLSOCKS_LIBTOOL_VERSION)
+AC_SUBST(DILLSOCKS_ABI_VERSION)
+AC_SUBST(DILLSOCKS_PACKAGE_VERSION)
+AC_SUBST(DILLSOCKS_LIBTOOL_VERSION)
 
-AC_MSG_NOTICE([Millsocks package version: $MILLSOCKS_PACKAGE_VERSION])
-AC_MSG_NOTICE([Millsocks ABI version: $MILLSOCKS_ABI_VERSION])
+AC_MSG_NOTICE([Millsocks package version: $DILLSOCKS_PACKAGE_VERSION])
+AC_MSG_NOTICE([Millsocks ABI version: $DILLSOCKS_ABI_VERSION])
 
 ################################################################################
 #  Check the compilers.                                                        #
@@ -75,7 +75,7 @@ fi
 #  Feature checks.                                                             #
 ################################################################################
 
-AC_CHECK_LIB([mill], [iplocal])
+AC_CHECK_LIB([dill], [iplocal])
 AC_CHECK_FUNCS([iplocal])
 
 # SunOS has sockets in a separate library.
@@ -93,6 +93,6 @@ LT_INIT
 
 AC_CONFIG_MACRO_DIR([m4])
 
-AC_OUTPUT([Makefile libmillsocks.pc])
+AC_OUTPUT([Makefile dillsocks.pc])
 cp confdefs.h config.h
 

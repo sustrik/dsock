@@ -22,32 +22,32 @@
 
 */
 
-#ifndef MILLSOCKS_BUF_INCLUDED
-#define MILLSOCKS_BUF_INCLUDED
+#ifndef DILLSOCKS_BUF_INCLUDED
+#define DILLSOCKS_BUF_INCLUDED
 
 #include <stdint.h>
 #include <sys/uio.h>
 
 /* Cyclic buffer. */
-struct mill_buf {
+struct dill_buf {
     uint8_t *data;
     size_t head;
     size_t bytes;
     size_t capacity;
 };
 
-void mill_buf_init(struct mill_buf *b);
-void mill_buf_term(struct mill_buf *b);
+void dill_buf_init(struct dill_buf *b);
+void dill_buf_term(struct dill_buf *b);
 
-size_t mill_buf_datasz(struct mill_buf *b);
-int mill_buf_data(struct mill_buf *b, struct iovec *res);
-size_t mill_buf_emptysz(struct mill_buf *b);
-int mill_buf_empty(struct mill_buf *b, struct iovec *res);
+size_t dill_buf_datasz(struct dill_buf *b);
+int dill_buf_data(struct dill_buf *b, struct iovec *res);
+size_t dill_buf_emptysz(struct dill_buf *b);
+int dill_buf_empty(struct dill_buf *b, struct iovec *res);
 
-void mill_buf_hasread(struct mill_buf *b, size_t sz);
-void mill_buf_haswritten(struct mill_buf *b, size_t sz);
+void dill_buf_hasread(struct dill_buf *b, size_t sz);
+void dill_buf_haswritten(struct dill_buf *b, size_t sz);
 
-void mill_buf_resize(struct mill_buf *b, size_t sz);
+void dill_buf_resize(struct dill_buf *b, size_t sz);
 
 #endif
 

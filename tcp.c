@@ -37,39 +37,39 @@
 #include "buf.h"
 #include "debug.h"
 #include "ip.h"
-#include "millsocks.h"
+#include "dillsocks.h"
 
-static void mill_tcp_brecv(sock s, void *buf, size_t len,
+static void dill_tcp_brecv(sock s, void *buf, size_t len,
     int64_t deadline);
-static void mill_tcp_bsend(sock s, const void *buf, size_t len,
+static void dill_tcp_bsend(sock s, const void *buf, size_t len,
     int64_t deadline);
-static void mill_tcp_bflush(sock s, int64_t deadline);
+static void dill_tcp_bflush(sock s, int64_t deadline);
 
-static struct mill_sock_vfptr mill_tcp_listener_vfptr = {
+static struct dill_sock_vfptr dill_tcp_listener_vfptr = {
     NULL,
     NULL,
     NULL};
 
-static struct mill_sock_vfptr mill_tcp_conn_vfptr = {
-    mill_tcp_brecv,
-    mill_tcp_bsend,
-    mill_tcp_bflush};
+static struct dill_sock_vfptr dill_tcp_conn_vfptr = {
+    dill_tcp_brecv,
+    dill_tcp_bsend,
+    dill_tcp_bflush};
 
-struct mill_tcp_listener {
-    struct mill_sock sock;
+struct dill_tcp_listener {
+    struct dill_sock sock;
     int fd;
     int port;
 };
 
-struct mill_tcp_conn {
-    struct mill_sock sock;
+struct dill_tcp_conn {
+    struct dill_sock sock;
     int fd;
     ipaddr addr;
-    struct mill_buf ibuf;
-    struct mill_buf obuf;
+    struct dill_buf ibuf;
+    struct dill_buf obuf;
 };
 
-static void mill_tcp_tune(int s) {
+static void dill_tcp_tune(int s) {
     /* Make the socket non-blocking. */
     int opt = fcntl(s, F_GETFL, 0);
     if (opt == -1)
@@ -89,22 +89,22 @@ static void mill_tcp_tune(int s) {
 #endif
 }
 
-static void mill_tcp_conn_init(struct mill_tcp_conn *c, int fd) {
-    c->sock.vfptr = &mill_tcp_conn_vfptr;
+static void dill_tcp_conn_init(struct dill_tcp_conn *c, int fd) {
+    c->sock.vfptr = &dill_tcp_conn_vfptr;
     c->fd = fd;
-    mill_buf_init(&c->ibuf);
-    mill_buf_init(&c->obuf);
+    dill_buf_init(&c->ibuf);
+    dill_buf_init(&c->obuf);
 }
 
 sock tcp_listen(ipaddr addr, int backlog) {
     /* Open the listening socket. */
-    int s = socket(mill_ipfamily(&addr), SOCK_STREAM, 0);
+    int s = socket(dill_ipfamily(&addr), SOCK_STREAM, 0);
     if(s == -1)
         return NULL;
-    mill_tcp_tune(s);
+    dill_tcp_tune(s);
 
     /* Start listening. */
-    int rc = bind(s, mill_ipsockaddr(&addr), mill_iplen(&addr));
+    int rc = bind(s, dill_ipsockaddr(&addr), dill_iplen(&addr));
     if(rc != 0)
         return NULL;
     rc = listen(s, backlog);
@@ -113,11 +113,11 @@ sock tcp_listen(ipaddr addr, int backlog) {
 
     /* If the user requested an ephemeral port,
        retrieve the port number assigned by the OS now. */
-    int port = mill_ipport(&addr);
+    int port = dill_ipport(&addr);
     if(!port == 0) {
         ipaddr baddr;
         socklen_t len = sizeof(ipaddr);
-        rc = getsockname(s, mill_ipsockaddr(&baddr), &len);
+        rc = getsockname(s, dill_ipsockaddr(&baddr), &len);
         if(rc == -1) {
             int err = errno;
             fdclean(s);
@@ -125,18 +125,18 @@ sock tcp_listen(ipaddr addr, int backlog) {
             errno = err;
             return NULL;
         }
-        port = mill_ipport(&baddr);
+        port = dill_ipport(&baddr);
     }
 
     /* Create the object. */
-    struct mill_tcp_listener *l = malloc(sizeof(struct mill_tcp_listener));
+    struct dill_tcp_listener *l = malloc(sizeof(struct dill_tcp_listener));
     if(!l) {
         fdclean(s);
         close(s);
         errno = ENOMEM;
         return NULL;
     }
-    l->sock.vfptr = &mill_tcp_listener_vfptr;
+    l->sock.vfptr = &dill_tcp_listener_vfptr;
     l->fd = s;
     l->port = port;
     errno = 0;
@@ -144,20 +144,20 @@ sock tcp_listen(ipaddr addr, int backlog) {
 }
 
 ipaddr tcp_addr(sock s) {
-    if(s->vfptr != &mill_tcp_conn_vfptr) {
+    if(s->vfptr != &dill_tcp_conn_vfptr) {
         assert(0);
     }  
-    struct mill_tcp_conn *l = (struct mill_tcp_conn*)s;
+    struct dill_tcp_conn *l = (struct dill_tcp_conn*)s;
     return l->addr;
 }
 
 int tcp_port(sock s) {
-    if(s->vfptr == &mill_tcp_conn_vfptr) {
-        struct mill_tcp_conn *c = (struct mill_tcp_conn*)s;
-        return mill_ipport(&c->addr);
+    if(s->vfptr == &dill_tcp_conn_vfptr) {
+        struct dill_tcp_conn *c = (struct dill_tcp_conn*)s;
+        return dill_ipport(&c->addr);
     }
-    else if(s->vfptr == &mill_tcp_listener_vfptr) {
-        struct mill_tcp_listener *l = (struct mill_tcp_listener*)s;
+    else if(s->vfptr == &dill_tcp_listener_vfptr) {
+        struct dill_tcp_listener *l = (struct dill_tcp_listener*)s;
         return l->port;
     }
     errno = EPROTOTYPE;
@@ -165,24 +165,24 @@ int tcp_port(sock s) {
 }
 
 sock tcp_accept(sock s, int64_t deadline) {
-    if(s->vfptr != &mill_tcp_listener_vfptr) {errno = EPROTOTYPE; return NULL;}
-    struct mill_tcp_listener *l = (struct mill_tcp_listener*)s;
+    if(s->vfptr != &dill_tcp_listener_vfptr) {errno = EPROTOTYPE; return NULL;}
+    struct dill_tcp_listener *l = (struct dill_tcp_listener*)s;
     socklen_t addrlen;
     ipaddr addr;
     while(1) {
         /* Try to get new connection (non-blocking). */
         addrlen = sizeof(addr);
-        int as = accept(l->fd, mill_ipsockaddr(&addr), &addrlen);
+        int as = accept(l->fd, dill_ipsockaddr(&addr), &addrlen);
         if (as >= 0) {
-            mill_tcp_tune(as);
-            struct mill_tcp_conn *conn = malloc(sizeof(struct mill_tcp_conn));
+            dill_tcp_tune(as);
+            struct dill_tcp_conn *conn = malloc(sizeof(struct dill_tcp_conn));
             if(!conn) {
                 fdclean(as);
                 close(as);
                 errno = ENOMEM;
                 return NULL;
             }
-            mill_tcp_conn_init(conn, as);
+            dill_tcp_conn_init(conn, as);
             conn->addr = addr;
             errno = 0;
             return &conn->sock;
@@ -202,13 +202,13 @@ sock tcp_accept(sock s, int64_t deadline) {
 
 sock tcp_connect(ipaddr addr, int64_t deadline) {
     /* Open a socket. */
-    int s = socket(mill_ipfamily(&addr), SOCK_STREAM, 0);
+    int s = socket(dill_ipfamily(&addr), SOCK_STREAM, 0);
     if(s == -1)
         return NULL;
-    mill_tcp_tune(s);
+    dill_tcp_tune(s);
 
     /* Connect to the remote endpoint. */
-    int rc = connect(s, mill_ipsockaddr(&addr), mill_iplen(&addr));
+    int rc = connect(s, dill_ipsockaddr(&addr), dill_iplen(&addr));
     if(rc != 0) {
         assert(rc == -1);
         if(errno != EINPROGRESS)
@@ -237,32 +237,32 @@ sock tcp_connect(ipaddr addr, int64_t deadline) {
     }
 
     /* Create the object. */
-    struct mill_tcp_conn *conn = malloc(sizeof(struct mill_tcp_conn));
+    struct dill_tcp_conn *conn = malloc(sizeof(struct dill_tcp_conn));
     if(!conn) {
         fdclean(s);
         close(s);
         errno = ENOMEM;
         return NULL;
     }
-    mill_tcp_conn_init(conn, s);
+    dill_tcp_conn_init(conn, s);
     errno = 0;
     return &conn->sock;
 }
 
-static void mill_tcp_bsend(sock s, const void *buf, size_t len, int64_t deadline) {
-    struct mill_tcp_conn *c = (struct mill_tcp_conn*)s;
+static void dill_tcp_bsend(sock s, const void *buf, size_t len, int64_t deadline) {
+    struct dill_tcp_conn *c = (struct dill_tcp_conn*)s;
     /* If needed, grow the buffer to fit 'len' bytes. */
-    mill_buf_resize(&c->obuf, len);
+    dill_buf_resize(&c->obuf, len);
     /* If there's still not enough free space in the buffer, flush the
        pending data. */
-    if(mill_buf_emptysz(&c->obuf) < len) {
-        mill_tcp_bflush(s, deadline);
+    if(dill_buf_emptysz(&c->obuf) < len) {
+        dill_tcp_bflush(s, deadline);
         if(errno != 0)
             return;
     }
     /* At this point there is enough data to fill in user's buffer. */
     struct iovec iov[2];
-    int nvecs = mill_buf_empty(&c->obuf, iov);
+    int nvecs = dill_buf_empty(&c->obuf, iov);
     int i = 0;
     size_t todo = len;
     while(todo) {
@@ -274,17 +274,17 @@ static void mill_tcp_bsend(sock s, const void *buf, size_t len, int64_t deadline
         assert(i <= nvecs);
     }
     assert(todo == 0);
-    mill_buf_haswritten(&c->obuf, len);
+    dill_buf_haswritten(&c->obuf, len);
     /* Success. */
     errno = 0;
 }
 
-static void mill_tcp_bflush(sock s, int64_t deadline) {
-    struct mill_tcp_conn *c = (struct mill_tcp_conn*)s;
+static void dill_tcp_bflush(sock s, int64_t deadline) {
+    struct dill_tcp_conn *c = (struct dill_tcp_conn*)s;
     struct iovec iov[2];
     int nvecs;
-    while(mill_buf_datasz(&c->obuf)) {
-        nvecs = mill_buf_data(&c->obuf, iov);
+    while(dill_buf_datasz(&c->obuf)) {
+        nvecs = dill_buf_data(&c->obuf, iov);
         struct msghdr hdr;
         memset(&hdr, 0, sizeof(hdr));
         hdr.msg_iov = iov;
@@ -299,20 +299,20 @@ static void mill_tcp_bflush(sock s, int64_t deadline) {
             }
             continue;
         }
-        mill_buf_hasread(&c->obuf, nbytes);
+        dill_buf_hasread(&c->obuf, nbytes);
     }
     /* Success. */
     errno = 0;
 }
 
-static void mill_tcp_brecv(sock s, void *buf, size_t len, int64_t deadline) {
-    struct mill_tcp_conn *c = (struct mill_tcp_conn*)s;
+static void dill_tcp_brecv(sock s, void *buf, size_t len, int64_t deadline) {
+    struct dill_tcp_conn *c = (struct dill_tcp_conn*)s;
     int nvecs;
     struct iovec iov[2];
     /* Read more data until we have enough to fill in caller's buffer. */
-    mill_buf_resize(&c->ibuf, len);
-    while(mill_buf_datasz(&c->ibuf) < len) {
-        nvecs = mill_buf_empty(&c->ibuf, iov);
+    dill_buf_resize(&c->ibuf, len);
+    while(dill_buf_datasz(&c->ibuf) < len) {
+        nvecs = dill_buf_empty(&c->ibuf, iov);
         struct msghdr hdr;
         memset(&hdr, 0, sizeof(hdr));
         hdr.msg_iov = iov;
@@ -331,10 +331,10 @@ static void mill_tcp_brecv(sock s, void *buf, size_t len, int64_t deadline) {
             }
             continue;
         }
-        mill_buf_haswritten(&c->ibuf, nbytes);
+        dill_buf_haswritten(&c->ibuf, nbytes);
     }
     /* We have enough data now. Let's return it to the caller. */
-    nvecs = mill_buf_data(&c->ibuf, iov);
+    nvecs = dill_buf_data(&c->ibuf, iov);
     int i;
     size_t todo = len;
     for(i = 0; i != nvecs; ++i) {
@@ -344,14 +344,14 @@ static void mill_tcp_brecv(sock s, void *buf, size_t len, int64_t deadline) {
         todo -= tocopy;
     }
     assert(todo == 0);
-    mill_buf_hasread(&c->ibuf, len);
+    dill_buf_hasread(&c->ibuf, len);
     /* Success. */
     errno = 0;
 }
 
 void tcp_close(sock s) {
-    if(s->vfptr == &mill_tcp_listener_vfptr) {
-        struct mill_tcp_listener *l = (struct mill_tcp_listener*)s;
+    if(s->vfptr == &dill_tcp_listener_vfptr) {
+        struct dill_tcp_listener *l = (struct dill_tcp_listener*)s;
         fdclean(l->fd);
         int rc = close(l->fd);
         assert(rc == 0);
@@ -359,13 +359,13 @@ void tcp_close(sock s) {
         errno = 0;
         return;
     }
-    if(s->vfptr == &mill_tcp_conn_vfptr) {
-        struct mill_tcp_conn *c = (struct mill_tcp_conn*)s;
+    if(s->vfptr == &dill_tcp_conn_vfptr) {
+        struct dill_tcp_conn *c = (struct dill_tcp_conn*)s;
         fdclean(c->fd);
         int rc = close(c->fd);
         assert(rc == 0);
-        mill_buf_term(&c->ibuf);
-        mill_buf_term(&c->obuf);
+        dill_buf_term(&c->ibuf);
+        dill_buf_term(&c->obuf);
         free(c);
         errno = 0;
         return;
