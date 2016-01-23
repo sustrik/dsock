@@ -31,7 +31,11 @@ dillsocksinclude_HEADERS = dillsocks.h
 
 lib_LTLIBRARIES = libdillsocks.la
 
-libdillsocks_la_SOURCES =
+libdillsocks_la_SOURCES = \
+    ip.c \
+    utils.h \
+    dns/dns.h \
+    dns/dns.c
 
 libdillsocks_la_LDFLAGS = -no-undefined -version-info \
     @DILLSOCKS_LIBTOOL_VERSION@

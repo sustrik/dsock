@@ -21,6 +21,7 @@ dillsocks.pc
 libtool
 *.o
 *.lo
+dns/.dirstamp
 libdillsocks.la
 test-suite.log
 tests/.dirstamp

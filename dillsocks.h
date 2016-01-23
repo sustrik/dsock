@@ -73,9 +73,21 @@
 #endif
 
 /******************************************************************************/
-/*  TODO                                                                      */
+/*  IP address resolution                                                     */
 /******************************************************************************/
 
+#define IPADDR_IPV4 1
+#define IPADDR_IPV6 2
+#define IPADDR_PREF_IPV4 3
+#define IPADDR_PREF_IPV6 4
+#define IPADDR_MAXSTRLEN 46
+
+typedef struct {char data[32];} ipaddr;
+
+DILL_EXPORT ipaddr iplocal(const char *name, int port, int mode);
+DILL_EXPORT ipaddr ipremote(const char *name, int port, int mode,
+    int64_t deadline);
+DILL_EXPORT const char *ipaddrstr(ipaddr addr, char *ipstr);
 
 #endif
 
