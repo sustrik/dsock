@@ -142,24 +142,24 @@ static ipaddr dill_ipliteral(const char *addr, int port, int mode) {
     }
 }
 
-int dill_ipfamily(ipaddr addr) {
+int ipfamily(ipaddr addr) {
     return ((struct sockaddr*)&addr)->sa_family;
 }
 
-int dill_iplen(ipaddr addr) {
-    return dill_ipfamily(addr) == AF_INET ?
+int iplen(ipaddr addr) {
+    return ipfamily(addr) == AF_INET ?
         sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
 }
 
-int dill_ipport(ipaddr addr) {
-    return ntohs(dill_ipfamily(addr) == AF_INET ?
+int ipport(ipaddr addr) {
+    return ntohs(ipfamily(addr) == AF_INET ?
         ((struct sockaddr_in*)&addr)->sin_port :
         ((struct sockaddr_in6*)&addr)->sin6_port);
 }
 
 /* Convert IP address from network format to ASCII dot notation. */
 const char *ipaddrstr(ipaddr addr, char *ipstr) {
-    if (dill_ipfamily(addr) == AF_INET) {
+    if (ipfamily(addr) == AF_INET) {
         return inet_ntop(AF_INET, &(((struct sockaddr_in*)&addr)->sin_addr),
             ipstr, INET_ADDRSTRLEN);
     }

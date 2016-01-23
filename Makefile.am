@@ -33,6 +33,7 @@ lib_LTLIBRARIES = libdillsocks.la
 
 libdillsocks_la_SOURCES = \
     ip.c \
+    tcp.c \
     utils.h \
     dns/dns.h \
     dns/dns.c

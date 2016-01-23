@@ -84,10 +84,36 @@
 
 typedef struct {char data[32];} ipaddr;
 
-DILL_EXPORT ipaddr iplocal(const char *name, int port, int mode);
-DILL_EXPORT ipaddr ipremote(const char *name, int port, int mode,
+DILLSOCKS_EXPORT ipaddr iplocal(const char *name, int port, int mode);
+DILLSOCKS_EXPORT ipaddr ipremote(const char *name, int port, int mode,
     int64_t deadline);
-DILL_EXPORT const char *ipaddrstr(ipaddr addr, char *ipstr);
+DILLSOCKS_EXPORT const char *ipaddrstr(ipaddr addr, char *ipstr);
+
+DILLSOCKS_EXPORT int ipfamily(ipaddr addr);
+DILLSOCKS_EXPORT int iplen(ipaddr addr);
+DILLSOCKS_EXPORT int ipport(ipaddr addr);
+
+/******************************************************************************/
+/*  TCP socket                                                                */
+/******************************************************************************/
+
+typedef struct dill_tcpsock *tcpsock;
+
+DILLSOCKS_EXPORT tcpsock tcplisten(ipaddr addr, int backlog);
+DILLSOCKS_EXPORT int tcpport(tcpsock s);
+DILLSOCKS_EXPORT tcpsock tcpaccept(tcpsock s, int64_t deadline);
+DILLSOCKS_EXPORT ipaddr tcpaddr(tcpsock s);
+DILLSOCKS_EXPORT tcpsock tcpconnect(ipaddr addr, int64_t deadline);
+DILLSOCKS_EXPORT size_t tcpsend(tcpsock s, const void *buf, size_t len,
+    int64_t deadline);
+DILLSOCKS_EXPORT void tcpflush(tcpsock s, int64_t deadline);
+DILLSOCKS_EXPORT size_t tcprecv(tcpsock s, void *buf, size_t len,
+    int64_t deadline);
+DILLSOCKS_EXPORT size_t tcprecvuntil(tcpsock s, void *buf, size_t len,
+    const char *delims, size_t delimcount, int64_t deadline);
+DILLSOCKS_EXPORT void tcpclose(tcpsock s);
+DILLSOCKS_EXPORT tcpsock tcpattach(int fd, int listening);
+DILLSOCKS_EXPORT int tcpdetach(tcpsock s);
 
 #endif
 
