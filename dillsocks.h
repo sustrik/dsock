@@ -73,39 +73,9 @@
 #endif
 
 /******************************************************************************/
-/*  Generic socket.                                                           */
+/*  TODO                                                                      */
 /******************************************************************************/
 
-typedef struct dill_sock *sock;
-
-struct dill_sock_vfptr {
-    void (*brecv)(sock s, void *buf, size_t len, int64_t deadline);
-    void (*bsend)(sock s, const void *buf, size_t len, int64_t deadline);
-    void (*bflush)(sock s, int64_t deadline);
-};
-
-struct dill_sock {
-    struct dill_sock_vfptr *vfptr;
-};
-
-DILLSOCKS_EXPORT void brecv(sock s, void *buf, size_t len,
-    int64_t deadline);
-DILLSOCKS_EXPORT void bsend(sock s, const void *buf, size_t len,
-    int64_t deadline);
-DILLSOCKS_EXPORT void bflush(sock s, int64_t deadline);
-
-/* TODO: msend, mrecv, mflush */
-
-/******************************************************************************/
-/*  TCP                                                                       */
-/******************************************************************************/
-
-DILLSOCKS_EXPORT sock tcp_listen(ipaddr addr, int backlog);
-DILLSOCKS_EXPORT int tcp_port(sock s);
-DILLSOCKS_EXPORT sock tcp_accept(sock s, int64_t deadline);
-DILLSOCKS_EXPORT ipaddr tcp_addr(sock s);
-DILLSOCKS_EXPORT sock tcp_connect(ipaddr addr, int64_t deadline);
-DILLSOCKS_EXPORT void tcp_close(sock s);
 
 #endif
 

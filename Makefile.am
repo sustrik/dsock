@@ -31,15 +31,7 @@ dillsocksinclude_HEADERS = dillsocks.h
 
 lib_LTLIBRARIES = libdillsocks.la
 
-libdillsocks_la_SOURCES = \
-    buf.h \
-    buf.c \
-    debug.h \
-    debug.c \
-    ip.h \
-    ip.c \
-    dillsocks.c \
-    tcp.c
+libdillsocks_la_SOURCES =
 
 libdillsocks_la_LDFLAGS = -no-undefined -version-info @DILLSOCKS_LIBTOOL_VERSION@
 
