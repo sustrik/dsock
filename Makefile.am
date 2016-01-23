@@ -33,7 +33,8 @@ lib_LTLIBRARIES = libdillsocks.la
 
 libdillsocks_la_SOURCES =
 
-libdillsocks_la_LDFLAGS = -no-undefined -version-info @DILLSOCKS_LIBTOOL_VERSION@
+libdillsocks_la_LDFLAGS = -no-undefined -version-info \
+    @DILLSOCKS_LIBTOOL_VERSION@
 
 libdillsocks_la_CFLAGS = \
     -fvisibility=hidden\
@@ -46,8 +47,7 @@ pkgconfig_DATA = dillsocks.pc
 #  automated tests                                                             #
 ################################################################################
 
-check_PROGRAMS = \
-    tests/tcp
+check_PROGRAMS =
 
 LDADD = libdillsocks.la
 
