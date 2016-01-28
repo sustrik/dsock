@@ -22,56 +22,52 @@
 
 */
 
-#include <arpa/inet.h>
-#include <errno.h>
 #include <fcntl.h>
-#include <netinet/in.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <unistd.h>
 
 #include "dillsocks.h"
 #include "utils.h"
 
-/* The buffer size is based on typical Ethernet MTU (1500 bytes). Making it
-   smaller would yield small suboptimal packets. Making it higher would bring
-   no substantial benefit. The value is made smaller to account for IPv4/IPv6
-   and TCP headers. Few more bytes are subtracted to account for any possible
-   IP or TCP options */
-#ifndef DILL_TCP_BUFLEN
-#define DILL_TCP_BUFLEN (1500 - 68)
-#endif
+/* Deliberately larger than standard IP packet size. */
+#define TCPMINRECVBUF 2048
+#define TCPMINSENDBUF 2048
 
-enum dill_tcptype {
-   DILL_TCPLISTENER,
-   DILL_TCPCONN
-};
+static int tcprecv(sock s, void *buf, size_t len, int64_t deadline);
+static int tcpsend(sock s, const void *buf, size_t len, int64_t deadline);
+static int tcpflush(sock s, int64_t deadline);
 
-struct dill_tcpsock {
-    enum dill_tcptype type;
-};
-
-struct dill_tcplistener {
-    struct dill_tcpsock sock;
+struct tcplistener {
+    struct sock_vfptr *vfptr;
     int fd;
     int port;
 };
 
-struct dill_tcpconn {
-    struct dill_tcpsock sock;
+static struct sock_vfptr tcplistener_vfptr = {0};
+
+struct tcpconn {
+    struct sock_vfptr *vfptr;
     int fd;
-    size_t ifirst;
-    size_t ilen;
-    size_t olen;
-    char ibuf[DILL_TCP_BUFLEN];
-    char obuf[DILL_TCP_BUFLEN];
+    uint8_t *rbuf;
+    size_t rbufsz;
+    size_t rcapacity;
+    uint8_t *sbuf;
+    size_t sbufsz;
+    size_t scapacity;
     ipaddr addr;
 };
 
-static void dill_tcptune(int s) {
+static struct sock_vfptr tcpconn_vfptr = {
+    tcprecv,
+    tcpsend,
+    tcpflush,
+    NULL,
+    NULL,
+    NULL
+};
+
+static void tcptune(int s) {
     /* Make the socket non-blocking. */
     int opt = fcntl(s, F_GETFL, 0);
     if (opt == -1)
@@ -91,33 +87,40 @@ static void dill_tcptune(int s) {
 #endif
 }
 
-static void tcpconn_init(struct dill_tcpconn *conn, int fd) {
-    conn->sock.type = DILL_TCPCONN;
-    conn->fd = fd;
-    conn->ifirst = 0;
-    conn->ilen = 0;
-    conn->olen = 0;
+static int tcpconn_init(struct tcpconn *c, int fd) {
+    c->vfptr = &tcpconn_vfptr;
+    c->fd = fd;
+    c->rbuf = malloc(TCPMINRECVBUF);
+    if(dill_slow(!c->rbuf)) {errno = ENOMEM; return -1;}
+    c->rbufsz = 0;
+    c->rcapacity = TCPMINRECVBUF;
+    c->sbuf = malloc(TCPMINSENDBUF);
+    if(dill_slow(!c->sbuf)) {
+        free(c->rbuf);
+        errno = ENOMEM;
+        return -1;
+    }
+    c->sbufsz = 0;
+    c->scapacity = TCPMINSENDBUF;
+    return 0;
 }
 
-tcpsock tcplisten(ipaddr addr, int backlog) {
-    /* Open the listening socket. */
+sock tcplisten(const ipaddr *addr, int backlog) {
+    if(dill_slow(backlog < 0)) {errno = EINVAL; return NULL;}
+    /* Open listening socket. */
     int s = socket(ipfamily(addr), SOCK_STREAM, 0);
-    if(s == -1)
-        return NULL;
-    dill_tcptune(s);
-
+    if(s == -1) return NULL;
+    tcptune(s);
     /* Start listening. */
-    int rc = bind(s, (struct sockaddr*)&addr, iplen(addr));
-    if(rc != 0)
-        return NULL;
+    int rc = bind(s, ipsockaddr(addr), iplen(addr));
+    if(rc != 0) return NULL;
     rc = listen(s, backlog);
-    if(rc != 0)
-        return NULL;
-
+    if(rc != 0) return NULL;
+    dill_assert(0);
     /* If the user requested an ephemeral port,
        retrieve the port number assigned by the OS now. */
     int port = ipport(addr);
-    if(!port == 0) {
+    if(port == 0) {
         ipaddr baddr;
         socklen_t len = sizeof(ipaddr);
         rc = getsockname(s, (struct sockaddr*)&baddr, &len);
@@ -128,91 +131,73 @@ tcpsock tcplisten(ipaddr addr, int backlog) {
             errno = err;
             return NULL;
         }
-        port = ipport(baddr);
+        port = ipport(&baddr);
     }
-
     /* Create the object. */
-    struct dill_tcplistener *l = malloc(sizeof(struct dill_tcplistener));
-    if(!l) {
+    struct tcplistener *l = malloc(sizeof(struct tcplistener));
+    if(dill_slow(!l)) {
         fdclean(s);
         close(s);
         errno = ENOMEM;
         return NULL;
     }
-    l->sock.type = DILL_TCPLISTENER;
+    l->vfptr = &tcplistener_vfptr;
     l->fd = s;
     l->port = port;
-    errno = 0;
-    return &l->sock;
+    return (sock)l;
 }
 
-int tcpport(tcpsock s) {
-    if(s->type == DILL_TCPCONN) {
-        struct dill_tcpconn *c = (struct dill_tcpconn*)s;
-        return ipport(c->addr);
-    }
-    else if(s->type == DILL_TCPLISTENER) {
-        struct dill_tcplistener *l = (struct dill_tcplistener*)s;
-        return l->port;
-    }
-    dill_assert(0);
-}
-
-tcpsock tcpaccept(tcpsock s, int64_t deadline) {
-    if(s->type != DILL_TCPLISTENER)
-        dill_panic("trying to accept on a socket that isn't listening");
-    struct dill_tcplistener *l = (struct dill_tcplistener*)s;
-    socklen_t addrlen;
-    ipaddr addr;
+sock tcpaccept(sock s, int64_t deadline) {
+    if(dill_slow(*s != &tcplistener_vfptr)) {errno = EPROTOTYPE; return NULL;}
+    struct tcplistener *l = (struct tcplistener*)s;
     while(1) {
         /* Try to get new connection (non-blocking). */
+        socklen_t addrlen;
+        ipaddr addr;
         addrlen = sizeof(addr);
-        int as = accept(l->fd, (struct sockaddr *)&addr, &addrlen);
-        if (as >= 0) {
-            dill_tcptune(as);
-            struct dill_tcpconn *conn = malloc(sizeof(struct dill_tcpconn));
-            if(!conn) {
+        int as = accept(l->fd, (struct sockaddr*)&addr, &addrlen);
+        if(as >= 0) {
+            tcptune(as);
+            struct tcpconn *c = malloc(sizeof(struct tcpconn));
+            if(dill_slow(!c)) {
                 fdclean(as);
                 close(as);
                 errno = ENOMEM;
                 return NULL;
             }
-            tcpconn_init(conn, as);
-            conn->addr = addr;
-            errno = 0;
-            return (tcpsock)conn;
+            int rc = tcpconn_init(c, as);
+            if(dill_slow(rc < 0)) {
+                int err = errno;
+                fdclean(as);
+                close(as);
+                free(c);
+                errno = err;
+                return NULL;
+            }
+            c->addr = addr;
+            return (sock)c;
         }
         dill_assert(as == -1);
-        if(errno != EAGAIN && errno != EWOULDBLOCK)
-            return NULL;
+        if(errno != EAGAIN && errno != EWOULDBLOCK) return NULL;
         /* Wait till new connection is available. */
         int rc = fdwait(l->fd, FDW_IN, deadline);
-        if(rc == 0) {
-            errno = ETIMEDOUT;
-            return NULL;
-        }
+        if(rc < 0) return NULL;
         dill_assert(rc == FDW_IN);
     }
 }
 
-tcpsock tcpconnect(ipaddr addr, int64_t deadline) {
+sock tcpconnect(const ipaddr *addr, int64_t deadline) {
     /* Open a socket. */
     int s = socket(ipfamily(addr), SOCK_STREAM, 0);
-    if(s == -1)
-        return NULL;
-    dill_tcptune(s);
-
+    if(s < 0) return NULL;
+    tcptune(s);
     /* Connect to the remote endpoint. */
-    int rc = connect(s, (struct sockaddr*)&addr, iplen(addr));
+    int rc = connect(s, ipsockaddr(addr), iplen(addr));
     if(rc != 0) {
         dill_assert(rc == -1);
-        if(errno != EINPROGRESS)
-            return NULL;
+        if(errno != EINPROGRESS) return NULL;
         rc = fdwait(s, FDW_OUT, deadline);
-        if(rc == 0) {
-            errno = ETIMEDOUT;
-            return NULL;
-        }
+        if(rc < 0) return NULL;
         int err;
         socklen_t errsz = sizeof(err);
         rc = getsockopt(s, SOL_SOCKET, SO_ERROR, (void*)&err, &errsz);
@@ -221,7 +206,7 @@ tcpsock tcpconnect(ipaddr addr, int64_t deadline) {
             fdclean(s);
             close(s);
             errno = err;
-            return NULL;
+              return NULL;
         }
         if(err != 0) {
             fdclean(s);
@@ -230,270 +215,167 @@ tcpsock tcpconnect(ipaddr addr, int64_t deadline) {
             return NULL;
         }
     }
-
     /* Create the object. */
-    struct dill_tcpconn *conn = malloc(sizeof(struct dill_tcpconn));
-    if(!conn) {
+    struct tcpconn *c = malloc(sizeof(struct tcpconn));
+    if(!c) {
         fdclean(s);
         close(s);
         errno = ENOMEM;
         return NULL;
     }
-    tcpconn_init(conn, s);
-    errno = 0;
-    return (tcpsock)conn;
+    rc = tcpconn_init(c, s);
+    if(dill_slow(rc < 0)) {
+        int err = errno;
+        fdclean(s);
+        close(s);
+        free(c);
+        errno = err;
+        return NULL;
+    }
+    return (sock)c;
 }
 
-size_t tcpsend(tcpsock s, const void *buf, size_t len, int64_t deadline) {
-    if(s->type != DILL_TCPCONN)
-        dill_panic("trying to send to an unconnected socket");
-    struct dill_tcpconn *conn = (struct dill_tcpconn*)s;
-
-    /* If it fits into the output buffer copy it there and be done. */
-    if(conn->olen + len <= DILL_TCP_BUFLEN) {
-        memcpy(&conn->obuf[conn->olen], buf, len);
-        conn->olen += len;
-        errno = 0;
-        return len;
+int tcpport(sock s) {
+    if(*s == &tcpconn_vfptr) {
+        struct tcpconn *c = (struct tcpconn*)s;
+        return ipport(&c->addr);
     }
+    if(*s == &tcplistener_vfptr) {
+        struct tcplistener *l = (struct tcplistener*)s;
+        return l->port;
+    }
+    errno == EPROTOTYPE;
+    return -1;
+}
 
-    /* If it doesn't fit, flush the output buffer first. */
-    tcpflush(s, deadline);
-    if(errno != 0)
+int tcppeer(sock s, ipaddr *addr) {
+    if(dill_slow(*s != &tcpconn_vfptr)) {errno = EPROTOTYPE; return -1;}
+    struct tcpconn *c = (struct tcpconn*)s;
+    if(dill_fast(addr))
+        *addr = c->addr;
+    return 0;
+}
+
+static int tcprecv(sock s, void *buf, size_t len, int64_t deadline) {
+    dill_assert(*s == &tcpconn_vfptr);
+    struct tcpconn *c = (struct tcpconn*)s;
+    /* If there's enough data in the buffer return straight away. */
+    if(len <= c->rbufsz) {
+        memcpy(buf, c->rbuf, len);
+        memmove(c->rbuf, c->rbuf + len, c->rbufsz - len);
+        c->rbufsz -= len;
         return 0;
-
-    /* Try to fit it into the buffer once again. */
-    if(conn->olen + len <= DILL_TCP_BUFLEN) {
-        memcpy(&conn->obuf[conn->olen], buf, len);
-        conn->olen += len;
-        errno = 0;
-        return len;
     }
-
-    /* The data chunk to send is longer than the output buffer.
-       Let's do the sending in-place. */
-    char *pos = (char*)buf;
-    size_t remaining = len;
-    while(remaining) {
-        ssize_t sz = send(conn->fd, pos, remaining, 0);
-        if(sz == -1) {
-            if(errno != EAGAIN && errno != EWOULDBLOCK)
-                return 0;
-            int rc = fdwait(conn->fd, FDW_OUT, deadline);
-            if(rc == 0) {
-                errno = ETIMEDOUT;
-                return len - remaining;
-            }
-            dill_assert(rc == FDW_OUT);
-            continue;
-        }
-        pos += sz;
-        remaining -= sz;
+    /* If needed, resize the buffer so that it can accept all the data. */
+    if(dill_slow(len > c->rcapacity)) {
+        /* TODO: Align the size to a multiple of TCPMINRECVBUF. */
+        uint8_t *newbuf = realloc(c->rbuf, len);
+        if(dill_slow(!newbuf)) {errno = ENOMEM; return -1;}
+        c->rbuf = newbuf;
+        c->rcapacity = len;
     }
-    return len;
-}
-
-void tcpflush(tcpsock s, int64_t deadline) {
-    if(s->type != DILL_TCPCONN)
-        dill_panic("trying to send to an unconnected socket");
-    struct dill_tcpconn *conn = (struct dill_tcpconn*)s;
-    if(!conn->olen) {
-        errno = 0;
-        return;
-    }
-    char *pos = conn->obuf;
-    size_t remaining = conn->olen;
-    while(remaining) {
-        ssize_t sz = send(conn->fd, pos, remaining, 0);
-        if(sz == -1) {
-            if(errno != EAGAIN && errno != EWOULDBLOCK)
-                return;
-            int rc = fdwait(conn->fd, FDW_OUT, deadline);
-            if(rc == 0) {
-                errno = ETIMEDOUT;
-                return;
-            }
-            dill_assert(rc == FDW_OUT);
-            continue;
-        }
-        pos += sz;
-        remaining -= sz;
-    }
-    conn->olen = 0;
-    errno = 0;
-}
-
-size_t tcprecv(tcpsock s, void *buf, size_t len, int64_t deadline) {
-    if(s->type != DILL_TCPCONN)
-        dill_panic("trying to receive from an unconnected socket");
-    struct dill_tcpconn *conn = (struct dill_tcpconn*)s;
-    /* If there's enough data in the buffer it's easy. */
-    if(conn->ilen >= len) {
-        memcpy(buf, &conn->ibuf[conn->ifirst], len);
-        conn->ifirst += len;
-        conn->ilen -= len;
-        errno = 0;
-        return len;
-    }
-
-    /* Let's move all the data from the buffer first. */
-    char *pos = (char*)buf;
-    size_t remaining = len;
-    memcpy(pos, &conn->ibuf[conn->ifirst], conn->ilen);
-    pos += conn->ilen;
-    remaining -= conn->ilen;
-    conn->ifirst = 0;
-    conn->ilen = 0;
-
-    dill_assert(remaining);
+    /* Read the data. */
     while(1) {
-        if(remaining > DILL_TCP_BUFLEN) {
-            /* If we still have a lot to read try to read it in one go directly
-               into the destination buffer. */
-            ssize_t sz = recv(conn->fd, pos, remaining, 0);
-            if(!sz) {
-		        errno = ECONNRESET;
-		        return len - remaining;
-            }
-            if(sz == -1) {
-                if(errno != EAGAIN && errno != EWOULDBLOCK)
-                    return len - remaining;
-                sz = 0;
-            }
-            if((size_t)sz == remaining) {
-                errno = 0;
-                return len;
-            }
-            pos += sz;
-            remaining -= sz;
+        ssize_t nbytes = recv(c->fd, c->rbuf + c->rbufsz,
+                c->rcapacity - c->rbufsz, 0);
+        /* Connection closed by peer. */
+        if(dill_slow(!nbytes)) {errno = ECONNRESET; return -1;}
+        /* Wait for more data. */
+        if(nbytes == -1 && (errno == EWOULDBLOCK || errno == EAGAIN)) {
+            int rc = fdwait(c->fd, FDW_IN, deadline);
+            if(dill_slow(rc < 0)) return -1;
+            continue;
         }
-        else {
-            /* If we have just a little to read try to read the full connection
-               buffer to minimise the number of system calls. */
-            ssize_t sz = recv(conn->fd, conn->ibuf, DILL_TCP_BUFLEN, 0);
-            if(!sz) {
-		        errno = ECONNRESET;
-		        return len - remaining;
-            }
-            if(sz == -1) {
-                if(errno != EAGAIN && errno != EWOULDBLOCK)
-                    return len - remaining;
-                sz = 0;
-            }
-            if((size_t)sz < remaining) {
-                memcpy(pos, conn->ibuf, sz);
-                pos += sz;
-                remaining -= sz;
-                conn->ifirst = 0;
-                conn->ilen = 0;
-            }
-            else {
-                memcpy(pos, conn->ibuf, remaining);
-                conn->ifirst = remaining;
-                conn->ilen = sz - remaining;
-                errno = 0;
-                return len;
-            }
-        }
-
-        /* Wait till there's more data to read. */
-        int res = fdwait(conn->fd, FDW_IN, deadline);
-        if(!res) {
-            errno = ETIMEDOUT;
-            return len - remaining;
+        /* Other errors. */
+        if(dill_slow(nbytes < 0)) return -1;
+        /* At least some data arrived. */
+        c->rbufsz += nbytes;
+        /* Enough data arrived to satisfy the request. */
+        if(c->rbufsz >= len) {
+            dill_assert(c->rbufsz == len);
+            memcpy(buf, c->rbuf, len);
+            c->rbufsz = 0;
+            return 0;
         }
     }
 }
 
-size_t tcprecvuntil(tcpsock s, void *buf, size_t len,
-      const char *delims, size_t delimcount, int64_t deadline) {
-    if(s->type != DILL_TCPCONN)
-        dill_panic("trying to receive from an unconnected socket");
-    char *pos = (char*)buf;
-    size_t i;
-    for(i = 0; i != len; ++i, ++pos) {
-        size_t res = tcprecv(s, pos, 1, deadline);
-        if(res == 1) {
-            size_t j;
-            for(j = 0; j != delimcount; ++j)
-                if(*pos == delims[j])
-                    return i + 1;
-        }
-        if (errno != 0)
-            return i + res;
+static int tcpsend(sock s, const void *buf, size_t len, int64_t deadline) {
+    dill_assert(*s == &tcpconn_vfptr);
+    struct tcpconn *c = (struct tcpconn*)s;
+    /* If data fit into the buffer store them and return straight ahead. */
+    if(len <= c->scapacity - c->sbufsz) {
+        memcpy(c->sbuf + c->sbufsz, buf, len);
+        c->sbufsz += len;
+        return 0;
     }
-    errno = ENOBUFS;
-    return len;
+    /* Flush all remaining data in the buffer. */
+    if(c->sbufsz) {
+        int rc = tcpflush(s, deadline);
+        if(rc < 0) return -1;
+    }
+    /* If needed, resize the buffer to fit the data. */
+    if(dill_slow(len > c->scapacity)) {
+        /* TODO: Align the size to a multiple of TCPMINSENDBUF. */
+        uint8_t *newbuf = realloc(c->sbuf, len);
+        if(dill_slow(!newbuf)) {errno = ENOMEM; return -1;}
+        c->sbuf = newbuf;
+        c->scapacity = len;
+    }
+    /* Store the data for later sending. */
+    memcpy(c->sbuf, buf, len);
+    return 0;
 }
 
-void tcpclose(tcpsock s) {
-    if(s->type == DILL_TCPLISTENER) {
-        struct dill_tcplistener *l = (struct dill_tcplistener*)s;
-        fdclean(l->fd);
-        int rc = close(l->fd);
-        dill_assert(rc == 0);
-        free(l);
-        return;
+static int tcpflush(sock s, int64_t deadline) {
+    dill_assert(*s == &tcpconn_vfptr);
+    struct tcpconn *c = (struct tcpconn*)s;
+    if(c->sbufsz == 0) return 0;
+    size_t pos = 0;
+    while(1) {
+        ssize_t nbytes = send(c->fd, c->sbuf + pos, c->sbufsz - pos, 0);
+        /* Wait till more data can be send. */
+        if(nbytes == -1 && (errno == EWOULDBLOCK || errno == EAGAIN)) {
+            int rc = fdwait(c->fd, FDW_OUT, deadline);
+            if(dill_slow(rc < 0)) {
+                if(pos) {
+                    memmove(c->sbuf, c->sbuf + pos, c->sbufsz - pos);
+                    c->sbufsz = c->sbufsz - pos;
+                }
+                return -1;
+            }
+            dill_assert(rc == FDW_OUT);
+            continue;
+        }
+        /* Socket error. */
+        if(dill_slow(nbytes < 0)) {
+            if(pos) {
+                memmove(c->sbuf, c->sbuf + pos, c->sbufsz - pos);
+                c->sbufsz = c->sbufsz - pos;
+            }
+            return -1;
+        }
     }
-    if(s->type == DILL_TCPCONN) {
-        struct dill_tcpconn *c = (struct dill_tcpconn*)s;
+}
+
+int tcpclose(sock s) {
+    if(*s == &tcpconn_vfptr) {
+        struct tcpconn *c = (struct tcpconn*)s;
         fdclean(c->fd);
         int rc = close(c->fd);
         dill_assert(rc == 0);
         free(c);
-        return;
+        return 0;
     }
-    dill_assert(0);
-}
-
-tcpsock tcpattach(int fd, int listening) {
-    if(listening == 0) {
-        struct dill_tcpconn *conn = malloc(sizeof(struct dill_tcpconn));
-        if(!conn) {
-            errno = ENOMEM;
-            return NULL;
-        }
-        tcpconn_init(conn, fd);
-        errno = 0;
-        return (tcpsock)conn;
-    }
-    /* It's a listening socket. Find out the port it is listening on. */
-    ipaddr addr;
-    socklen_t sz = sizeof(ipaddr);
-    int rc = getsockname(fd, (struct sockaddr*)&addr, &sz);
-    if(rc == -1)
-        return NULL;
-    struct dill_tcplistener *l = malloc(sizeof(struct dill_tcplistener));
-    if(!l) {
-        errno = ENOMEM;
-        return NULL;
-    }
-    l->sock.type = DILL_TCPLISTENER;
-    l->fd = fd;
-    l->port = ipport(addr);
-    errno = 0;
-    return &l->sock;
-}
-
-int tcpdetach(tcpsock s) {
-    if(s->type == DILL_TCPLISTENER) {
-        struct dill_tcplistener *l = (struct dill_tcplistener*)s;
-        int fd = l->fd;
+    if(*s == &tcplistener_vfptr) {
+        struct tcplistener *l = (struct tcplistener*)s;
+        fdclean(l->fd);
+        int rc = close(l->fd);
+        dill_assert(rc == 0);
         free(l);
-        return fd;
+        return 0;
     }
-    if(s->type == DILL_TCPCONN) {
-        int fd = ((struct dill_tcpconn*)s)->fd;
-        free(s);
-        return fd;
-    }
-    dill_assert(0);
-}
-
-ipaddr tcpaddr(tcpsock s) {
-    if(s->type != DILL_TCPCONN)
-        dill_panic("trying to get address from a socket that isn't connected");
-    struct dill_tcpconn *l = (struct dill_tcpconn *)s;
-    return l->addr;
+    errno == EPROTOTYPE;
+    return -1;
 }
 

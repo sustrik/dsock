@@ -28,6 +28,7 @@
 #include <libdill.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/socket.h>
 
 /******************************************************************************/
 /*  ABI versioning support                                                    */
@@ -87,33 +88,52 @@ typedef struct {char data[32];} ipaddr;
 DILLSOCKS_EXPORT ipaddr iplocal(const char *name, int port, int mode);
 DILLSOCKS_EXPORT ipaddr ipremote(const char *name, int port, int mode,
     int64_t deadline);
-DILLSOCKS_EXPORT const char *ipaddrstr(ipaddr addr, char *ipstr);
+DILLSOCKS_EXPORT const char *ipaddrstr(const ipaddr *addr, char *ipstr);
+DILLSOCKS_EXPORT int ipfamily(const ipaddr *addr);
+DILLSOCKS_EXPORT const struct sockaddr *ipsockaddr(const ipaddr *addr);
+DILLSOCKS_EXPORT int iplen(const ipaddr *addr);
+DILLSOCKS_EXPORT int ipport(const ipaddr *addr);
 
-DILLSOCKS_EXPORT int ipfamily(ipaddr addr);
-DILLSOCKS_EXPORT int iplen(ipaddr addr);
-DILLSOCKS_EXPORT int ipport(ipaddr addr);
+/******************************************************************************/
+/*  Generic socket                                                            */
+/******************************************************************************/
+
+typedef struct sock_vfptr **sock;
+
+struct sock_vfptr {
+    int (*brecv)(sock s, void *buf, size_t len, int64_t deadline);
+    int (*bsend)(sock s, const void *buf, size_t len, int64_t deadline);
+    int (*bflush)(sock s, int64_t deadline);
+    int (*mrecv)(sock s, void *buf, size_t len, int64_t deadline);
+    int (*msend)(sock s, const void *buf, size_t len, int64_t deadline);
+    int (*mflush)(sock s, int64_t deadline);
+};
+
+DILLSOCKS_EXPORT int bcanrecv(sock s);
+DILLSOCKS_EXPORT int bcansend(sock s);
+DILLSOCKS_EXPORT int mcanrecv(sock s);
+DILLSOCKS_EXPORT int mcansend(sock s);
+
+DILLSOCKS_EXPORT int brecv(sock s, void *buf, size_t len, int64_t deadline);
+DILLSOCKS_EXPORT int bsend(sock s, const void *buf, size_t len,
+    int64_t deadline);
+DILLSOCKS_EXPORT int bflush(sock s, int64_t deadline);
+
+DILLSOCKS_EXPORT int mrecv(sock s, void *buf, size_t len, int64_t deadline);
+DILLSOCKS_EXPORT int msend(sock s, const void *buf, size_t len,
+    int64_t deadline);
+DILLSOCKS_EXPORT int mflush(sock s, int64_t deadline);
 
 /******************************************************************************/
 /*  TCP socket                                                                */
 /******************************************************************************/
 
-typedef struct dill_tcpsock *tcpsock;
-
-DILLSOCKS_EXPORT tcpsock tcplisten(ipaddr addr, int backlog);
-DILLSOCKS_EXPORT int tcpport(tcpsock s);
-DILLSOCKS_EXPORT tcpsock tcpaccept(tcpsock s, int64_t deadline);
-DILLSOCKS_EXPORT ipaddr tcpaddr(tcpsock s);
-DILLSOCKS_EXPORT tcpsock tcpconnect(ipaddr addr, int64_t deadline);
-DILLSOCKS_EXPORT size_t tcpsend(tcpsock s, const void *buf, size_t len,
-    int64_t deadline);
-DILLSOCKS_EXPORT void tcpflush(tcpsock s, int64_t deadline);
-DILLSOCKS_EXPORT size_t tcprecv(tcpsock s, void *buf, size_t len,
-    int64_t deadline);
-DILLSOCKS_EXPORT size_t tcprecvuntil(tcpsock s, void *buf, size_t len,
-    const char *delims, size_t delimcount, int64_t deadline);
-DILLSOCKS_EXPORT void tcpclose(tcpsock s);
-DILLSOCKS_EXPORT tcpsock tcpattach(int fd, int listening);
-DILLSOCKS_EXPORT int tcpdetach(tcpsock s);
+DILLSOCKS_EXPORT sock tcplisten(const ipaddr *addr, int backlog);
+DILLSOCKS_EXPORT sock tcpaccept(sock s, int64_t deadline);
+DILLSOCKS_EXPORT sock tcpconnect(const ipaddr *addr, int64_t deadline);
+DILLSOCKS_EXPORT int tcpport(sock s);
+DILLSOCKS_EXPORT int tcppeer(sock s, ipaddr *addr);
+DILLSOCKS_EXPORT int tcpclose(sock s);
 
 #endif
 

@@ -142,29 +142,33 @@ static ipaddr dill_ipliteral(const char *addr, int port, int mode) {
     }
 }
 
-int ipfamily(ipaddr addr) {
-    return ((struct sockaddr*)&addr)->sa_family;
+int ipfamily(const ipaddr *addr) {
+    return ((struct sockaddr*)addr)->sa_family;
 }
 
-int iplen(ipaddr addr) {
+int iplen(const ipaddr *addr) {
     return ipfamily(addr) == AF_INET ?
         sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
 }
 
-int ipport(ipaddr addr) {
+const struct sockaddr *ipsockaddr(const ipaddr *addr) {
+    return (const struct sockaddr*)addr;
+}
+
+int ipport(const ipaddr *addr) {
     return ntohs(ipfamily(addr) == AF_INET ?
-        ((struct sockaddr_in*)&addr)->sin_port :
-        ((struct sockaddr_in6*)&addr)->sin6_port);
+        ((struct sockaddr_in*)addr)->sin_port :
+        ((struct sockaddr_in6*)addr)->sin6_port);
 }
 
 /* Convert IP address from network format to ASCII dot notation. */
-const char *ipaddrstr(ipaddr addr, char *ipstr) {
-    if (ipfamily(addr) == AF_INET) {
-        return inet_ntop(AF_INET, &(((struct sockaddr_in*)&addr)->sin_addr),
+const char *ipaddrstr(const ipaddr *addr, char *ipstr) {
+    if(ipfamily(addr) == AF_INET) {
+        return inet_ntop(AF_INET, &(((struct sockaddr_in*)addr)->sin_addr),
             ipstr, INET_ADDRSTRLEN);
     }
     else {
-        return inet_ntop(AF_INET6, &(((struct sockaddr_in6*)&addr)->sin6_addr),
+        return inet_ntop(AF_INET6, &(((struct sockaddr_in6*)addr)->sin6_addr),
             ipstr, INET6_ADDRSTRLEN);
     }
 }
