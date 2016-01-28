@@ -116,7 +116,6 @@ sock tcplisten(const ipaddr *addr, int backlog) {
     if(rc != 0) return NULL;
     rc = listen(s, backlog);
     if(rc != 0) return NULL;
-    dill_assert(0);
     /* If the user requested an ephemeral port,
        retrieve the port number assigned by the OS now. */
     int port = ipport(addr);
@@ -292,7 +291,6 @@ static int tcprecv(sock s, void *buf, size_t len, int64_t deadline) {
         c->rbufsz += nbytes;
         /* Enough data arrived to satisfy the request. */
         if(c->rbufsz >= len) {
-            dill_assert(c->rbufsz == len);
             memcpy(buf, c->rbuf, len);
             c->rbufsz = 0;
             return 0;
@@ -344,7 +342,6 @@ static int tcpflush(sock s, int64_t deadline) {
                 }
                 return -1;
             }
-            dill_assert(rc == FDW_OUT);
             continue;
         }
         /* Socket error. */
@@ -354,6 +351,10 @@ static int tcpflush(sock s, int64_t deadline) {
                 c->sbufsz = c->sbufsz - pos;
             }
             return -1;
+        }
+        if(nbytes == c->sbufsz - pos) {
+            c->sbufsz = 0;
+            return 0;
         }
     }
 }

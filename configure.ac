@@ -75,8 +75,8 @@ fi
 #  Feature checks.                                                             #
 ################################################################################
 
-AC_CHECK_LIB([dill], [iplocal])
-AC_CHECK_FUNCS([iplocal])
+AC_CHECK_LIB([dill], [dill_prologue])
+AC_CHECK_FUNCS([dill_prologue])
 
 # SunOS has sockets in a separate library.
 AC_CHECK_LIB([socket], [socket])

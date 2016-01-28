@@ -53,7 +53,8 @@ pkgconfig_DATA = dillsocks.pc
 #  automated tests                                                             #
 ################################################################################
 
-check_PROGRAMS =
+check_PROGRAMS = \
+    tests/tcp
 
 LDADD = libdillsocks.la
 

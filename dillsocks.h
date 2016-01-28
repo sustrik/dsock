@@ -85,9 +85,10 @@
 
 typedef struct {char data[32];} ipaddr;
 
-DILLSOCKS_EXPORT ipaddr iplocal(const char *name, int port, int mode);
-DILLSOCKS_EXPORT ipaddr ipremote(const char *name, int port, int mode,
-    int64_t deadline);
+DILLSOCKS_EXPORT int iplocal(ipaddr *addr, const char *name, int port,
+    int mode);
+DILLSOCKS_EXPORT int ipremote(ipaddr *addr, const char *name, int port,
+    int mode, int64_t deadline);
 DILLSOCKS_EXPORT const char *ipaddrstr(const ipaddr *addr, char *ipstr);
 DILLSOCKS_EXPORT int ipfamily(const ipaddr *addr);
 DILLSOCKS_EXPORT const struct sockaddr *ipsockaddr(const ipaddr *addr);

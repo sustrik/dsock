@@ -54,89 +54,70 @@ static struct dns_hosts *dill_dns_hosts = NULL;
 static struct dns_hints *dill_dns_hints = NULL;
 static struct dns_resolver *dill_dns_resolver = NULL;
 
-static ipaddr dill_ipany(int port, int mode)
+static int dill_ipany(ipaddr *addr, int port, int mode)
 {
-    ipaddr addr;
-    if(dill_slow(port < 0 || port > 0xffff)) {
-        ((struct sockaddr*)&addr)->sa_family = AF_UNSPEC;
-        errno = EINVAL;
-        return addr;
-    }
+    if(dill_slow(port < 0 || port > 0xffff)) {errno = EINVAL; return -1;}
     if (mode == 0 || mode == IPADDR_IPV4 || mode == IPADDR_PREF_IPV4) {
-        struct sockaddr_in *ipv4 = (struct sockaddr_in*)&addr;
+        struct sockaddr_in *ipv4 = (struct sockaddr_in*)addr;
         ipv4->sin_family = AF_INET;
         ipv4->sin_addr.s_addr = htonl(INADDR_ANY);
         ipv4->sin_port = htons((uint16_t)port);
+        return 0;
     }
     else {
-        struct sockaddr_in6 *ipv6 = (struct sockaddr_in6*)&addr;
+        struct sockaddr_in6 *ipv6 = (struct sockaddr_in6*)addr;
         ipv6->sin6_family = AF_INET6;
         memcpy(&ipv6->sin6_addr, &in6addr_any, sizeof(in6addr_any));
         ipv6->sin6_port = htons((uint16_t)port);
+        return 0;
     }
-    errno = 0;
-    return addr;
 }
 
 /* Convert literal IPv4 address to a binary one. */
-static ipaddr dill_ipv4_literal(const char *addr, int port) {
-    ipaddr raddr;
-    struct sockaddr_in *ipv4 = (struct sockaddr_in*)&raddr;
-    int rc = inet_pton(AF_INET, addr, &ipv4->sin_addr);
+static int dill_ipv4_literal(ipaddr *addr, const char *name, int port) {
+    struct sockaddr_in *ipv4 = (struct sockaddr_in*)addr;
+    int rc = inet_pton(AF_INET, name, &ipv4->sin_addr);
     dill_assert(rc >= 0);
-    if(rc == 1) {
-        ipv4->sin_family = AF_INET;
-        ipv4->sin_port = htons((uint16_t)port);
-        errno = 0;
-        return raddr;
-    }
-    ipv4->sin_family = AF_UNSPEC;
-    errno = EINVAL;
-    return raddr;
+    if(dill_slow(rc != 1)) {errno = EINVAL; return -1;}
+    ipv4->sin_family = AF_INET;
+    ipv4->sin_port = htons((uint16_t)port);
+    return 0;
 }
 
 /* Convert literal IPv6 address to a binary one. */
-static ipaddr dill_ipv6_literal(const char *addr, int port) {
-    ipaddr raddr;
-    struct sockaddr_in6 *ipv6 = (struct sockaddr_in6*)&raddr;
-    int rc = inet_pton(AF_INET6, addr, &ipv6->sin6_addr);
+static int dill_ipv6_literal(ipaddr *addr, const char *name, int port) {
+    struct sockaddr_in6 *ipv6 = (struct sockaddr_in6*)addr;
+    int rc = inet_pton(AF_INET6, name, &ipv6->sin6_addr);
     dill_assert(rc >= 0);
-    if(rc == 1) {
-        ipv6->sin6_family = AF_INET6;
-        ipv6->sin6_port = htons((uint16_t)port);
-        errno = 0;
-        return raddr;
-    }
-    ipv6->sin6_family = AF_UNSPEC;
-    errno = EINVAL;
-    return raddr;
+    if(dill_slow(rc != 1)) {errno = EINVAL; return -1;}
+    ipv6->sin6_family = AF_INET6;
+    ipv6->sin6_port = htons((uint16_t)port);
+    return 0;
 }
 
 /* Convert literal IPv4 or IPv6 address to a binary one. */
-static ipaddr dill_ipliteral(const char *addr, int port, int mode) {
-    ipaddr raddr;
-    struct sockaddr *sa = (struct sockaddr*)&raddr;
+static int dill_ipliteral(ipaddr *addr, const char *name, int port, int mode) {
     if(dill_slow(!addr || port < 0 || port > 0xffff)) {
-        sa->sa_family = AF_UNSPEC;
         errno = EINVAL;
-        return raddr;
+        return -1;
     }
+    int rc;
     switch(mode) {
     case IPADDR_IPV4:
-        return dill_ipv4_literal(addr, port);
+        return dill_ipv4_literal(addr, name, port);
     case IPADDR_IPV6:
-        return dill_ipv6_literal(addr, port);
+        return dill_ipv6_literal(addr, name, port);
     case 0:
     case IPADDR_PREF_IPV4:
-        raddr = dill_ipv4_literal(addr, port);
-        if(errno == 0)
-            return raddr;
-        return dill_ipv6_literal(addr, port);
+        rc = dill_ipv4_literal(addr, name, port);
+        if(rc == 0)
+            return 0;
+        return dill_ipv6_literal(addr, name, port);
     case IPADDR_PREF_IPV6:
-        raddr = dill_ipv6_literal(addr, port);
-        if(errno == 0)
-            return raddr;
-        return dill_ipv4_literal(addr, port);
+        rc = dill_ipv6_literal(addr, name, port);
+        if(rc == 0)
+            return 0;
+        return dill_ipv4_literal(addr, name, port);
     default:
         dill_assert(0);
     }
@@ -173,18 +154,18 @@ const char *ipaddrstr(const ipaddr *addr, char *ipstr) {
     }
 }
 
-ipaddr iplocal(const char *name, int port, int mode) {
-    if(!name)
-        return dill_ipany(port, mode);
-    ipaddr addr = dill_ipliteral(name, port, mode);
+int iplocal(ipaddr *addr, const char *name, int port, int mode) {
+    if(!name) 
+        return dill_ipany(addr, port, mode);
+    int rc = dill_ipliteral(addr, name, port, mode);
 #if defined __sun
-    return addr;
+    return rc;
 #else
-    if(errno == 0)
-       return addr;
+    if(rc == 0)
+       return 0;
     /* Address is not a literal. It must be an interface name then. */
     struct ifaddrs *ifaces = NULL;
-    int rc = getifaddrs (&ifaces);
+    rc = getifaddrs (&ifaces);
     dill_assert (rc == 0);
     dill_assert (ifaces);
     /*  Find first IPv4 and first IPv6 address. */
@@ -230,33 +211,30 @@ ipaddr iplocal(const char *name, int port, int mode) {
         dill_assert(0);
     }
     if(ipv4) {
-        struct sockaddr_in *inaddr = (struct sockaddr_in*)&addr;
+        struct sockaddr_in *inaddr = (struct sockaddr_in*)addr;
         memcpy(inaddr, ipv4->ifa_addr, sizeof (struct sockaddr_in));
         inaddr->sin_port = htons(port);
         freeifaddrs(ifaces);
-        errno = 0;
-        return addr;
+        return 0;
     }
     if(ipv6) {
-        struct sockaddr_in6 *inaddr = (struct sockaddr_in6*)&addr;
+        struct sockaddr_in6 *inaddr = (struct sockaddr_in6*)addr;
         memcpy(inaddr, ipv6->ifa_addr, sizeof (struct sockaddr_in6));
         inaddr->sin6_port = htons(port);
         freeifaddrs(ifaces);
-        errno = 0;
-        return addr;
+        return 0;
     }
     freeifaddrs(ifaces);
-    ((struct sockaddr*)&addr)->sa_family = AF_UNSPEC;
     errno = ENODEV;
-    return addr;
+    return -1;
 #endif
 }
 
-ipaddr ipremote(const char *name, int port, int mode, int64_t deadline) {
-    int rc;
-    ipaddr addr = dill_ipliteral(name, port, mode);
-    if(errno == 0)
-       return addr;
+int ipremote(ipaddr *addr, const char *name, int port, int mode,
+      int64_t deadline) {
+    int rc = dill_ipliteral(addr, name, port, mode);
+    if(rc == 0)
+       return 0;
     /* Load DNS config files, unless they are already chached. */
     if(dill_slow(!dill_dns_resolver)) {
         /* TODO: Maybe re-read the configuration once in a while? */
@@ -295,7 +273,7 @@ ipaddr ipremote(const char *name, int port, int mode, int64_t deadline) {
             fdclean(fd);
             if(dill_slow(!events)) {
                 errno = ETIMEDOUT;
-                return addr;
+                return -1;
             }
             dill_assert(events == FDW_IN);
             continue;
@@ -329,24 +307,21 @@ ipaddr ipremote(const char *name, int port, int mode, int64_t deadline) {
         dill_assert(0);
     }
     if(ipv4) {
-        struct sockaddr_in *inaddr = (struct sockaddr_in*)&addr;
+        struct sockaddr_in *inaddr = (struct sockaddr_in*)addr;
         memcpy(inaddr, ipv4->ai_addr, sizeof (struct sockaddr_in));
         inaddr->sin_port = htons(port);
         dns_ai_close(ai);
-        errno = 0;
-        return addr;
+        return 0;
     }
     if(ipv6) {
-        struct sockaddr_in6 *inaddr = (struct sockaddr_in6*)&addr;
+        struct sockaddr_in6 *inaddr = (struct sockaddr_in6*)addr;
         memcpy(inaddr, ipv6->ai_addr, sizeof (struct sockaddr_in6));
         inaddr->sin6_port = htons(port);
         dns_ai_close(ai);
-        errno = 0;
-        return addr;
+        return 0;
     }
     dns_ai_close(ai);
-    ((struct sockaddr*)&addr)->sa_family = AF_UNSPEC;
     errno = EADDRNOTAVAIL;
-    return addr;
+    return -1;
 }
 
