@@ -58,7 +58,7 @@ int bflush(sock s, int64_t deadline) {
     return (*s)->bflush(s, deadline);
 }
 
-int mrecv(sock s, void *buf, size_t len, int64_t deadline) {
+int mrecv(sock s, void *buf, size_t *len, int64_t deadline) {
     if(dill_slow(!mcanrecv(s))) {errno = EOPNOTSUPP; return -1;}
     return (*s)->mrecv(s, buf, len, deadline);
 }

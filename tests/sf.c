@@ -28,63 +28,34 @@
 
 #include "../dillsocks.h"
 
-coroutine void client(int port) {
+coroutine void client(void) {
     ipaddr addr;
-    int rc = ipremote(&addr, "127.0.0.1", port, 0, -1);
+    int rc = ipremote(&addr, "127.0.0.1", 5555, 0, -1);
     assert(rc == 0);
-    sock cs = tcpconnect(&addr, -1);
+    sock ctcps = tcpconnect(&addr, -1);
+    assert(ctcps);
+    sock cs = sfattach(ctcps);
     assert(cs);
-
-    char ipstr[16] = {0};
-    const char *str = ipaddrstr(&addr, ipstr);
-    assert(str);
-    assert(strcmp(ipstr, "127.0.0.1") == 0);
-
-    msleep(now() + 100);
-
-    char buf[16];
-    rc = brecv(cs, buf, 3, -1);
+    rc = msend(cs, "ABC", 3, -1);
     assert(rc == 0);
-    assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
-
-    tcpclose(cs);
+    rc = mflush(cs, -1);
+    assert(rc == 0);
 }
 
 int main(void) {
-    char buf[16];
-
     ipaddr addr;
     int rc = iplocal(&addr, NULL, 5555, 0);
     assert(rc == 0);
-    sock ls = tcplisten(&addr, 10);
-    assert(ls);
-
-    go(client(5555));
-
-    sock as = tcpaccept(ls, -1);
-
-    /* Test retrieving address and port. */
-    rc = tcppeer(as, &addr);
+    sock ltcps = tcplisten(&addr, 10);
+    assert(ltcps);
+    go(client());
+    sock atcps = tcpaccept(ltcps, -1);
+    sock as = sfattach(atcps);
+    assert(as);
+    char buf[3];
+    size_t len = sizeof(buf);
+    rc = mrecv(as, buf, &len, -1);
     assert(rc == 0);
-    char ipstr[IPADDR_MAXSTRLEN];
-    assert(strcmp(ipaddrstr(&addr, ipstr), "127.0.0.1") == 0);
-    assert(tcpport(as) != 5555);
-
-    /* Test deadline. */
-    int64_t deadline = now() + 30;
-    rc = brecv(as, buf, sizeof(buf), deadline);
-    assert(rc == -1 && errno == ETIMEDOUT);
-    int64_t diff = now() - deadline;
-    assert(diff > -20 && diff < 20);
-
-    rc = bsend(as, "ABC", 3, -1);
-    assert(rc == 0);
-    rc = bflush(as, -1);
-    assert(rc == 0);
-
-    tcpclose(as);
-    tcpclose(ls);
 
     return 0;
 }
-

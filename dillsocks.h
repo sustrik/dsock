@@ -105,7 +105,7 @@ struct sock_vfptr {
     int (*brecv)(sock s, void *buf, size_t len, int64_t deadline);
     int (*bsend)(sock s, const void *buf, size_t len, int64_t deadline);
     int (*bflush)(sock s, int64_t deadline);
-    int (*mrecv)(sock s, void *buf, size_t len, int64_t deadline);
+    int (*mrecv)(sock s, void *buf, size_t *len, int64_t deadline);
     int (*msend)(sock s, const void *buf, size_t len, int64_t deadline);
     int (*mflush)(sock s, int64_t deadline);
 };
@@ -120,7 +120,7 @@ DILLSOCKS_EXPORT int bsend(sock s, const void *buf, size_t len,
     int64_t deadline);
 DILLSOCKS_EXPORT int bflush(sock s, int64_t deadline);
 
-DILLSOCKS_EXPORT int mrecv(sock s, void *buf, size_t len, int64_t deadline);
+DILLSOCKS_EXPORT int mrecv(sock s, void *buf, size_t *len, int64_t deadline);
 DILLSOCKS_EXPORT int msend(sock s, const void *buf, size_t len,
     int64_t deadline);
 DILLSOCKS_EXPORT int mflush(sock s, int64_t deadline);
@@ -135,6 +135,13 @@ DILLSOCKS_EXPORT sock tcpconnect(const ipaddr *addr, int64_t deadline);
 DILLSOCKS_EXPORT int tcpport(sock s);
 DILLSOCKS_EXPORT int tcppeer(sock s, ipaddr *addr);
 DILLSOCKS_EXPORT int tcpclose(sock s);
+
+/******************************************************************************/
+/* Simple framing protocol socket                                             */
+/******************************************************************************/
+
+DILLSOCKS_EXPORT sock sfattach(sock s);
+DILLSOCKS_EXPORT int sfclose(sock s, int64_t deadline);
 
 #endif
 
