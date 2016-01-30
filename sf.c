@@ -65,6 +65,8 @@ static coroutine void sfsender(struct sfsock *s) {
         int rc = chrecv(s->chsender, &msg, sizeof(msg), -1);
         if(dill_slow(rc < 0 && errno == ECANCELED))
             return;
+        dill_assert(rc == 0);
+printf("sending\n");
         /* TODO: Convert to network byte order. */
         uint8_t buf[8];
         *(int64_t*)buf = msg.len;
@@ -109,7 +111,7 @@ static coroutine void sfreceiver(struct sfsock *s) {
             return;
         }
         dill_assert(rc == 0); /* TODO */
-        rc = chsend(s->chsender, &msg, sizeof(msg), -1);
+        rc = chsend(s->chreceiver, &msg, sizeof(msg), -1);
         if(dill_slow(rc < 0 && errno == ECANCELED)) {
             free(msg.buf);
             return;

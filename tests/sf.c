@@ -40,6 +40,12 @@ coroutine void client(void) {
     assert(rc == 0);
     rc = mflush(cs, -1);
     assert(rc == 0);
+    char buf[16];
+    size_t len = sizeof(buf);
+    rc = mrecv(cs, buf, &len, -1);
+    assert(rc == 0);
+    assert(len == 3);
+    assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
 }
 
 int main(void) {
@@ -48,14 +54,21 @@ int main(void) {
     assert(rc == 0);
     sock ltcps = tcplisten(&addr, 10);
     assert(ltcps);
-    go(client());
+    coro cr = go(client());
     sock atcps = tcpaccept(ltcps, -1);
     sock as = sfattach(atcps);
     assert(as);
-    char buf[3];
+    char buf[16];
     size_t len = sizeof(buf);
     rc = mrecv(as, buf, &len, -1);
     assert(rc == 0);
+    assert(len == 3);
+    assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
+    rc = msend(as, buf, len, -1);
+    assert(rc == 0);
+    rc = mflush(as, -1);
+    assert(rc == 0);
 
+    gocancel(&cr, 1, -1);
     return 0;
 }
