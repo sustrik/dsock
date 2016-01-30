@@ -62,7 +62,7 @@ static struct sock_vfptr sfsock_vfptr = {
 static coroutine void sfsender(struct sfsock *s) {
     while(1) {
         struct sfmsg msg;
-        int rc = chrecv(s->chreceiver, &msg, sizeof(msg), -1);
+        int rc = chrecv(s->chsender, &msg, sizeof(msg), -1);
         if(dill_slow(rc < 0 && errno == ECANCELED))
             return;
         /* TODO: Convert to network byte order. */
@@ -80,6 +80,14 @@ static coroutine void sfsender(struct sfsock *s) {
             return;
         }
         dill_assert(rc == 0); /* TODO */
+        rc = bflush(s->u, -1);
+        if(dill_slow(rc < 0 && errno == ECANCELED)) {
+            free(msg.buf);
+            return;
+        }
+        dill_assert(rc == 0); /* TODO */
+
+        free(msg.buf);
     }
 }
 
