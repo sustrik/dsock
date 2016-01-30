@@ -46,6 +46,17 @@ coroutine void client(int port) {
     rc = brecv(cs, buf, 3, -1);
     assert(rc == 0);
     assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
+    rc = brecv(cs, buf, 2, -1);
+    assert(rc == 0);
+    assert(buf[0] == 'D' && buf[1] == 'E');
+    rc = brecv(cs, buf, 4, -1);
+    assert(rc == 0);
+    assert(buf[0] == 'F' && buf[1] == 'H' && buf[2] == 'H' && buf[3] == 'I');
+
+    rc = bsend(cs, "JKL", 3, -1);
+    assert(rc == 0);
+    rc = bflush(cs, -1);
+    assert(rc == 0);
 
     tcpclose(cs);
 }
@@ -59,7 +70,7 @@ int main(void) {
     sock ls = tcplisten(&addr, 10);
     assert(ls);
 
-    go(client(5555));
+    coro cr = go(client(5555));
 
     sock as = tcpaccept(ls, -1);
 
@@ -81,9 +92,21 @@ int main(void) {
     assert(rc == 0);
     rc = bflush(as, -1);
     assert(rc == 0);
+    rc = bsend(as, "DEF", 3, -1);
+    assert(rc == 0);
+    rc = bsend(as, "GHI", 3, -1);
+    assert(rc == 0);
+    rc = bflush(as, -1);
+    assert(rc == 0);
+
+    rc = brecv(as, buf, 3, -1);
+    assert(rc == 0);
+    assert(buf[0] == 'J' && buf[1] == 'K' && buf[2] == 'L');
 
     tcpclose(as);
     tcpclose(ls);
+
+    gocancel(&cr, 1, -1);
 
     return 0;
 }
