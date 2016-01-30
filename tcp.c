@@ -292,7 +292,8 @@ static int tcprecv(sock s, void *buf, size_t len, int64_t deadline) {
         /* Enough data arrived to satisfy the request. */
         if(c->rbufsz >= len) {
             memcpy(buf, c->rbuf, len);
-            c->rbufsz = 0;
+            memmove(c->rbuf, c->rbuf + len, c->rbufsz - len);
+            c->rbufsz -= len;
             return 0;
         }
     }

@@ -51,7 +51,7 @@ coroutine void client(int port) {
     assert(buf[0] == 'D' && buf[1] == 'E');
     rc = brecv(cs, buf, 4, -1);
     assert(rc == 0);
-    assert(buf[0] == 'F' && buf[1] == 'H' && buf[2] == 'H' && buf[3] == 'I');
+    assert(buf[0] == 'F' && buf[1] == 'G' && buf[2] == 'H' && buf[3] == 'I');
 
     rc = bsend(cs, "JKL", 3, -1);
     assert(rc == 0);
