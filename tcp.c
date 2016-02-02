@@ -366,6 +366,8 @@ int tcpclose(sock s) {
         fdclean(c->fd);
         int rc = close(c->fd);
         dill_assert(rc == 0);
+        free(c->sbuf);
+        free(c->rbuf);
         free(c);
         return 0;
     }
