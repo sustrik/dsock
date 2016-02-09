@@ -39,3 +39,9 @@ to play with in the beginning. Options include:
 13. PGM
 14. DCCP
 
+Structural protocols:
+
+1. Redirecting to/from file.
+2. Combining two unidirectional protocols into one bi-directional
+3. Splitting bi-directional protocol into two uni-directional
+3. Throttler (both for bytestreams and messages)
