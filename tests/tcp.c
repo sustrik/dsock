@@ -5,47 +5,35 @@
 
 #include "../dillsocks.h"
 
-static int sec;
-
-coroutine static void
-handler(sock as) {
-    char buf[16];
-    for (;;) {
-        int rc = brecv(as, buf, sizeof(buf), -1);
-        if (rc && errno == ECANCELED) {
-            break;
-        }
-        printf("text: %s\n", buf);
-    }
-    tcpclose(as);
+coroutine void client(void) {
+    ipaddr addr;
+    int rc = ipremote(&addr, "127.0.0.1", 5555, 0, -1);
+    sock cs = tcpconnect(&addr, -1);
+    assert(cs);
+    char buf[3];
+    ssize_t sz = sockrecv(cs, buf, 3, -1);
+    assert(sz == 3 && buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
+    sz = socksend(cs, "DEF", 3, -1);
+    assert(sz == 3);
+    tcpclose(cs, -1);
 }
 
-int
-main(int argc, char *argv[]) {
-    sock as = NULL;
-    coro cr = NULL;
+int main() {
     ipaddr addr;
-
-    iplocal(&addr, NULL, 5555, 0);
+    int rc = iplocal(&addr, NULL, 5555, 0);
+    assert(rc == 0);
     sock ls = tcplisten(&addr, 10);
-
-    for (;;) {
-        uint64_t deadline = now() + 1000;
-        if (!as) {
-            as = tcpaccept(ls, -1);
-        } else {
-            msleep(deadline);
-        }
-        if (sec++ >= 2 && cr) {
-            gocancel(&cr, 1, 0);
-            break;
-        }
-        if (!cr && as) {
-            cr = go(handler(as));
-        }
-    }
-
-    tcpclose(ls);
+    assert(ls);
+    go(client());
+    sock as = tcpaccept(ls, -1);
+    assert(as);
+    ssize_t sz = socksend(as, "ABC", 3, -1);
+    assert(sz == 3);
+    char buf[3];
+    sz = sockrecv(as, buf, 3, -1);
+    assert(sz == 3 && buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
+    tcpclose(as, -1);
+    tcpclose(ls, -1);
 
     return 0;
 }

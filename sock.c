@@ -27,49 +27,29 @@
 #include "dillsocks.h"
 #include "utils.h"
 
-int bcanrecv(sock s) {
-    return (*s)->brecv ? 1 : 0;
+ssize_t socksend(sock s, const void *buf, size_t len, int64_t deadline) {
+    if(dill_slow(!(*s)->send)) {errno = EOPNOTSUPP; return -1;}
+    struct iovec iov;
+    iov.iov_base = (void*)buf;
+    iov.iov_len = len;
+    return (*s)->send(s, &iov, 1, NULL, NULL, deadline);
 }
 
-int bcansend(sock s) {
-    return (*s)->bsend && (*s)->bflush ? 1 : 0;
+ssize_t sockrecv(sock s, void *buf, size_t len, int64_t deadline) {
+    if(dill_slow(!(*s)->recv)) {errno = EOPNOTSUPP; return -1;}
+    struct iovec iov;
+    iov.iov_base = buf;
+    iov.iov_len = len;
+    return (*s)->recv(s, &iov, 1, NULL, NULL, deadline);
 }
 
-int mcanrecv(sock s) {
-    return (*s)->mrecv ? 1 : 0;
+ssize_t socksendv(sock s, struct iovec *iovs, int niovs, int64_t deadline) {
+    if(dill_slow(!(*s)->send)) {errno = EOPNOTSUPP; return -1;}
+    return (*s)->send(s, iovs, niovs, NULL, NULL, deadline);
 }
 
-int mcansend(sock s) {
-    return (*s)->msend && (*s)->mflush ? 1 : 0;
-}
-
-int brecv(sock s, void *buf, size_t len, int64_t deadline) {
-    if(dill_slow(!bcanrecv(s))) {errno = EOPNOTSUPP; return -1;}
-    return (*s)->brecv(s, buf, len, deadline);
-}
-
-int bsend(sock s, const void *buf, size_t len, int64_t deadline) {
-    if(dill_slow(!bcansend(s))) {errno = EOPNOTSUPP; return -1;}
-    return (*s)->bsend(s, buf, len, deadline);
-}
-
-int bflush(sock s, int64_t deadline) {
-    if(dill_slow(!bcansend(s))) {errno = EOPNOTSUPP; return -1;}
-    return (*s)->bflush(s, deadline);
-}
-
-int mrecv(sock s, void *buf, size_t *len, int64_t deadline) {
-    if(dill_slow(!mcanrecv(s))) {errno = EOPNOTSUPP; return -1;}
-    return (*s)->mrecv(s, buf, len, deadline);
-}
-
-int msend(sock s, const void *buf, size_t len, int64_t deadline) {
-    if(dill_slow(!mcansend(s))) {errno = EOPNOTSUPP; return -1;}
-    return (*s)->msend(s, buf, len, deadline);
-}
-
-int mflush(sock s, int64_t deadline) {
-    if(dill_slow(!mcansend(s))) {errno = EOPNOTSUPP; return -1;}
-    return (*s)->mflush(s, deadline);
+ssize_t sockrecvv(sock s, struct iovec *iovs, int niovs, int64_t deadline) {
+    if(dill_slow(!(*s)->recv)) {errno = EOPNOTSUPP; return -1;}
+    return (*s)->recv(s, iovs, niovs, NULL, NULL, deadline);
 }
 
