@@ -11,10 +11,12 @@ coroutine void client(void) {
     sock cs = tcpconnect(&addr, -1);
     assert(cs);
     char buf[3];
-    ssize_t sz = sockrecv(cs, buf, 3, -1);
+    ssize_t sz = 3;
+    rc = sockrecv(cs, buf, &sz, -1);
+    assert(rc == 0);
     assert(sz == 3 && buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
-    sz = socksend(cs, "DEF", 3, -1);
-    assert(sz == 3);
+    rc = socksend(cs, "DEF", 3, -1);
+    assert(rc == 0);
     tcpclose(cs, -1);
 }
 
@@ -27,10 +29,12 @@ int main() {
     go(client());
     sock as = tcpaccept(ls, -1);
     assert(as);
-    ssize_t sz = socksend(as, "ABC", 3, -1);
-    assert(sz == 3);
+    rc = socksend(as, "ABC", 3, -1);
+    assert(rc == 0);
     char buf[3];
-    sz = sockrecv(as, buf, 3, -1);
+    size_t sz = 3;
+    rc = sockrecv(as, buf, &sz, -1);
+    assert(rc == 0);
     assert(sz == 3 && buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
     tcpclose(as, -1);
     tcpclose(ls, -1);

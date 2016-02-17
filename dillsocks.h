@@ -29,7 +29,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <sys/uio.h>
 
 /******************************************************************************/
@@ -115,22 +114,22 @@ struct sockopt {
 typedef struct sockvfptr **sock;
 
 struct sockvfptr {
-    ssize_t (*send)(sock s, struct iovec *iovs, int niovs,
+    int (*send)(sock s, struct iovec *iovs, int niovs,
         const struct sockctrl *inctrl, struct sockctrl *outctrl,
         int64_t deadline);
-    ssize_t (*recv)(sock s, struct iovec *iovs, int niovs,
+    int (*recv)(sock s, struct iovec *iovs, int niovs, size_t *len,
         const struct sockctrl *inctrl, struct sockctrl *outctrl,
         int64_t deadline);
 };
 
-DILLSOCKS_EXPORT ssize_t socksend(sock s, const void *buf, size_t len,
+DILLSOCKS_EXPORT int socksend(sock s, const void *buf, size_t len,
     int64_t deadline);
-DILLSOCKS_EXPORT ssize_t sockrecv(sock s, void *buf, size_t len,
+DILLSOCKS_EXPORT int sockrecv(sock s, void *buf, size_t *len,
     int64_t deadline);
-DILLSOCKS_EXPORT ssize_t socksendv(sock s, struct iovec *iovs, int niovs,
+DILLSOCKS_EXPORT int socksendv(sock s, struct iovec *iovs, int niovs,
     int64_t deadline);
-DILLSOCKS_EXPORT ssize_t sockrecvv(sock s, struct iovec *iovs, int niovs,
-    int64_t deadline);
+DILLSOCKS_EXPORT int sockrecvv(sock s, struct iovec *iovs, int niovs,
+    size_t *len, int64_t deadline);
 
 /******************************************************************************/
 /*  TCP                                                                       */

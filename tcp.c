@@ -34,10 +34,10 @@
 #define TCPMINRECVBUF 2048
 #define TCPMINSENDBUF 2048
 
-static ssize_t tcp_send(sock s, struct iovec *iovs, int niovs,
+static int tcp_send(sock s, struct iovec *iovs, int niovs,
     const struct sockctrl *inctrl, struct sockctrl *outctrl,
     int64_t deadline);
-static ssize_t tcp_recv(sock s, struct iovec *iovs, int niovs,
+static int tcp_recv(sock s, struct iovec *iovs, int niovs, size_t *len,
     const struct sockctrl *inctrl, struct sockctrl *outctrl,
     int64_t deadline);
 
@@ -289,13 +289,14 @@ int tcppeer(sock s, ipaddr *addr) {
     return 0;
 }
 
-static ssize_t tcp_send(sock s, struct iovec *iovs, int niovs,
+static int tcp_send(sock s, struct iovec *iovs, int niovs,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
     if(dill_slow(*s != &tcp_conn_vfptr)) {errno = EPROTOTYPE; return -1;}
-    if(!s || niovs < 0 || (niovs && !iovs)) {errno == EINVAL; return -1;}
+    if(dill_slow(!s || niovs < 0 || (niovs && !iovs))) {
+        errno == EINVAL; return -1;}
     /* This protocol doesn't use control data. */
-    if(inctrl || outctrl) {errno == EINVAL; return -1;}
+    if(dill_slow(inctrl || outctrl)) {errno == EINVAL; return -1;}
     struct tcp_conn *conn = (struct tcp_conn*)s;
     /* Wait till sender coroutine hands us the send buffer. */
     int rc = chrecv(conn->fromsender, NULL, 0, deadline);
@@ -327,42 +328,43 @@ static ssize_t tcp_send(sock s, struct iovec *iovs, int niovs,
     /* Hand the buffer to the sender coroutine. */
     rc = chsend(conn->tosender, NULL, 0, -1);
     dill_assert(rc == 0); // ECANCELED ?
-    return len;
+    return 0;
 }
 
-static ssize_t tcp_recv(sock s, struct iovec *iovs, int niovs,
+static int tcp_recv(sock s, struct iovec *iovs, int niovs, size_t *len,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
     if(dill_slow(*s != &tcp_conn_vfptr)) {errno = EPROTOTYPE; return -1;}
-    if(!s || niovs < 0 || (niovs && !iovs)) {errno == EINVAL; return -1;}
+    if(dill_slow(!s || niovs < 0 || (niovs && !iovs))) {
+        errno == EINVAL; return -1;}
     /* This protocol doesn't use control data. */
-    if(inctrl || outctrl) {errno == EINVAL; return -1;}
+    if(dill_slow(inctrl || outctrl)) {errno == EINVAL; return -1;}
     struct tcp_conn *conn = (struct tcp_conn*)s;
     /* Compute total size of the data requested. */
-    size_t len = 0;
+    size_t sz = 0;
     int i;
     for(i = 0; i != niovs; ++i)
-        len += iovs[i].iov_len;
+        sz += iovs[i].iov_len;
     /* If there's not enough data in the buffer try to read them from
        the socket. */
-    if(len > conn->rxbuf_len) {
+    if(sz > conn->rxbuf_len) {
         /* Resize the buffer to be able to hold all the data. */
-        if(dill_slow(len > conn->rxbuf_capacity)) {
-            uint8_t *newbuf = realloc(conn->rxbuf, len);
+        if(dill_slow(sz > conn->rxbuf_capacity)) {
+            uint8_t *newbuf = realloc(conn->rxbuf, sz);
             if(dill_slow(!newbuf)) {errno = ENOMEM; return -1;}
             conn->rxbuf = newbuf;
-            conn->rxbuf_capacity = len;
+            conn->rxbuf_capacity = sz;
         }
-        while(conn->rxbuf_len < len) {
+        while(conn->rxbuf_len < sz) {
             int rc = fdwait(conn->fd, FDW_IN, deadline);
             if(dill_slow(rc < 0)) return -1;
             dill_assert(rc == FDW_IN);
-            ssize_t sz = recv(conn->fd, conn->rxbuf + conn->rxbuf_len,
-                len - conn->rxbuf_len, 0);
+            ssize_t nbytes = recv(conn->fd, conn->rxbuf + conn->rxbuf_len,
+                sz - conn->rxbuf_len, 0);
             /* TODO: Handle connection errors. */
-            dill_assert(sz != 0);
-            if(dill_slow(sz < 0)) return -1;
-            conn->rxbuf_len += sz;
+            dill_assert(nbytes != 0);
+            if(dill_slow(nbytes < 0)) return -1;
+            conn->rxbuf_len += nbytes;
         }
     }
     /* Copy the data from rx buffer to user-supplied buffer(s). */
@@ -374,7 +376,9 @@ static ssize_t tcp_recv(sock s, struct iovec *iovs, int niovs,
     /* Shift remaining data in the buffer to the beginning. */
     conn->rxbuf_len = conn->rxbuf_len - (pos - conn->rxbuf);
     memmove(conn->rxbuf, pos, conn->rxbuf_len);
-    return len;
+    if(len)
+        *len = sz;
+    return 0;
 }
 
 int tcpclose(sock s, int64_t deadline) {
