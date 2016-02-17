@@ -95,13 +95,12 @@ static void tcp_tune(int s) {
 static coroutine void tcp_sender(struct tcp_conn *conn) {
     while(1) {
         /* Hand the buffer to the main object. */
-        int val = 0;
-        int rc = chsend(conn->fromsender, &val, sizeof(val), -1);
+        int rc = chsend(conn->fromsender, NULL, 0, -1);
         if(dill_slow(rc == -1 && errno == EPIPE)) return;
         if(dill_slow(rc == -1 && errno == ECANCELED)) return;
         dill_assert(rc == 0);
         /* Wait till main object fills the buffer and hands it back. */
-        rc = chrecv(conn->tosender, &val, sizeof(val), -1);
+        rc = chrecv(conn->tosender, NULL, 0, -1);
         if(dill_slow(rc == -1 && errno == EPIPE)) return;
         if(dill_slow(rc == -1 && errno == ECANCELED)) return;
         dill_assert(rc == 0);
@@ -131,9 +130,9 @@ static int tcp_conn_init(struct tcp_conn *conn, int fd) {
     conn->txbuf = NULL;
     conn->txbuf_len = 0;
     conn->txbuf_capacity = 0;
-    conn->tosender = channel(sizeof(int), 0); /* Can we have a channel with item size zero? */
+    conn->tosender = channel(0, 0);
     dill_assert(conn->tosender);
-    conn->fromsender = channel(sizeof(int), 0);
+    conn->fromsender = channel(0, 0);
     dill_assert(conn->fromsender);
     conn->sender = go(tcp_sender(conn));
     dill_assert(conn->sender);
@@ -299,8 +298,7 @@ static ssize_t tcp_send(sock s, struct iovec *iovs, int niovs,
     if(inctrl || outctrl) {errno == EINVAL; return -1;}
     struct tcp_conn *conn = (struct tcp_conn*)s;
     /* Wait till sender coroutine hands us the send buffer. */
-    int val;
-    int rc = chrecv(conn->fromsender, &val, sizeof(val), deadline);
+    int rc = chrecv(conn->fromsender, NULL, 0, deadline);
     if(dill_slow(rc < 0))
         return -1;
     /* Resize the send buffer so that the data fit it. */
@@ -327,7 +325,7 @@ static ssize_t tcp_send(sock s, struct iovec *iovs, int niovs,
     }
     conn->txbuf_len = len;
     /* Hand the buffer to the sender coroutine. */
-    rc = chsend(conn->tosender, &val, sizeof(val), -1);
+    rc = chsend(conn->tosender, NULL, 0, -1);
     dill_assert(rc == 0); // ECANCELED ?
     return len;
 }
