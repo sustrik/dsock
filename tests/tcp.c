@@ -90,7 +90,6 @@ int main() {
     assert(rc == 0);
 
     /* Receive less than requested amount of data when connection is closed */
-#if 0
     create_tcp_connection(s);
     rc = socksend(s[0], "ZZ", 2, -1);
     assert(rc == 0);
@@ -102,7 +101,6 @@ int main() {
     assert(sz == 2);
     rc = stop(s, 2, 0);
     assert(rc == 0);
-#endif
 
     return 0;
 }

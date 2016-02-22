@@ -106,6 +106,12 @@ static void tcptune(int s) {
 #endif
 }
 
+static void fdclose(int fd) {
+    fdclean(fd);
+    int rc = close(fd);
+    dill_assert(rc == 0);
+}
+
 static int tcpconn_init(struct tcpconn *conn, int fd) {
     conn->fd = fd;
     /* Sender side. */
@@ -128,8 +134,7 @@ static void tcplistener_stop_fn(int s) {
     struct tcplistener *lst = sockdata(s);
     int rc = sockdone(s);
     dill_assert(rc == 0);
-    rc = close(lst->fd);
-    dill_assert(rc == 0);
+    fdclose(lst->fd);
     free(lst);
 }
 
@@ -146,8 +151,7 @@ static void tcpconn_stop_fn(int s) {
     /* Deallocte the entire object. */
     rc = sockdone(s);
     dill_assert(rc == 0);
-    rc = close(conn->fd);
-    dill_assert(rc == 0);
+    fdclose(conn->fd);
     free(conn);
 }
 
@@ -283,8 +287,7 @@ int tcplisten(const ipaddr *addr, int backlog) {
 error2:
     free(lst);
 error1:
-    fdclean(s);
-    close(s);
+    fdclose(s);
     errno = err;
     return -1;
 }
@@ -327,8 +330,7 @@ int tcpaccept(int s, int64_t deadline) {
 error2:
     free(conn);
 error1:
-    fdclean(as);
-    close(as);
+    fdclose(s);
     errno = err;
     return -1;
 }
@@ -364,8 +366,7 @@ int tcpconnect(const ipaddr *addr, int64_t deadline) {
 error2:
     free(conn);
 error1:
-    fdclean(s);
-    close(s);
+    fdclose(s);
     errno = err;
     return -1;
 }
