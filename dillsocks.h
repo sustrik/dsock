@@ -147,5 +147,11 @@ DILLSOCKS_EXPORT int tcpport(int s);
 DILLSOCKS_EXPORT int tcppeer(int s, ipaddr *addr);
 DILLSOCKS_EXPORT int tcpclose(int s);
 
+/******************************************************************************/
+/*  Simple framing protocol (size + data)                                     */
+/******************************************************************************/
+
+DILL_EXPORT int sfattach(int s);
+
 #endif
 

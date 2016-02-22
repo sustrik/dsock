@@ -33,9 +33,11 @@ lib_LTLIBRARIES = libdillsocks.la
 
 libdillsocks_la_SOURCES = \
     ip.c \
+    sf.c \
     sock.c \
     tcp.c \
     utils.h \
+    utils.c \
     dns/dns.h \
     dns/dns.c
 
@@ -54,7 +56,8 @@ pkgconfig_DATA = dillsocks.pc
 ################################################################################
 
 check_PROGRAMS = \
-    tests/tcp
+    tests/tcp \
+    tests/sf
 
 LDADD = libdillsocks.la
 

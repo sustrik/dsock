@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2015 Martin Sustrik
+  Copyright (c) 2016 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -25,6 +25,7 @@
 #ifndef DILLSOCKS_UTILS_H_INCLUDED
 #define DILLSOCKS_UTILS_H_INCLUDED
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -60,6 +61,13 @@
             abort();\
         }\
     } while (0)
+
+uint16_t dill_gets(const uint8_t *buf);
+void dill_puts(uint8_t *buf, uint16_t val);
+uint32_t dill_getl(const uint8_t *buf);
+void dill_putl(uint8_t *buf, uint32_t val);
+uint64_t dill_getll(const uint8_t *buf);
+void dill_putll(uint8_t *buf, uint64_t val);
 
 #endif
 
