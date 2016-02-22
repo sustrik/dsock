@@ -47,10 +47,9 @@ int main() {
     rc = stop(&lst, 1, 0);
     assert(rc == 0);
 
-    /* Create a connection. */
+    /* Simple ping-pong test. */
     int s[2];
     create_tcp_connection(s);
-    /* Ping. */
     rc = socksend(s[0], "ABC", 3, -1);
     assert(rc == 0);
     char buf[3];
@@ -58,16 +57,29 @@ int main() {
     rc = sockrecv(s[1], buf, &sz, -1);
     assert(rc == 0);
     assert(sz == 3 && buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
-    /* Pong. */
     rc = socksend(s[1], "DEF", 3, -1);
     assert(rc == 0);
     sz = 3;
     rc = sockrecv(s[0], buf, &sz, -1);
     assert(rc == 0);
     assert(sz == 3 && buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
-    /* Shut it down. */
     rc = stop(s, 2, 0);
     assert(rc == 0);
+
+    /* Receive less than requested amount of data when connection is closed */
+#if 0
+    create_tcp_connection(s);
+    rc = socksend(s[0], "ZZ", 2, -1);
+    assert(rc == 0);
+    rc = tcpclose(s[0]);
+    assert(rc == 0);
+    sz = 3;
+    rc = sockrecv(s[1], buf, &sz, -1);
+    assert(rc == ECONNRESET);
+    assert(sz == 2);
+    rc = stop(s, 2, 0);
+    assert(rc == 0);
+#endif
 
     return 0;
 }
