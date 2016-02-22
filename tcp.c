@@ -26,73 +26,39 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 
 #include "dillsocks.h"
 #include "utils.h"
 
-/* Deliberately larger than standard IP packet size. */
-#define TCPMINRECVBUF 2048
-#define TCPMINSENDBUF 2048
+static const int tcplistener_type_placeholder = 0;
+static const void *tcplistener_type = &tcplistener_type_placeholder;
 
-static int tcp_send(sock s, struct iovec *iovs, int niovs,
-    const struct sockctrl *inctrl, struct sockctrl *outctrl,
-    int64_t deadline);
-static int tcp_recv(sock s, struct iovec *iovs, int niovs, size_t *len,
-    const struct sockctrl *inctrl, struct sockctrl *outctrl,
-    int64_t deadline);
-
-struct tcp_listener {
-    struct sockvfptr *vfptr;
+struct tcplistener {
     int fd;
     int port;
 };
 
-static struct sockvfptr tcp_listener_vfptr = {0};
+static const int tcpconn_type_placeholder = 0;
+static const void *tcpconn_type = &tcpconn_type_placeholder;
 
-struct tcp_conn {
-    struct sockvfptr *vfptr;
+struct tcpconn {
     int fd;
-
+    ipaddr addr;
+    /* Sender side. */
     uint8_t *txbuf;
     size_t txbuf_len;
     size_t txbuf_capacity;
     chan tosender;
     chan fromsender;
-    coro sender;
-
+    int sender;
+    /* Receiver side. */
     uint8_t *rxbuf;
     size_t rxbuf_len;
     size_t rxbuf_capacity;
-
-    ipaddr addr;
 };
 
-static struct sockvfptr tcp_conn_vfptr = {
-    tcp_send,
-    tcp_recv
-};
-
-static void tcp_tune(int s) {
-    /* Make the socket non-blocking. */
-    int opt = fcntl(s, F_GETFL, 0);
-    if (opt == -1)
-        opt = 0;
-    int rc = fcntl(s, F_SETFL, opt | O_NONBLOCK);
-    dill_assert(rc != -1);
-    /*  Allow re-using the same local address rapidly. */
-    opt = 1;
-    rc = setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof (opt));
-    dill_assert(rc == 0);
-    /* If possible, prevent SIGPIPE signal when writing to the connection
-        already closed by the peer. */
-#ifdef SO_NOSIGPIPE
-    opt = 1;
-    rc = setsockopt (s, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof (opt));
-    dill_assert (rc == 0 || errno == EINVAL);
-#endif
-}
-
-static coroutine void tcp_sender(struct tcp_conn *conn) {
+static coroutine void tcpconn_sender(struct tcpconn *conn) {
     while(1) {
         /* Hand the buffer to the main object. */
         int rc = chsend(conn->fromsender, NULL, 0, -1);
@@ -120,13 +86,29 @@ static coroutine void tcp_sender(struct tcp_conn *conn) {
     }
 }
 
-static int tcp_conn_init(struct tcp_conn *conn, int fd) {
-    /* TODO: Error handling. */
-    conn->vfptr = &tcp_conn_vfptr;
+static void tcptune(int s) {
+    /* Make the socket non-blocking. */
+    int opt = fcntl(s, F_GETFL, 0);
+    if (opt == -1)
+        opt = 0;
+    int rc = fcntl(s, F_SETFL, opt | O_NONBLOCK);
+    dill_assert(rc != -1);
+    /*  Allow re-using the same local address rapidly. */
+    opt = 1;
+    rc = setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof (opt));
+    dill_assert(rc == 0);
+    /* If possible, prevent SIGPIPE signal when writing to the connection
+        already closed by the peer. */
+#ifdef SO_NOSIGPIPE
+    opt = 1;
+    rc = setsockopt (s, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof (opt));
+    dill_assert (rc == 0 || errno == EINVAL);
+#endif
+}
+
+static int tcpconn_init(struct tcpconn *conn, int fd) {
     conn->fd = fd;
-    conn->rxbuf = NULL;
-    conn->rxbuf_len = 0;
-    conn->rxbuf_capacity = 0;
+    /* Sender side. */
     conn->txbuf = NULL;
     conn->txbuf_len = 0;
     conn->txbuf_capacity = 0;
@@ -134,170 +116,52 @@ static int tcp_conn_init(struct tcp_conn *conn, int fd) {
     dill_assert(conn->tosender);
     conn->fromsender = channel(0, 0);
     dill_assert(conn->fromsender);
-    conn->sender = go(tcp_sender(conn));
-    dill_assert(conn->sender);
+    conn->sender = go(tcpconn_sender(conn));
+    /* Receiver side. */
+    conn->rxbuf = NULL;
+    conn->rxbuf_len = 0;
+    conn->rxbuf_capacity = 0;
     return 0;
 }
 
-sock tcplisten(const ipaddr *addr, int backlog) {
-    if(dill_slow(backlog < 0)) {errno = EINVAL; return NULL;}
-    /* Open listening socket. */
-    int s = socket(ipfamily(addr), SOCK_STREAM, 0);
-    if(s == -1) return NULL;
-    tcp_tune(s);
-    /* Start listening. */
-    int rc = bind(s, ipsockaddr(addr), iplen(addr));
-    if(rc != 0) return NULL;
-    rc = listen(s, backlog);
-    if(rc != 0) return NULL;
-    /* If the user requested an ephemeral port,
-       retrieve the port number assigned by the OS now. */
-    int port = ipport(addr);
-    if(port == 0) {
-        ipaddr baddr;
-        socklen_t len = sizeof(ipaddr);
-        rc = getsockname(s, (struct sockaddr*)&baddr, &len);
-        if(rc == -1) {
-            int err = errno;
-            fdclean(s);
-            close(s);
-            errno = err;
-            return NULL;
-        }
-        port = ipport(&baddr);
-    }
-    /* Create the object. */
-    struct tcp_listener *l = malloc(sizeof(struct tcp_listener));
-    if(dill_slow(!l)) {
-        fdclean(s);
-        close(s);
-        errno = ENOMEM;
-        return NULL;
-    }
-    l->vfptr = &tcp_listener_vfptr;
-    l->fd = s;
-    l->port = port;
-    return (sock)l;
+static void tcplistener_stop_fn(int s) {
+    struct tcplistener *lst = sockdata(s);
+    int rc = sockdone(s);
+    dill_assert(rc == 0);
+    rc = close(lst->fd);
+    dill_assert(rc == 0);
+    free(lst);
 }
 
-sock tcpaccept(sock s, int64_t deadline) {
-    if(dill_slow(*s != &tcp_listener_vfptr)) {errno = EPROTOTYPE; return NULL;}
-    struct tcp_listener *l = (struct tcp_listener*)s;
-    while(1) {
-        /* Try to get new connection (non-blocking). */
-        socklen_t addrlen;
-        ipaddr addr;
-        addrlen = sizeof(addr);
-        int as = accept(l->fd, (struct sockaddr*)&addr, &addrlen);
-        if(as >= 0) {
-            tcp_tune(as);
-            struct tcp_conn *c = malloc(sizeof(struct tcp_conn));
-            if(dill_slow(!c)) {
-                fdclean(as);
-                close(as);
-                errno = ENOMEM;
-                return NULL;
-            }
-            int rc = tcp_conn_init(c, as);
-            if(dill_slow(rc < 0)) {
-                int err = errno;
-                fdclean(as);
-                close(as);
-                free(c);
-                errno = err;
-                return NULL;
-            }
-            c->addr = addr;
-            return (sock)c;
-        }
-        dill_assert(as == -1);
-        if(errno != EAGAIN && errno != EWOULDBLOCK) return NULL;
-        /* Wait till new connection is available. */
-        int rc = fdwait(l->fd, FDW_IN, deadline);
-        if(rc < 0) return NULL;
-        dill_assert(rc == FDW_IN);
-    }
+static void tcpconn_stop_fn(int s) {
+    struct tcpconn *conn = sockdata(s);
+    /* Sender side. */
+    int rc = stop(&conn->sender, 1, 0);
+    dill_assert(rc == 0);
+    chclose(conn->tosender);
+    chclose(conn->fromsender);
+    free(conn->txbuf);
+    /* Receiver side. */
+    free(conn->rxbuf);
+    /* Deallocte the entire object. */
+    rc = sockdone(s);
+    dill_assert(rc == 0);
+    rc = close(conn->fd);
+    dill_assert(rc == 0);
+    free(conn);
 }
 
-sock tcpconnect(const ipaddr *addr, int64_t deadline) {
-    /* Open a socket. */
-    int s = socket(ipfamily(addr), SOCK_STREAM, 0);
-    if(s < 0) return NULL;
-    tcp_tune(s);
-    /* Connect to the remote endpoint. */
-    int rc = connect(s, ipsockaddr(addr), iplen(addr));
-    if(rc != 0) {
-        dill_assert(rc == -1);
-        if(errno != EINPROGRESS) return NULL;
-        rc = fdwait(s, FDW_OUT, deadline);
-        if(rc < 0) return NULL;
-        int err;
-        socklen_t errsz = sizeof(err);
-        rc = getsockopt(s, SOL_SOCKET, SO_ERROR, (void*)&err, &errsz);
-        if(rc != 0) {
-            err = errno;
-            fdclean(s);
-            close(s);
-            errno = err;
-              return NULL;
-        }
-        if(err != 0) {
-            fdclean(s);
-            close(s);
-            errno = err;
-            return NULL;
-        }
-    }
-    /* Create the object. */
-    struct tcp_conn *c = malloc(sizeof(struct tcp_conn));
-    if(!c) {
-        fdclean(s);
-        close(s);
-        errno = ENOMEM;
-        return NULL;
-    }
-    rc = tcp_conn_init(c, s);
-    if(dill_slow(rc < 0)) {
-        int err = errno;
-        fdclean(s);
-        close(s);
-        free(c);
-        errno = err;
-        return NULL;
-    }
-    return (sock)c;
-}
-
-int tcpport(sock s) {
-    if(*s == &tcp_conn_vfptr) {
-        struct tcp_conn *c = (struct tcp_conn*)s;
-        return ipport(&c->addr);
-    }
-    if(*s == &tcp_listener_vfptr) {
-        struct tcp_listener *l = (struct tcp_listener*)s;
-        return l->port;
-    }
-    errno == EPROTOTYPE;
-    return -1;
-}
-
-int tcppeer(sock s, ipaddr *addr) {
-    if(dill_slow(*s != &tcp_conn_vfptr)) {errno = EPROTOTYPE; return -1;}
-    struct tcp_conn *c = (struct tcp_conn*)s;
-    if(dill_fast(addr))
-        *addr = c->addr;
-    return 0;
-}
-
-static int tcp_send(sock s, struct iovec *iovs, int niovs,
+static int tcpconn_send_fn(int s, struct iovec *iovs, int niovs,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
-    if(dill_slow(*s != &tcp_conn_vfptr)) {errno = EPROTOTYPE; return -1;}
-    if(dill_slow(!s || niovs < 0 || (niovs && !iovs))) {
-        errno == EINVAL; return -1;}
+    const void *type = socktype(s);
+    if(dill_slow(!type)) return -1;
+    if(dill_slow(type != tcpconn_type)) {errno = EPROTOTYPE; return -1;}
+    if(dill_slow(niovs < 0 || (niovs && !iovs))) {errno == EINVAL; return -1;}
     /* This protocol doesn't use control data. */
     if(dill_slow(inctrl || outctrl)) {errno == EINVAL; return -1;}
-    struct tcp_conn *conn = (struct tcp_conn*)s;
+    struct tcpconn *conn = sockdata(s);
+    dill_assert(conn);
     /* Wait till sender coroutine hands us the send buffer. */
     int rc = chrecv(conn->fromsender, NULL, 0, deadline);
     if(dill_slow(rc < 0))
@@ -331,15 +195,19 @@ static int tcp_send(sock s, struct iovec *iovs, int niovs,
     return 0;
 }
 
-static int tcp_recv(sock s, struct iovec *iovs, int niovs, size_t *len,
+static int tcpconn_recv_fn(int s, struct iovec *iovs, int niovs, size_t *len,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
-    if(dill_slow(*s != &tcp_conn_vfptr)) {errno = EPROTOTYPE; return -1;}
+    const void *type = socktype(s);
+    if(dill_slow(!type)) return -1;
+    if(dill_slow(type != tcpconn_type)) {errno = EPROTOTYPE; return -1;}
     if(dill_slow(!s || niovs < 0 || (niovs && !iovs))) {
         errno == EINVAL; return -1;}
     /* This protocol doesn't use control data. */
     if(dill_slow(inctrl || outctrl)) {errno == EINVAL; return -1;}
-    struct tcp_conn *conn = (struct tcp_conn*)s;
+    struct tcpconn *conn = sockdata(s);
+
+    dill_assert(conn);
     /* Compute total size of the data requested. */
     size_t sz = 0;
     int i;
@@ -381,33 +249,168 @@ static int tcp_recv(sock s, struct iovec *iovs, int niovs, size_t *len,
     return 0;
 }
 
-int tcpclose(sock s, int64_t deadline) {
-    if(*s == &tcp_conn_vfptr) {
-        struct tcp_conn *c = (struct tcp_conn*)s;
-        int rc = chdone(c->tosender);
-        dill_assert(rc == 0);
-        rc = chdone(c->fromsender);
-        dill_assert(rc == 0);
-        gocancel(&c->sender, 1, deadline);
-        chclose(c->tosender);
-        chclose(c->fromsender);
-        free(c->txbuf);
-        free(c->rxbuf);
-        fdclean(c->fd);
-        rc = close(c->fd);
-        dill_assert(rc == 0);
-        free(c);
-        return 0;
+int tcplisten(const ipaddr *addr, int backlog) {
+    int err;
+    if(dill_slow(backlog < 0)) {errno = EINVAL; return -1;}
+    /* Open listening socket. */
+    int s = socket(ipfamily(addr), SOCK_STREAM, 0);
+    if(dill_slow(s < 0)) return -1;
+    tcptune(s);
+    /* Start listening. */
+    int rc = bind(s, ipsockaddr(addr), iplen(addr));
+    if(dill_slow(rc != 0)) return -1;
+    rc = listen(s, backlog);
+    if(dill_slow(rc != 0)) return -1;
+    /* If the user requested an ephemeral port,
+       retrieve the port number assigned by the OS now. */
+    int port = ipport(addr);
+    if(port == 0) {
+        ipaddr baddr;
+        socklen_t len = sizeof(ipaddr);
+        rc = getsockname(s, (struct sockaddr*)&baddr, &len);
+        if(dill_slow(rc < 0)) {err = errno; goto error1;}
+        port = ipport(&baddr);
     }
-    if(*s == &tcp_listener_vfptr) {
-        struct tcp_listener *l = (struct tcp_listener*)s;
-        fdclean(l->fd);
-        int rc = close(l->fd);
-        dill_assert(rc == 0);
-        free(l);
-        return 0;
+    /* Create the object. */
+    struct tcplistener *lst = malloc(sizeof(struct tcplistener));
+    if(dill_slow(!lst)) {errno = ENOMEM; goto error1;}
+    lst->fd = s;
+    lst->port = port;
+    /* Bind the object to a sock handle. */
+    int hndl = sock(tcplistener_type, lst, tcplistener_stop_fn, NULL, NULL);
+    if(dill_slow(hndl < 0)) {err = errno; goto error2;}
+    return hndl;
+error2:
+    free(lst);
+error1:
+    fdclean(s);
+    close(s);
+    errno = err;
+    return -1;
+}
+
+int tcpaccept(int s, int64_t deadline) {
+    int err;
+    const void *type = socktype(s);
+    if(dill_slow(!type)) return -1;
+    if(dill_slow(type != tcplistener_type)) {errno = EPROTOTYPE; return -1;}
+    struct tcplistener *lst = sockdata(s);
+    dill_assert(lst);
+    /* Try to get new connection in a non-blocking way. */
+    int as;
+    ipaddr addr;
+    while(1) {
+        socklen_t addrlen;
+        addrlen = sizeof(addr);
+        as = accept(lst->fd, (struct sockaddr*)&addr, &addrlen);
+        if(as >= 0)
+            break;
+        dill_assert(as == -1);
+        if(dill_slow(errno != EAGAIN && errno != EWOULDBLOCK)) return -1;
+        /* Wait till new connection is available. */
+        int rc = fdwait(lst->fd, FDW_IN, deadline);
+        if(dill_slow(rc < 0)) return -1;
+        dill_assert(rc == FDW_IN);
+    }
+    /* Create the object. */
+    tcptune(as);
+    struct tcpconn *conn = malloc(sizeof(struct tcpconn));
+    if(dill_slow(!conn)) {err = ENOMEM; goto error1;}
+    int rc = tcpconn_init(conn, as);
+    if(dill_slow(rc < 0)) {err = errno; goto error2;}
+    conn->addr = addr;
+    /* Bind the object to a sock handle. */
+    int hndl = sock(tcpconn_type, conn, tcpconn_stop_fn, tcpconn_send_fn,
+        tcpconn_recv_fn);
+    if(dill_slow(hndl < 0)) {err = errno; goto error2;}
+    return hndl;
+error2:
+    free(conn);
+error1:
+    fdclean(as);
+    close(as);
+    errno = err;
+    return -1;
+}
+
+int tcpconnect(const ipaddr *addr, int64_t deadline) {
+    int err;
+    /* Open a socket. */
+    int s = socket(ipfamily(addr), SOCK_STREAM, 0);
+    if(dill_slow(s < 0)) return -1;
+    tcptune(s);
+    /* Connect to the remote endpoint. */
+    int rc = connect(s, ipsockaddr(addr), iplen(addr));
+    if(rc != 0) {
+        dill_assert(rc == -1);
+        if(dill_slow(errno != EINPROGRESS)) return -1;
+        rc = fdwait(s, FDW_OUT, deadline);
+        if(dill_slow(rc < 0)) return -1;
+        socklen_t errsz = sizeof(err);
+        rc = getsockopt(s, SOL_SOCKET, SO_ERROR, (void*)&err, &errsz);
+        if(rc != 0) {err = errno; goto error1;}
+        if(err != 0) goto error1;
+    }
+    /* Create the object. */
+    struct tcpconn *conn = malloc(sizeof(struct tcpconn));
+    if(!conn) {err = ENOMEM; goto error1;}
+    rc = tcpconn_init(conn, s);
+    if(dill_slow(rc < 0)) {err = errno; goto error2;}
+    /* Bind the object to a sock handle. */
+    int hndl = sock(tcpconn_type, conn, tcpconn_stop_fn, tcpconn_send_fn,
+        tcpconn_recv_fn);
+    if(dill_slow(hndl < 0)) {err = errno; goto error2;}
+    return hndl;
+error2:
+    free(conn);
+error1:
+    fdclean(s);
+    close(s);
+    errno = err;
+    return -1;
+}
+
+int tcpport(int s) {
+    const void *type = socktype(s);
+    if(dill_slow(!type)) return -1;
+    if(type == tcpconn_type) {
+        struct tcpconn *conn = sockdata(s);
+        dill_assert(conn);
+        return ipport(&conn->addr);
+    }
+    if(type == tcplistener_type) {
+        struct tcplistener *lst = sockdata(s);
+        dill_assert(lst);
+        return lst->port;
     }
     errno == EPROTOTYPE;
     return -1;
+}
+
+int tcppeer(int s, ipaddr *addr) {
+    const void *type = socktype(s);
+    if(dill_slow(!type)) return -1;
+    if(dill_slow(type != tcpconn_type)) {errno = EPROTOTYPE; return -1;}
+    struct tcpconn *conn = sockdata(s);
+    dill_assert(conn);
+    if(dill_fast(addr))
+        *addr = conn->addr;
+    return 0;
+}
+
+int tcpclose(int s) {
+    const void *type = socktype(s);
+    if(dill_slow(!type)) return -1;
+    if(dill_slow(type != tcpconn_type)) {errno = EPROTOTYPE; return -1;}
+    struct tcpconn *conn = sockdata(s);
+    dill_assert(conn);
+    /* Ask sender to finish once it is done sending. */
+    int rc = chdone(conn->tosender);
+    dill_assert(rc == 0);
+    rc = chdone(conn->fromsender);
+    dill_assert(rc == 0);
+    /* TODO it would be nice to flip some flag here so that send/recv return
+       error if attempted after tcpclose(). */
+    return 0;
 }
 

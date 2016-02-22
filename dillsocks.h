@@ -100,6 +100,8 @@ DILLSOCKS_EXPORT int ipport(const ipaddr *addr);
 /*  Generic socket                                                            */
 /******************************************************************************/
 
+/* For implementors. */
+
 struct sockctrl {
     void *type;
     size_t len;
@@ -111,36 +113,39 @@ struct sockopt {
     int opt;
 };
 
-typedef struct sockvfptr **sock;
+typedef void (*sockstop_fn)(int s);
+typedef int (*socksend_fn)(int s, struct iovec *iovs, int niovs,
+    const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
+typedef int (*sockrecv_fn)(int s, struct iovec *iovs, int niovs, size_t *len,
+    const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
 
-struct sockvfptr {
-    int (*send)(sock s, struct iovec *iovs, int niovs,
-        const struct sockctrl *inctrl, struct sockctrl *outctrl,
-        int64_t deadline);
-    int (*recv)(sock s, struct iovec *iovs, int niovs, size_t *len,
-        const struct sockctrl *inctrl, struct sockctrl *outctrl,
-        int64_t deadline);
-};
+DILLSOCKS_EXPORT int sock(const void *type, void *data, sockstop_fn stop_fn,
+    socksend_fn send_fn, sockrecv_fn recv_fn);
+DILLSOCKS_EXPORT const void *socktype(int s);
+DILLSOCKS_EXPORT void *sockdata(int s);
+DILLSOCKS_EXPORT int sockdone(int s);
 
-DILLSOCKS_EXPORT int socksend(sock s, const void *buf, size_t len,
+/* For users. */
+
+DILLSOCKS_EXPORT int socksend(int s, const void *buf, size_t len,
     int64_t deadline);
-DILLSOCKS_EXPORT int sockrecv(sock s, void *buf, size_t *len,
+DILLSOCKS_EXPORT int sockrecv(int s, void *buf, size_t *len,
     int64_t deadline);
-DILLSOCKS_EXPORT int socksendv(sock s, struct iovec *iovs, int niovs,
+DILLSOCKS_EXPORT int socksendv(int s, struct iovec *iovs, int niovs,
     int64_t deadline);
-DILLSOCKS_EXPORT int sockrecvv(sock s, struct iovec *iovs, int niovs,
+DILLSOCKS_EXPORT int sockrecvv(int s, struct iovec *iovs, int niovs,
     size_t *len, int64_t deadline);
 
 /******************************************************************************/
 /*  TCP                                                                       */
 /******************************************************************************/
 
-DILLSOCKS_EXPORT sock tcplisten(const ipaddr *addr, int backlog);
-DILLSOCKS_EXPORT sock tcpaccept(sock s, int64_t deadline);
-DILLSOCKS_EXPORT sock tcpconnect(const ipaddr *addr, int64_t deadline);
-DILLSOCKS_EXPORT int tcpport(sock s);
-DILLSOCKS_EXPORT int tcppeer(sock s, ipaddr *addr);
-DILLSOCKS_EXPORT int tcpclose(sock s, int64_t deadline);
+DILLSOCKS_EXPORT int tcplisten(const ipaddr *addr, int backlog);
+DILLSOCKS_EXPORT int tcpaccept(int s, int64_t deadline);
+DILLSOCKS_EXPORT int tcpconnect(const ipaddr *addr, int64_t deadline);
+DILLSOCKS_EXPORT int tcpport(int s);
+DILLSOCKS_EXPORT int tcppeer(int s, ipaddr *addr);
+DILLSOCKS_EXPORT int tcpclose(int s);
 
 #endif
 
