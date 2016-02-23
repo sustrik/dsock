@@ -23,37 +23,39 @@
 */
 
 #include <assert.h>
-#include <string.h>
+#include <stdio.h>
+#include <libdill.h>
 
 #include "../dillsocks.h"
 
-#include "create_connection.inc"
-
-int main(void) {
-    int s[2];
-    create_tcp_connection(s);
-    int sf0 = sfattach(s[0]);
-    assert(sf0 >= 0);
-
-    /* Check whether sent message is properly framed. */
-    int rc = socksend(sf0, "ABC", 3, -1);
+coroutine void client(chan ch) {
+    ipaddr addr;
+    int rc = ipremote(&addr, "127.0.0.1", 5555, 0, -1);
     assert(rc == 0);
-    size_t sz = 11;
-    char buf[11];
-    rc = sockrecv(s[1], buf, &sz, -1);
+    int cs = tcpconnect(&addr, -1);
+    assert(cs);
+    rc = chsend(ch, &cs, sizeof(cs), -1);
     assert(rc == 0);
-    assert(memcmp(buf, "\x00\x00\x00\x00\x00\x00\x00\x03" "ABC", 11) == 0);
-
-    /* Simple sf-based ping-pong. */
-    int sf1 = sfattach(s[1]);
-    assert(sf1 >= 0);
-    rc = socksend(sf1, "DEF", 3, -1);
-    assert(rc == 0);
-    sz = 11;
-    rc = sockrecv(sf0, buf, &sz, -1);
-    assert(rc == 0);
-    assert(sz == 3);
-    assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
-
-    return 0;
 }
+
+void create_tcp_connection(int s[2]) {
+    ipaddr addr;
+    int rc = iplocal(&addr, NULL, 5555, 0);
+    assert(rc == 0);
+    int lst = tcplisten(&addr, 10);
+    assert(lst);
+    chan ch = channel(sizeof(int), 0);
+    assert(ch);
+    int chndl = go(client(ch));
+    assert(chndl >= 0);
+    s[0] = tcpaccept(lst, -1);
+    assert(s[0]);
+    rc = chrecv(ch, &s[1], sizeof(int), -1);
+    assert(rc == 0);
+    rc = stop(&chndl, 1, -1);
+    assert(rc == 0);
+    chclose(ch);
+    rc = stop(&lst, 1, 0);
+    assert(rc == 0);
+}
+

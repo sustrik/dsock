@@ -28,36 +28,7 @@
 
 #include "../dillsocks.h"
 
-coroutine void client(chan ch) {
-    ipaddr addr;
-    int rc = ipremote(&addr, "127.0.0.1", 5555, 0, -1);
-    assert(rc == 0);
-    int cs = tcpconnect(&addr, -1);
-    assert(cs);
-    rc = chsend(ch, &cs, sizeof(cs), -1);
-    assert(rc == 0);
-}
-
-void create_tcp_connection(int s[2]) {
-    ipaddr addr;
-    int rc = iplocal(&addr, NULL, 5555, 0);
-    assert(rc == 0);
-    int lst = tcplisten(&addr, 10);
-    assert(lst);
-    chan ch = channel(sizeof(int), 0);
-    assert(ch);
-    int chndl = go(client(ch));
-    assert(chndl >= 0);
-    s[0] = tcpaccept(lst, -1);
-    assert(s[0]);
-    rc = chrecv(ch, &s[1], sizeof(int), -1);
-    assert(rc == 0);
-    rc = stop(&chndl, 1, -1);
-    assert(rc == 0);
-    chclose(ch);
-    rc = stop(&lst, 1, 0);
-    assert(rc == 0);
-}
+#include "create_connection.inc"
 
 int main() {
 

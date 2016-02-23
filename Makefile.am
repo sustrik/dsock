@@ -59,6 +59,8 @@ check_PROGRAMS = \
     tests/tcp \
     tests/sf
 
+EXTRA_DIST = tests/create_connection.inc
+
 LDADD = libdillsocks.la
 
 TESTS = $(check_PROGRAMS)
@@ -86,7 +88,7 @@ dist-hook:
 	fi; \
 	$(srcdir)/package_version.sh > $(distdir)/.version
 
-EXTRA_DIST = \
+EXTRA_DIST += \
     ./abi_version.sh \
     ./package_version.sh \
     ./CMakeLists.txt

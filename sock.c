@@ -126,7 +126,6 @@ int socksendv(int s, struct iovec *iovs, int niovs, int64_t deadline) {
 
 int sockrecvv(int s, struct iovec *iovs, int niovs, size_t *len,
       int64_t deadline) {
-    if(dill_slow(!len)) {errno = EINVAL; return -1;}
     const void *type = handletype(s);
     if(dill_slow(!type)) return -1;
     if(dill_slow(type != dill_sock_type)) {errno = ENOTSOCK; return -1;}
