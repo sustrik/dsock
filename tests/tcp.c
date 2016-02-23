@@ -99,8 +99,12 @@ int main() {
     rc = sockrecv(s[1], buf, &sz, -1);
     assert(rc == -1 && errno == ECONNRESET);
     assert(sz == 2 && buf[0] == 'Z' && buf[1] == 'X');
+    rc = sockrecv(s[1], buf, &sz, -1);
+    assert(rc == -1 && errno == ECONNRESET);
+    assert(sz == 0);
     rc = tcpclose(s[1], -1);
     assert(rc == 0);
+
 
     return 0;
 }
