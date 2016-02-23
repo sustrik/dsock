@@ -54,6 +54,12 @@ int main(void) {
     assert(rc == 0);
     assert(sz == 3);
     assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
+    rc = socksend(sf0, "GHI", 3, -1);
+    assert(rc == 0);
+    rc = sockrecv(sf1, buf, 3, &sz, -1);
+    assert(rc == 0);
+    assert(sz == 3);
+    assert(buf[0] == 'G' && buf[1] == 'H' && buf[2] == 'I');
 
     return 0;
 }
