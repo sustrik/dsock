@@ -66,6 +66,13 @@ int main(void) {
     rc = sfdetach(sf0, &u, -1);
     assert(rc == 0);
     assert(u == s[0]);
+    rc = sfdetach(sf1, &u, -1);
+    assert(rc == 0);
+    assert(u == s[1]);
+    rc = tcpclose(s[0], -1);
+    assert(rc == 0);
+    rc = tcpclose(s[1], -1);
+    assert(rc == 0);
 
     return 0;
 }
