@@ -61,5 +61,11 @@ int main(void) {
     assert(sz == 3);
     assert(buf[0] == 'G' && buf[1] == 'H' && buf[2] == 'I');
 
+    /* Terminate the framing protocol. */
+    int u;
+    rc = sfdetach(sf0, &u, -1);
+    assert(rc == 0);
+    assert(u == s[0]);
+
     return 0;
 }

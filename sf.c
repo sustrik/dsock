@@ -38,7 +38,10 @@ struct sfconn {
 };
 
 static void sf_stop_fn(int s) {
-    dill_assert(0);
+    struct sfconn *conn = sockdata(s);
+    int rc = sockdone(s);
+    dill_assert(rc == 0);
+    free(conn);
 }
 
 static int sf_send_fn(int s, struct iovec *iovs, int niovs,
@@ -136,15 +139,15 @@ static int sf_recv_fn(int s, struct iovec *iovs, int niovs, size_t *outlen,
     return rc;
 }
 
-int sfattach(int s) {
+int sfattach(int u) {
     int err;
     /* Check whether s is a socket. */
-    const void *type = socktype(s);
+    const void *type = socktype(u);
     if(dill_slow(!type)) return -1;
     /* Create the object. */
     struct sfconn *conn = malloc(sizeof(struct sfconn));
     if(dill_slow(!conn)) {errno = ENOMEM; return -1;}
-    conn->u = s;
+    conn->u = u;
     conn->rxmsgsz = 0;
     /* Bind the object a socket handle. */
     int hndl = sock(sf_type, conn, sf_stop_fn, sf_send_fn, sf_recv_fn);
@@ -155,3 +158,20 @@ error1:
     errno = err;
     return -1;
 }
+
+int sfdetach(int s, int *u, int64_t deadline) {
+    const void *type = socktype(s);
+    if(dill_slow(!type)) return -1;
+    if(dill_slow(type != sf_type)) {errno = EPROTOTYPE; return -1;}
+    struct sfconn *conn = sockdata(s);
+    dill_assert(conn);
+    /* Send termination message. */
+    const uint64_t tm = 0xffffffffffffffff;
+    int rc = socksend(conn->u, &tm, 8, deadline);
+    if(dill_slow(rc < 0)) return -1; /* TODO: object should be stopped even here. */
+    /* Read incoming messages until termination message is encountered. */
+    /* TODO */
+    if(u) *u = conn->u;
+    return stop(&s, 1, 0);
+}
+

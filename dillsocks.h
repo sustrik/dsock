@@ -151,7 +151,8 @@ DILLSOCKS_EXPORT int tcpclose(int s, int64_t deadline);
 /*  Simple framing protocol (size + data)                                     */
 /******************************************************************************/
 
-DILL_EXPORT int sfattach(int s);
+DILL_EXPORT int sfattach(int u);
+DILL_EXPORT int sfdetach(int s, int *u, int64_t deadline);
 
 #endif
 
