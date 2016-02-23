@@ -59,31 +59,36 @@ struct tcpconn {
 };
 
 static coroutine void tcpconn_sender(struct tcpconn *conn) {
+    int rc;
     while(1) {
         /* Hand the buffer to the main object. */
-        int rc = chsend(conn->fromsender, NULL, 0, -1);
-        if(dill_slow(rc == -1 && errno == EPIPE)) return;
-        if(dill_slow(rc == -1 && errno == ECANCELED)) return;
+        rc = chsend(conn->fromsender, NULL, 0, -1);
+        if(dill_slow(rc == -1 && errno == EPIPE)) goto error1;
+        if(dill_slow(rc == -1 && errno == ECANCELED)) goto error1;
         dill_assert(rc == 0);
         /* Wait till main object fills the buffer and hands it back. */
         rc = chrecv(conn->tosender, NULL, 0, -1);
-        if(dill_slow(rc == -1 && errno == EPIPE)) return;
-        if(dill_slow(rc == -1 && errno == ECANCELED)) return;
+        if(dill_slow(rc == -1 && errno == EPIPE)) goto error1;
+        if(dill_slow(rc == -1 && errno == ECANCELED)) goto error1;
         dill_assert(rc == 0);
         /* Loop until all data in send buffer are sent. */
         uint8_t *pos = conn->txbuf;
         size_t len = conn->txbuf_len;
         while(len) {
             rc = fdwait(conn->fd, FDW_OUT, -1);
-            if(dill_slow(rc == -1 && errno == ECANCELED)) return;
+            if(dill_slow(rc == -1 && errno == ECANCELED)) goto error1;
+            dill_assert(rc != -1);
+            if(dill_slow(rc & FDW_ERR)) goto error1;
             dill_assert(rc == FDW_OUT);
             ssize_t sz = send(conn->fd, pos, len, 0);
-            /* TODO: Handle connection errors. */
-            dill_assert(sz >= 0);
+            if(dill_slow(sz < 0)) goto error1;
             pos += sz;
             len -= sz;
         }
     }
+error1:
+    rc = chdone(conn->fromsender);
+    dill_assert(rc == 0);
 }
 
 static void tcptune(int s) {
@@ -168,6 +173,7 @@ static int tcpconn_send_fn(int s, struct iovec *iovs, int niovs,
     dill_assert(conn);
     /* Wait till sender coroutine hands us the send buffer. */
     int rc = chrecv(conn->fromsender, NULL, 0, deadline);
+    if(dill_slow(rc < 0 && errno == EPIPE)) {errno = ECONNRESET; return -1;}
     if(dill_slow(rc < 0))
         return -1;
     /* Resize the send buffer so that the data fit it. */

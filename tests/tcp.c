@@ -89,7 +89,7 @@ int main() {
     rc = stop(s, 2, 0);
     assert(rc == 0);
 
-    /* Receive less than requested amount of data when connection is closed */
+    /* Receive less than requested amount of data when connection is closed. */
     create_tcp_connection(s);
     rc = socksend(s[0], "ZX", 2, -1);
     assert(rc == 0);
@@ -105,6 +105,24 @@ int main() {
     rc = tcpclose(s[1], -1);
     assert(rc == 0);
 
+    /* Test writing to a closed connection. */
+    create_tcp_connection(s);
+    rc = tcpclose(s[0], -1);
+    assert(rc == 0);
+    rc = msleep(now() + 100);
+    assert(rc == 0);
+    /* First send after disconnection doesn't fail. See here:
+       http://stackoverflow.com/questions/11436013/writing-to-a-closed-local-tcp-socket-not-failing */
+    rc = socksend(s[1], "ABC", 3, -1);
+    assert(rc == 0);
+    /* Second send doesn't fail because the sending is asynchronous. */
+    rc = socksend(s[1], "DEF", 3, -1);
+    assert(rc == 0);
+    /* Third send finally fails. */
+    rc = socksend(s[1], "GHI", 3, -1);
+    assert(rc == -1 && errno == ECONNRESET);
+    rc = tcpclose(s[1], -1);
+    assert(rc == 0);
 
     return 0;
 }
