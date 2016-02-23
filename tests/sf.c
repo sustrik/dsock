@@ -50,7 +50,7 @@ int main(void) {
     assert(sf1 >= 0);
     rc = socksend(sf1, "DEF", 3, -1);
     assert(rc == 0);
-    rc = sockrecv(sf0, buf, 11, &sz, -1);
+    rc = sockrecv(sf0, buf, 3, &sz, -1);
     assert(rc == 0);
     assert(sz == 3);
     assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');

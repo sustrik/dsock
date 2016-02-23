@@ -129,7 +129,7 @@ static int sf_recv_fn(int s, struct iovec *iovs, int niovs, size_t *outlen,
        return -1;
     }
     /* Read message body. */
-    int rc = sockrecvv(conn->u, iov, i, NULL, deadline);
+    int rc = sockrecvv(conn->u, iov, i, outlen, deadline);
     int err = errno;
     free(iov);
     errno = err;
