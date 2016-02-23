@@ -93,13 +93,13 @@ int main() {
     create_tcp_connection(s);
     rc = socksend(s[0], "ZZ", 2, -1);
     assert(rc == 0);
-    rc = tcpclose(s[0]);
+    rc = tcpclose(s[0], -1);
     assert(rc == 0);
     sz = 3;
     rc = sockrecv(s[1], buf, &sz, -1);
     assert(rc == ECONNRESET);
     assert(sz == 2);
-    rc = stop(s, 2, 0);
+    rc = tcpclose(s[1], -1);
     assert(rc == 0);
 
     return 0;

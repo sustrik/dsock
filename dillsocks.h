@@ -145,7 +145,7 @@ DILLSOCKS_EXPORT int tcpaccept(int s, int64_t deadline);
 DILLSOCKS_EXPORT int tcpconnect(const ipaddr *addr, int64_t deadline);
 DILLSOCKS_EXPORT int tcpport(int s);
 DILLSOCKS_EXPORT int tcppeer(int s, ipaddr *addr);
-DILLSOCKS_EXPORT int tcpclose(int s);
+DILLSOCKS_EXPORT int tcpclose(int s, int64_t deadline);
 
 /******************************************************************************/
 /*  Simple framing protocol (size + data)                                     */

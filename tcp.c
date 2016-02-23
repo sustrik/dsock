@@ -142,7 +142,7 @@ static void tcpconn_stop_fn(int s) {
     struct tcpconn *conn = sockdata(s);
     /* Sender side. */
     int rc = stop(&conn->sender, 1, 0);
-    dill_assert(rc == 0);
+    dill_assert(rc == -1 && errno == ECANCELED);
     chclose(conn->tosender);
     chclose(conn->fromsender);
     free(conn->txbuf);
@@ -399,19 +399,24 @@ int tcppeer(int s, ipaddr *addr) {
     return 0;
 }
 
-int tcpclose(int s) {
+int tcpclose(int s, int64_t deadline) {
     const void *type = socktype(s);
     if(dill_slow(!type)) return -1;
     if(dill_slow(type != tcpconn_type)) {errno = EPROTOTYPE; return -1;}
     struct tcpconn *conn = sockdata(s);
     dill_assert(conn);
-    /* Ask sender to finish once it is done sending. */
+    /* Soft-cancel handshake with the sender coroutine. */
     int rc = chdone(conn->tosender);
     dill_assert(rc == 0);
-    rc = chdone(conn->fromsender);
+    rc = chrecv(conn->fromsender, NULL, 0, deadline);
+    int result = (rc == 0 || errno == EPIPE) ? 0 : errno;
+    /* Deallocate the entire socket. */
+    rc = stop(&s, 1, 0);
+    if(dill_slow(rc < 0 && errno == ECANCELED)) return -1;
     dill_assert(rc == 0);
-    /* TODO it would be nice to flip some flag here so that send/recv return
-       error if attempted after tcpclose(). */
-    return 0;
+    if(!result)
+        return 0;
+    errno = result;
+    return -1;
 }
 
