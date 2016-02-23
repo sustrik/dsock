@@ -219,6 +219,7 @@ static int tcpconn_recv_fn(int s, struct iovec *iovs, int niovs, size_t *len,
         sz += iovs[i].iov_len;
     /* If there's not enough data in the buffer try to read them from
        the socket. */
+    int result = 0;
     if(sz > conn->rxbuf_len) {
         /* Resize the buffer to be able to hold all the data. */
         if(dill_slow(sz > conn->rxbuf_capacity)) {
@@ -233,24 +234,35 @@ static int tcpconn_recv_fn(int s, struct iovec *iovs, int niovs, size_t *len,
             dill_assert(rc == FDW_IN);
             ssize_t nbytes = recv(conn->fd, conn->rxbuf + conn->rxbuf_len,
                 sz - conn->rxbuf_len, 0);
-            /* TODO: Handle connection errors. */
-            dill_assert(nbytes != 0);
             if(dill_slow(nbytes < 0)) return -1;
             conn->rxbuf_len += nbytes;
+            /* If connection was closed by the peer. */
+            if(dill_slow(!nbytes)) {
+                sz = conn->rxbuf_len;
+                result = ECONNRESET;
+                break;
+            }
         }
     }
     /* Copy the data from rx buffer to user-supplied buffer(s). */
-    uint8_t *pos = conn->rxbuf;
+    size_t offset = 0;
     for(i = 0; i != niovs; ++i) {
-        memcpy(iovs[i].iov_base, pos, iovs[i].iov_len);
-        pos += iovs[i].iov_len;
+        if(dill_slow(offset + iovs[i].iov_len > sz)) {
+            memcpy(iovs[i].iov_base, conn->rxbuf + offset, sz - offset);
+            break;
+        }
+        memcpy(iovs[i].iov_base, conn->rxbuf + offset, iovs[i].iov_len);
+        offset += iovs[i].iov_len;
     }
     /* Shift remaining data in the buffer to the beginning. */
-    conn->rxbuf_len = conn->rxbuf_len - (pos - conn->rxbuf);
-    memmove(conn->rxbuf, pos, conn->rxbuf_len);
+    conn->rxbuf_len -= sz;
+    memmove(conn->rxbuf, conn->rxbuf + sz, conn->rxbuf_len);
     if(len)
         *len = sz;
-    return 0;
+    if(dill_fast(!result))
+        return 0;
+    errno = result;
+    return -1;
 }
 
 int tcplisten(const ipaddr *addr, int backlog) {

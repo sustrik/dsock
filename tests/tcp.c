@@ -91,14 +91,14 @@ int main() {
 
     /* Receive less than requested amount of data when connection is closed */
     create_tcp_connection(s);
-    rc = socksend(s[0], "ZZ", 2, -1);
+    rc = socksend(s[0], "ZX", 2, -1);
     assert(rc == 0);
     rc = tcpclose(s[0], -1);
     assert(rc == 0);
     sz = 3;
     rc = sockrecv(s[1], buf, &sz, -1);
-    assert(rc == ECONNRESET);
-    assert(sz == 2);
+    assert(rc == -1 && errno == ECONNRESET);
+    assert(sz == 2 && buf[0] == 'Z' && buf[1] == 'X');
     rc = tcpclose(s[1], -1);
     assert(rc == 0);
 
