@@ -76,7 +76,7 @@ static int sf_send_fn(int s, struct iovec *iovs, int niovs,
     return rc;
 }
 
-static int sf_recv_fn(int s, struct iovec *iovs, int niovs, size_t *len,
+static int sf_recv_fn(int s, struct iovec *iovs, int niovs, size_t *outlen,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
     const void *type = socktype(s);
@@ -91,14 +91,13 @@ static int sf_recv_fn(int s, struct iovec *iovs, int niovs, size_t *len,
     /* If the header was not yet read, read it now. */
     if(!conn->rxmsgsz) {
         uint8_t hdr[8];
-        size_t hdrsz = sizeof(hdr);
-        int rc = sockrecv(conn->u, hdr, &hdrsz, deadline);
+        int rc = sockrecv(conn->u, hdr, sizeof(hdr), NULL, deadline);
         if(dill_slow(rc < 0)) return -1;
         conn->rxmsgsz = dill_getll(hdr);
         /* There's nothing more to do for 0-byte messages. */
         if(!conn->rxmsgsz) {
-            if(len)
-                *len = 0;
+            if(outlen)
+                *outlen = 0;
             return 0;
         }
     }
@@ -124,8 +123,8 @@ static int sf_recv_fn(int s, struct iovec *iovs, int niovs, size_t *len,
        the size to the user. */
     if(bufsz < conn->rxmsgsz) {
        free(iov);
-       if(len)
-           *len = conn->rxmsgsz;
+       if(outlen)
+           *outlen = conn->rxmsgsz;
        errno = EMSGSIZE;
        return -1;
     }

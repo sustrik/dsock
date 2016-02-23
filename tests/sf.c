@@ -38,10 +38,11 @@ int main(void) {
     /* Check whether sent message is properly framed. */
     int rc = socksend(sf0, "ABC", 3, -1);
     assert(rc == 0);
-    size_t sz = 11;
+    size_t sz;
     char buf[11];
-    rc = sockrecv(s[1], buf, &sz, -1);
+    rc = sockrecv(s[1], buf, 11, &sz, -1);
     assert(rc == 0);
+    assert(sz == 11);
     assert(memcmp(buf, "\x00\x00\x00\x00\x00\x00\x00\x03" "ABC", 11) == 0);
 
     /* Simple sf-based ping-pong. */
@@ -49,8 +50,7 @@ int main(void) {
     assert(sf1 >= 0);
     rc = socksend(sf1, "DEF", 3, -1);
     assert(rc == 0);
-    sz = 11;
-    rc = sockrecv(sf0, buf, &sz, -1);
+    rc = sockrecv(sf0, buf, 11, &sz, -1);
     assert(rc == 0);
     assert(sz == 3);
     assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');

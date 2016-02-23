@@ -100,7 +100,7 @@ int socksend(int s, const void *buf, size_t len, int64_t deadline) {
     return sck->send_fn(s, &iov, 1, NULL, NULL, deadline);
 }
 
-int sockrecv(int s, void *buf, size_t *len, int64_t deadline) {
+int sockrecv(int s, void *buf, size_t len, size_t *outlen, int64_t deadline) {
     if(dill_slow(!len)) {errno = EINVAL; return -1;}
     const void *type = handletype(s);
     if(dill_slow(!type)) return -1;
@@ -110,8 +110,8 @@ int sockrecv(int s, void *buf, size_t *len, int64_t deadline) {
     if(dill_slow(!sck->recv_fn)) {errno = EOPNOTSUPP; return -1;}
     struct iovec iov;
     iov.iov_base = buf;
-    iov.iov_len = *len;
-    return sck->recv_fn(s, &iov, 1, len, NULL, NULL, deadline);
+    iov.iov_len = len;
+    return sck->recv_fn(s, &iov, 1, outlen, NULL, NULL, deadline);
 }
 
 int socksendv(int s, struct iovec *iovs, int niovs, int64_t deadline) {
@@ -124,7 +124,7 @@ int socksendv(int s, struct iovec *iovs, int niovs, int64_t deadline) {
     return sck->send_fn(s, iovs, niovs, NULL, NULL, deadline);
 }
 
-int sockrecvv(int s, struct iovec *iovs, int niovs, size_t *len,
+int sockrecvv(int s, struct iovec *iovs, int niovs, size_t *outlen,
       int64_t deadline) {
     const void *type = handletype(s);
     if(dill_slow(!type)) return -1;
@@ -132,6 +132,6 @@ int sockrecvv(int s, struct iovec *iovs, int niovs, size_t *len,
     struct sock *sck = handledata(s);
     dill_assert(sck);
     if(dill_slow(!sck->recv_fn)) {errno = EOPNOTSUPP; return -1;}
-    return sck->recv_fn(s, iovs, niovs, len, NULL, NULL, deadline);
+    return sck->recv_fn(s, iovs, niovs, outlen, NULL, NULL, deadline);
 }
 

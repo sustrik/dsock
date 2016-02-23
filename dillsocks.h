@@ -116,7 +116,7 @@ struct sockopt {
 typedef void (*sockstop_fn)(int s);
 typedef int (*socksend_fn)(int s, struct iovec *iovs, int niovs,
     const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
-typedef int (*sockrecv_fn)(int s, struct iovec *iovs, int niovs, size_t *len,
+typedef int (*sockrecv_fn)(int s, struct iovec *iovs, int niovs, size_t *outlen,
     const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
 
 DILLSOCKS_EXPORT int sock(const void *type, void *data, sockstop_fn stop_fn,
@@ -129,12 +129,12 @@ DILLSOCKS_EXPORT int sockdone(int s);
 
 DILLSOCKS_EXPORT int socksend(int s, const void *buf, size_t len,
     int64_t deadline);
-DILLSOCKS_EXPORT int sockrecv(int s, void *buf, size_t *len,
-    int64_t deadline);
+DILLSOCKS_EXPORT int sockrecv(int s, void *buf, size_t len,
+    size_t *outlen, int64_t deadline);
 DILLSOCKS_EXPORT int socksendv(int s, struct iovec *iovs, int niovs,
     int64_t deadline);
 DILLSOCKS_EXPORT int sockrecvv(int s, struct iovec *iovs, int niovs,
-    size_t *len, int64_t deadline);
+    size_t *outlen, int64_t deadline);
 
 /******************************************************************************/
 /*  TCP                                                                       */

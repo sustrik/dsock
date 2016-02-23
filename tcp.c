@@ -205,7 +205,7 @@ static int tcpconn_send_fn(int s, struct iovec *iovs, int niovs,
     return 0;
 }
 
-static int tcpconn_recv_fn(int s, struct iovec *iovs, int niovs, size_t *len,
+static int tcpconn_recv_fn(int s, struct iovec *iovs, int niovs, size_t *outlen,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
     const void *type = socktype(s);
@@ -263,8 +263,8 @@ static int tcpconn_recv_fn(int s, struct iovec *iovs, int niovs, size_t *len,
     /* Shift remaining data in the buffer to the beginning. */
     conn->rxbuf_len -= sz;
     memmove(conn->rxbuf, conn->rxbuf + sz, conn->rxbuf_len);
-    if(len)
-        *len = sz;
+    if(outlen)
+        *outlen = sz;
     if(dill_fast(!result))
         return 0;
     errno = result;
