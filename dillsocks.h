@@ -102,6 +102,15 @@ DILLSOCKS_EXPORT int ipport(const ipaddr *addr);
 
 /* For implementors. */
 
+#define SOCK_IN 1
+#define SOCK_OUT 2
+#define SOCK_INMSG 4
+#define SOCK_OUTMSG 8
+#define SOCK_INREL 16
+#define SOCK_OUTREL 32
+#define SOCK_INORD 64
+#define SOCK_OUTORD 128
+
 struct sockctrl {
     void *type;
     size_t len;
@@ -119,9 +128,10 @@ typedef int (*socksend_fn)(int s, struct iovec *iovs, int niovs,
 typedef int (*sockrecv_fn)(int s, struct iovec *iovs, int niovs, size_t *outlen,
     const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
 
-DILLSOCKS_EXPORT int sock(const void *type, void *data, sockstop_fn stop_fn,
-    socksend_fn send_fn, sockrecv_fn recv_fn);
+DILLSOCKS_EXPORT int sock(const void *type, int flags, void *data,
+    sockstop_fn stop_fn, socksend_fn send_fn, sockrecv_fn recv_fn);
 DILLSOCKS_EXPORT const void *socktype(int s);
+DILLSOCKS_EXPORT int sockflags(int s);
 DILLSOCKS_EXPORT void *sockdata(int s);
 DILLSOCKS_EXPORT int sockdone(int s, int result);
 

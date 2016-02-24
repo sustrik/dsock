@@ -150,7 +150,9 @@ int sfattach(int u) {
     conn->u = u;
     conn->rxmsgsz = 0;
     /* Bind the object a socket handle. */
-    int hndl = sock(sf_type, conn, sf_stop_fn, sf_send_fn, sf_recv_fn);
+    int hndl = sock(sf_type, SOCK_IN | SOCK_OUT | SOCK_INMSG | SOCK_OUTMSG |
+        SOCK_INREL | SOCK_OUTREL | SOCK_INORD | SOCK_OUTORD, conn, sf_stop_fn,
+        sf_send_fn, sf_recv_fn);
     if(dill_slow(hndl < 0)) {err = errno; goto error1;}
     return hndl;
 error1:

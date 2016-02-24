@@ -299,7 +299,7 @@ int tcplisten(const ipaddr *addr, int backlog) {
     lst->fd = s;
     lst->port = port;
     /* Bind the object to a sock handle. */
-    int hndl = sock(tcplistener_type, lst, tcplistener_stop_fn, NULL, NULL);
+    int hndl = sock(tcplistener_type, 0, lst, tcplistener_stop_fn, NULL, NULL);
     if(dill_slow(hndl < 0)) {err = errno; goto error2;}
     return hndl;
 error2:
@@ -341,8 +341,8 @@ int tcpaccept(int s, int64_t deadline) {
     if(dill_slow(rc < 0)) {err = errno; goto error2;}
     conn->addr = addr;
     /* Bind the object to a sock handle. */
-    int hndl = sock(tcpconn_type, conn, tcpconn_stop_fn, tcpconn_send_fn,
-        tcpconn_recv_fn);
+    int hndl = sock(tcpconn_type, SOCK_IN | SOCK_OUT, conn,
+        tcpconn_stop_fn, tcpconn_send_fn, tcpconn_recv_fn);
     if(dill_slow(hndl < 0)) {err = errno; goto error2;}
     return hndl;
 error2:
@@ -377,8 +377,8 @@ int tcpconnect(const ipaddr *addr, int64_t deadline) {
     rc = tcpconn_init(conn, s);
     if(dill_slow(rc < 0)) {err = errno; goto error2;}
     /* Bind the object to a sock handle. */
-    int hndl = sock(tcpconn_type, conn, tcpconn_stop_fn, tcpconn_send_fn,
-        tcpconn_recv_fn);
+    int hndl = sock(tcpconn_type, SOCK_IN | SOCK_OUT, conn,
+        tcpconn_stop_fn, tcpconn_send_fn, tcpconn_recv_fn);
     if(dill_slow(hndl < 0)) {err = errno; goto error2;}
     return hndl;
 error2:

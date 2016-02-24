@@ -33,17 +33,23 @@ static const void *dill_sock_type = &dill_sock_type_placeholder;
 
 struct sock {
     const void *type;
+    int flags;
     void *data;
     socksend_fn send_fn;
     sockrecv_fn recv_fn;
 };
 
-int sock(const void *type, void *data, sockstop_fn stop_fn,
+int sock(const void *type, int flags, void *data, sockstop_fn stop_fn,
       socksend_fn send_fn, sockrecv_fn recv_fn) {
     if(dill_slow(!type)) {errno = EINVAL; return -1;}
+    /* Let's guarantee forward compatibility. */
+    if(dill_slow(flags & ~(SOCK_IN | SOCK_OUT | SOCK_INMSG | SOCK_OUTMSG |
+          SOCK_INREL | SOCK_OUTREL | SOCK_INORD | SOCK_OUTORD))) {
+        errno = EINVAL; return -1;}
     struct sock *sck = malloc(sizeof(struct sock));
     if(dill_slow(!sck)) {errno = ENOMEM; return -1;}
     sck->type = type;
+    sck->flags = flags;
     sck->data = data;
     sck->send_fn = send_fn;
     sck->recv_fn = recv_fn;
@@ -64,6 +70,15 @@ const void *socktype(int s) {
     struct sock *sck = hdata(s);
     dill_assert(sck);
     return sck->type;
+}
+
+int sockflags(int s) {
+    const void *type = htype(s);
+    if(dill_slow(!type)) return NULL;
+    if(dill_slow(type != dill_sock_type)) {errno = ENOTSOCK; return NULL;}
+    struct sock *sck = hdata(s);
+    dill_assert(sck);
+    return sck->flags;
 }
 
 void *sockdata(int s) {
