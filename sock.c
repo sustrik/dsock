@@ -46,6 +46,9 @@ int sock(const void *type, int flags, void *data, sockstop_fn stop_fn,
     if(dill_slow(flags & ~(SOCK_IN | SOCK_OUT | SOCK_INMSG | SOCK_OUTMSG |
           SOCK_INREL | SOCK_OUTREL | SOCK_INORD | SOCK_OUTORD))) {
         errno = EINVAL; return -1;}
+    /* More sanity checking. */
+    if(dill_slow((flags & SOCK_IN) && !recv_fn)) {errno = EINVAL; return -1;}
+    if(dill_slow((flags & SOCK_OUT) && !send_fn)) {errno = EINVAL; return -1;}
     struct sock *sck = malloc(sizeof(struct sock));
     if(dill_slow(!sck)) {errno = ENOMEM; return -1;}
     sck->type = type;
@@ -74,8 +77,8 @@ const void *socktype(int s) {
 
 int sockflags(int s) {
     const void *type = htype(s);
-    if(dill_slow(!type)) return NULL;
-    if(dill_slow(type != dill_sock_type)) {errno = ENOTSOCK; return NULL;}
+    if(dill_slow(!type)) return -1;
+    if(dill_slow(type != dill_sock_type)) {errno = ENOTSOCK; return -1;}
     struct sock *sck = hdata(s);
     dill_assert(sck);
     return sck->flags;
