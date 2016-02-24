@@ -123,7 +123,7 @@ DILLSOCKS_EXPORT int sock(const void *type, void *data, sockstop_fn stop_fn,
     socksend_fn send_fn, sockrecv_fn recv_fn);
 DILLSOCKS_EXPORT const void *socktype(int s);
 DILLSOCKS_EXPORT void *sockdata(int s);
-DILLSOCKS_EXPORT int sockdone(int s);
+DILLSOCKS_EXPORT int sockdone(int s, int result);
 
 /* For users. */
 

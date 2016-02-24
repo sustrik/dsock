@@ -58,40 +58,40 @@ int sock(const void *type, void *data, sockstop_fn stop_fn,
 }
 
 const void *socktype(int s) {
-    const void *type = handletype(s);
+    const void *type = htype(s);
     if(dill_slow(!type)) return NULL;
     if(dill_slow(type != dill_sock_type)) {errno = ENOTSOCK; return NULL;}
-    struct sock *sck = handledata(s);
+    struct sock *sck = hdata(s);
     dill_assert(sck);
     return sck->type;
 }
 
 void *sockdata(int s) {
-    const void *type = handletype(s);
+    const void *type = htype(s);
     if(dill_slow(!type)) return NULL;
     if(dill_slow(type != dill_sock_type)) {errno = ENOTSOCK; return NULL;}
-    struct sock *sck = handledata(s);
+    struct sock *sck = hdata(s);
     dill_assert(sck);
     return sck->data;
 }
 
-int sockdone(int s) {
-    const void *type = handletype(s);
+int sockdone(int s, int result) {
+    const void *type = htype(s);
     if(dill_slow(!type)) return -1;
     if(dill_slow(type != dill_sock_type)) {errno = ENOTSOCK; return -1;}
-    struct sock *sck = handledata(s);
+    struct sock *sck = hdata(s);
     dill_assert(sck);
-    int rc = handledone(s);
+    int rc = hdone(s, result);
     if(dill_slow(rc < 0)) return -1;
     free(sck);
     return 0;
 }
 
 int socksend(int s, const void *buf, size_t len, int64_t deadline) {
-    const void *type = handletype(s);
+    const void *type = htype(s);
     if(dill_slow(!type)) return -1;
     if(dill_slow(type != dill_sock_type)) {errno = ENOTSOCK; return -1;}
-    struct sock *sck = handledata(s);
+    struct sock *sck = hdata(s);
     dill_assert(sck);
     if(dill_slow(!sck->send_fn)) {errno = EOPNOTSUPP; return -1;}
     struct iovec iov;
@@ -102,10 +102,10 @@ int socksend(int s, const void *buf, size_t len, int64_t deadline) {
 
 int sockrecv(int s, void *buf, size_t len, size_t *outlen, int64_t deadline) {
     if(dill_slow(!len)) {errno = EINVAL; return -1;}
-    const void *type = handletype(s);
+    const void *type = htype(s);
     if(dill_slow(!type)) return -1;
     if(dill_slow(type != dill_sock_type)) {errno = ENOTSOCK; return -1;}
-    struct sock *sck = handledata(s);
+    struct sock *sck = hdata(s);
     dill_assert(sck);
     if(dill_slow(!sck->recv_fn)) {errno = EOPNOTSUPP; return -1;}
     struct iovec iov;
@@ -115,10 +115,10 @@ int sockrecv(int s, void *buf, size_t len, size_t *outlen, int64_t deadline) {
 }
 
 int socksendv(int s, struct iovec *iovs, int niovs, int64_t deadline) {
-    const void *type = handletype(s);
+    const void *type = htype(s);
     if(dill_slow(!type)) return -1;
     if(dill_slow(type != dill_sock_type)) {errno = ENOTSOCK; return -1;}
-    struct sock *sck = handledata(s);
+    struct sock *sck = hdata(s);
     dill_assert(sck);
     if(dill_slow(!sck->send_fn)) {errno = EOPNOTSUPP; return -1;}
     return sck->send_fn(s, iovs, niovs, NULL, NULL, deadline);
@@ -126,10 +126,10 @@ int socksendv(int s, struct iovec *iovs, int niovs, int64_t deadline) {
 
 int sockrecvv(int s, struct iovec *iovs, int niovs, size_t *outlen,
       int64_t deadline) {
-    const void *type = handletype(s);
+    const void *type = htype(s);
     if(dill_slow(!type)) return -1;
     if(dill_slow(type != dill_sock_type)) {errno = ENOTSOCK; return -1;}
-    struct sock *sck = handledata(s);
+    struct sock *sck = hdata(s);
     dill_assert(sck);
     if(dill_slow(!sck->recv_fn)) {errno = EOPNOTSUPP; return -1;}
     return sck->recv_fn(s, iovs, niovs, outlen, NULL, NULL, deadline);

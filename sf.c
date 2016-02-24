@@ -39,7 +39,7 @@ struct sfconn {
 
 static void sf_stop_fn(int s) {
     struct sfconn *conn = sockdata(s);
-    int rc = sockdone(s);
+    int rc = sockdone(s, 0);
     dill_assert(rc == 0);
     free(conn);
 }
@@ -172,6 +172,7 @@ int sfdetach(int s, int *u, int64_t deadline) {
     /* Read incoming messages until termination message is encountered. */
     /* TODO */
     if(u) *u = conn->u;
-    return stop(&s, 1, 0);
+    hclose(s);
+    return 0;
 }
 

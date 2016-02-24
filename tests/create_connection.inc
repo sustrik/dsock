@@ -28,7 +28,7 @@
 
 #include "../dillsocks.h"
 
-coroutine void client(chan ch) {
+coroutine int client(chan ch) {
     ipaddr addr;
     int rc = ipremote(&addr, "127.0.0.1", 5555, 0, -1);
     assert(rc == 0);
@@ -36,6 +36,7 @@ coroutine void client(chan ch) {
     assert(cs);
     rc = chsend(ch, &cs, sizeof(cs), -1);
     assert(rc == 0);
+    return 0;
 }
 
 void create_tcp_connection(int s[2]) {
@@ -52,10 +53,9 @@ void create_tcp_connection(int s[2]) {
     assert(s[0]);
     rc = chrecv(ch, &s[1], sizeof(int), -1);
     assert(rc == 0);
-    rc = stop(&chndl, 1, -1);
+    rc = hwait(chndl, NULL, -1);
     assert(rc == 0);
     chclose(ch);
-    rc = stop(&lst, 1, 0);
-    assert(rc == 0);
+    hclose(lst);
 }
 

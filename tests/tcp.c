@@ -38,8 +38,7 @@ int main() {
     assert(rc == 0);
     int lst = tcplisten(&addr, 10);
     assert(lst);
-    rc = stop(&lst, 1, 0);
-    assert(rc == 0);
+    hclose(lst);
 
     /* Simple ping-pong test. */
     int s[2];
@@ -56,8 +55,8 @@ int main() {
     rc = sockrecv(s[0], buf, 3, &sz, -1);
     assert(rc == 0);
     assert(sz == 3 && buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
-    rc = stop(s, 2, 0);
-    assert(rc == 0);
+    hclose(s[0]);
+    hclose(s[1]);
 
     /* Receive less than requested amount of data when connection is closed. */
     create_tcp_connection(s);

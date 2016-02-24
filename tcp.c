@@ -58,7 +58,7 @@ struct tcpconn {
     size_t rxbuf_capacity;
 };
 
-static coroutine void tcpconn_sender(struct tcpconn *conn) {
+static coroutine int tcpconn_sender(struct tcpconn *conn) {
     int rc;
     while(1) {
         /* Hand the buffer to the main object. */
@@ -89,6 +89,7 @@ static coroutine void tcpconn_sender(struct tcpconn *conn) {
 error1:
     rc = chdone(conn->fromsender);
     dill_assert(rc == 0);
+    return 0;
 }
 
 static void tcptune(int s) {
@@ -137,7 +138,7 @@ static int tcpconn_init(struct tcpconn *conn, int fd) {
 
 static void tcplistener_stop_fn(int s) {
     struct tcplistener *lst = sockdata(s);
-    int rc = sockdone(s);
+    int rc = sockdone(s, 0);
     dill_assert(rc == 0);
     fdclose(lst->fd);
     free(lst);
@@ -146,15 +147,14 @@ static void tcplistener_stop_fn(int s) {
 static void tcpconn_stop_fn(int s) {
     struct tcpconn *conn = sockdata(s);
     /* Sender side. */
-    int rc = stop(&conn->sender, 1, 0);
-    dill_assert(rc == -1 && errno == ECANCELED);
+    hclose(conn->sender);
     chclose(conn->tosender);
     chclose(conn->fromsender);
     free(conn->txbuf);
     /* Receiver side. */
     free(conn->rxbuf);
     /* Deallocte the entire object. */
-    rc = sockdone(s);
+    int rc = sockdone(s, 0);
     dill_assert(rc == 0);
     fdclose(conn->fd);
     free(conn);
@@ -429,9 +429,7 @@ int tcpclose(int s, int64_t deadline) {
     rc = chrecv(conn->fromsender, NULL, 0, deadline);
     int result = (rc == 0 || errno == EPIPE) ? 0 : errno;
     /* Deallocate the entire socket. */
-    rc = stop(&s, 1, 0);
-    if(dill_slow(rc < 0 && errno == ECANCELED)) return -1;
-    dill_assert(rc == 0);
+    hclose(s);
     if(!result)
         return 0;
     errno = result;
