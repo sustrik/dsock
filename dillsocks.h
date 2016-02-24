@@ -145,6 +145,11 @@ DILLSOCKS_EXPORT int socksendv(int s, struct iovec *iovs, int niovs,
     int64_t deadline);
 DILLSOCKS_EXPORT int sockrecvv(int s, struct iovec *iovs, int niovs,
     size_t *outlen, int64_t deadline);
+DILLSOCKS_EXPORT int socksendmsg(int s, struct iovec *iovs, int niovs,
+    const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
+DILLSOCKS_EXPORT int sockrecvmsg(int s, struct iovec *iovs, int niovs,
+    size_t *outlen, const struct sockctrl *inctrl, struct sockctrl *outctrl,
+    int64_t deadline);
 
 /******************************************************************************/
 /*  TCP                                                                       */
@@ -163,6 +168,13 @@ DILLSOCKS_EXPORT int tcpclose(int s, int64_t deadline);
 
 DILL_EXPORT int sfattach(int u);
 DILL_EXPORT int sfdetach(int s, int *u, int64_t deadline);
+
+/******************************************************************************/
+/*  Cons - generic plubming for combining and splitting sockets.              */
+/******************************************************************************/
+
+DILL_EXPORT int consattach(int in, int out);
+DILL_EXPORT int consdetach(int s, int *in, int *out);
 
 #endif
 

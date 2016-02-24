@@ -153,3 +153,28 @@ int sockrecvv(int s, struct iovec *iovs, int niovs, size_t *outlen,
     return sck->recv_fn(s, iovs, niovs, outlen, NULL, NULL, deadline);
 }
 
+int socksendmsg(int s, struct iovec *iovs, int niovs,
+      const struct sockctrl *inctrl, struct sockctrl *outctrl,
+      int64_t deadline) {
+    const void *type = htype(s);
+    if(dill_slow(!type)) return -1;
+    if(dill_slow(type != dill_sock_type)) {errno = ENOTSOCK; return -1;}
+    struct sock *sck = hdata(s);
+    dill_assert(sck);
+    if(dill_slow(!sck->send_fn)) {errno = EOPNOTSUPP; return -1;}
+    return sck->send_fn(s, iovs, niovs, inctrl, outctrl, deadline);
+
+}
+
+int sockrecvmsg(int s, struct iovec *iovs, int niovs,
+      size_t *outlen, const struct sockctrl *inctrl, struct sockctrl *outctrl,
+      int64_t deadline) {
+    const void *type = htype(s);
+    if(dill_slow(!type)) return -1;
+    if(dill_slow(type != dill_sock_type)) {errno = ENOTSOCK; return -1;}
+    struct sock *sck = hdata(s);
+    dill_assert(sck);
+    if(dill_slow(!sck->recv_fn)) {errno = EOPNOTSUPP; return -1;}
+    return sck->recv_fn(s, iovs, niovs, outlen, inctrl, outctrl, deadline);
+}
+
