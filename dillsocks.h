@@ -130,9 +130,8 @@ typedef int (*sockrecv_fn)(int s, struct iovec *iovs, int niovs, size_t *outlen,
 
 DILLSOCKS_EXPORT int sock(const void *type, int flags, void *data,
     sockstop_fn stop_fn, socksend_fn send_fn, sockrecv_fn recv_fn);
-DILLSOCKS_EXPORT const void *socktype(int s);
+DILLSOCKS_EXPORT void *sockdata(int s, const void *type);
 DILLSOCKS_EXPORT int sockflags(int s);
-DILLSOCKS_EXPORT void *sockdata(int s);
 DILLSOCKS_EXPORT int sockdone(int s, int result);
 
 /* For users. */

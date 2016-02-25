@@ -38,7 +38,8 @@ struct sfconn {
 };
 
 static void sf_stop_fn(int s) {
-    struct sfconn *conn = sockdata(s);
+    struct sfconn *conn = sockdata(s, sf_type);
+    dill_assert(conn);
     int rc = sockdone(s, 0);
     dill_assert(rc == 0);
     free(conn);
@@ -47,14 +48,11 @@ static void sf_stop_fn(int s) {
 static int sf_send_fn(int s, struct iovec *iovs, int niovs,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
-    const void *type = socktype(s);
-    if(dill_slow(!type)) return -1;
-    if(dill_slow(type != sf_type)) {errno = EPROTOTYPE; return -1;}
+    struct sfconn *conn = sockdata(s, sf_type);
+    if(dill_slow(!conn)) return -1;
     if(dill_slow(niovs < 0 || (niovs && !iovs))) {errno == EINVAL; return -1;}
     /* This protocol doesn't use control data. */
     if(dill_slow(inctrl || outctrl)) {errno == EINVAL; return -1;}
-    struct sfconn *conn = sockdata(s);
-    dill_assert(conn);
     /* Prepare new iovec array with additional item for message header. */
     struct iovec *iov = malloc(sizeof(struct iovec) * (niovs + 1));
     if(dill_slow(!iov)) {errno = ENOMEM; return -1;}
@@ -82,15 +80,11 @@ static int sf_send_fn(int s, struct iovec *iovs, int niovs,
 static int sf_recv_fn(int s, struct iovec *iovs, int niovs, size_t *outlen,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
-    const void *type = socktype(s);
-    if(dill_slow(!type)) return -1;
-    if(dill_slow(type != sf_type)) {errno = EPROTOTYPE; return -1;}
-    if(dill_slow(!s || niovs < 0 || (niovs && !iovs))) {
-        errno == EINVAL; return -1;}
+    struct sfconn *conn = sockdata(s, sf_type);
+    if(dill_slow(!conn)) return -1;
+    if(dill_slow(niovs < 0 || (niovs && !iovs))) {errno == EINVAL; return -1;}
     /* This protocol doesn't use control data. */
     if(dill_slow(inctrl || outctrl)) {errno == EINVAL; return -1;}
-    struct sfconn *conn = sockdata(s);
-    dill_assert(conn);
     /* If the header was not yet read, read it now. */
     if(!conn->rxmsgsz) {
         uint8_t hdr[8];
@@ -141,9 +135,9 @@ static int sf_recv_fn(int s, struct iovec *iovs, int niovs, size_t *outlen,
 
 int sfattach(int u) {
     int err;
-    /* Check whether s is a socket. */
-    const void *type = socktype(u);
-    if(dill_slow(!type)) return -1;
+    /* Check whether u is a socket. */
+    void *data = sockdata(u, NULL);
+    if(dill_slow(!data)) {errno = EINVAL; return -1;}
     /* Create the object. */
     struct sfconn *conn = malloc(sizeof(struct sfconn));
     if(dill_slow(!conn)) {errno = ENOMEM; return -1;}
@@ -162,11 +156,8 @@ error1:
 }
 
 int sfdetach(int s, int *u, int64_t deadline) {
-    const void *type = socktype(s);
-    if(dill_slow(!type)) return -1;
-    if(dill_slow(type != sf_type)) {errno = EPROTOTYPE; return -1;}
-    struct sfconn *conn = sockdata(s);
-    dill_assert(conn);
+    struct sfconn *conn = sockdata(s, sf_type);
+    if(dill_slow(!conn)) return -1;
     /* Send termination message. */
     const uint64_t tm = 0xffffffffffffffff;
     int rc = socksend(conn->u, &tm, 8, deadline);

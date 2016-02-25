@@ -137,7 +137,8 @@ static int tcpconn_init(struct tcpconn *conn, int fd) {
 }
 
 static void tcplistener_stop_fn(int s) {
-    struct tcplistener *lst = sockdata(s);
+    struct tcplistener *lst = sockdata(s, tcplistener_type);
+    dill_assert(lst);
     int rc = sockdone(s, 0);
     dill_assert(rc == 0);
     fdclose(lst->fd);
@@ -145,7 +146,8 @@ static void tcplistener_stop_fn(int s) {
 }
 
 static void tcpconn_stop_fn(int s) {
-    struct tcpconn *conn = sockdata(s);
+    struct tcpconn *conn = sockdata(s, tcpconn_type);
+    dill_assert(conn);
     /* Sender side. */
     hclose(conn->sender);
     chclose(conn->tosender);
@@ -163,14 +165,11 @@ static void tcpconn_stop_fn(int s) {
 static int tcpconn_send_fn(int s, struct iovec *iovs, int niovs,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
-    const void *type = socktype(s);
-    if(dill_slow(!type)) return -1;
-    if(dill_slow(type != tcpconn_type)) {errno = EPROTOTYPE; return -1;}
+    struct tcpconn *conn = sockdata(s, tcpconn_type);
+    if(dill_slow(!conn)) return -1;
     if(dill_slow(niovs < 0 || (niovs && !iovs))) {errno == EINVAL; return -1;}
     /* This protocol doesn't use control data. */
     if(dill_slow(inctrl || outctrl)) {errno == EINVAL; return -1;}
-    struct tcpconn *conn = sockdata(s);
-    dill_assert(conn);
     /* Wait till sender coroutine hands us the send buffer. */
     int rc = chrecv(conn->fromsender, NULL, 0, deadline);
     if(dill_slow(rc < 0 && errno == EPIPE)) {errno = ECONNRESET; return -1;}
@@ -208,16 +207,12 @@ static int tcpconn_send_fn(int s, struct iovec *iovs, int niovs,
 static int tcpconn_recv_fn(int s, struct iovec *iovs, int niovs, size_t *outlen,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
-    const void *type = socktype(s);
-    if(dill_slow(!type)) return -1;
-    if(dill_slow(type != tcpconn_type)) {errno = EPROTOTYPE; return -1;}
+    struct tcpconn *conn = sockdata(s, tcpconn_type);
+    if(dill_slow(!conn)) return -1;
     if(dill_slow(!s || niovs < 0 || (niovs && !iovs))) {
         errno == EINVAL; return -1;}
     /* This protocol doesn't use control data. */
     if(dill_slow(inctrl || outctrl)) {errno == EINVAL; return -1;}
-    struct tcpconn *conn = sockdata(s);
-
-    dill_assert(conn);
     /* Compute total size of the data requested. */
     size_t sz = 0;
     int i;
@@ -312,11 +307,8 @@ error1:
 
 int tcpaccept(int s, int64_t deadline) {
     int err;
-    const void *type = socktype(s);
-    if(dill_slow(!type)) return -1;
-    if(dill_slow(type != tcplistener_type)) {errno = EPROTOTYPE; return -1;}
-    struct tcplistener *lst = sockdata(s);
-    dill_assert(lst);
+    struct tcplistener *lst = sockdata(s, tcplistener_type);
+    if(dill_slow(!lst)) return -1;
     /* Try to get new connection in a non-blocking way. */
     int as;
     ipaddr addr;
@@ -390,39 +382,25 @@ error1:
 }
 
 int tcpport(int s) {
-    const void *type = socktype(s);
-    if(dill_slow(!type)) return -1;
-    if(type == tcpconn_type) {
-        struct tcpconn *conn = sockdata(s);
-        dill_assert(conn);
+    struct tcpconn *conn = sockdata(s, tcpconn_type);
+    if(conn)
         return ipport(&conn->addr);
-    }
-    if(type == tcplistener_type) {
-        struct tcplistener *lst = sockdata(s);
-        dill_assert(lst);
-        return lst->port;
-    }
-    errno == EPROTOTYPE;
-    return -1;
+    struct tcplistener *lst = sockdata(s, tcplistener_type);
+    if(dill_slow(!lst)) return -1;
+    return lst->port;
 }
 
 int tcppeer(int s, ipaddr *addr) {
-    const void *type = socktype(s);
-    if(dill_slow(!type)) return -1;
-    if(dill_slow(type != tcpconn_type)) {errno = EPROTOTYPE; return -1;}
-    struct tcpconn *conn = sockdata(s);
-    dill_assert(conn);
+    struct tcpconn *conn = sockdata(s, tcpconn_type);
+    if(dill_slow(!conn)) return -1;
     if(dill_fast(addr))
         *addr = conn->addr;
     return 0;
 }
 
 int tcpclose(int s, int64_t deadline) {
-    const void *type = socktype(s);
-    if(dill_slow(!type)) return -1;
-    if(dill_slow(type != tcpconn_type)) {errno = EPROTOTYPE; return -1;}
-    struct tcpconn *conn = sockdata(s);
-    dill_assert(conn);
+    struct tcpconn *conn = sockdata(s, tcpconn_type);
+    if(dill_slow(!conn)) return -1;
     /* Soft-cancel handshake with the sender coroutine. */
     int rc = chdone(conn->tosender);
     dill_assert(rc == 0);

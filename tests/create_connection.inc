@@ -33,7 +33,7 @@ coroutine int client(chan ch) {
     int rc = ipremote(&addr, "127.0.0.1", 5555, 0, -1);
     assert(rc == 0);
     int cs = tcpconnect(&addr, -1);
-    assert(cs);
+    assert(cs >= 0);
     rc = chsend(ch, &cs, sizeof(cs), -1);
     assert(rc == 0);
     return 0;
@@ -44,13 +44,13 @@ void create_tcp_connection(int s[2]) {
     int rc = iplocal(&addr, NULL, 5555, 0);
     assert(rc == 0);
     int lst = tcplisten(&addr, 10);
-    assert(lst);
+    assert(lst >= 0);
     chan ch = channel(sizeof(int), 0);
     assert(ch);
     int chndl = go(client(ch));
     assert(chndl >= 0);
     s[0] = tcpaccept(lst, -1);
-    assert(s[0]);
+    assert(s[0] >= 0);
     rc = chrecv(ch, &s[1], sizeof(int), -1);
     assert(rc == 0);
     rc = hwait(chndl, NULL, -1);

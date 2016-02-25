@@ -36,7 +36,8 @@ struct cons {
 };
 
 static void cons_stop_fn(int s) {
-    struct cons *cns = sockdata(s);
+    struct cons *cns = sockdata(s, cons_type);
+    dill_assert(cns);
     int rc = sockdone(s, 0);
     dill_assert(rc == 0);
     free(cns);
@@ -45,34 +46,30 @@ static void cons_stop_fn(int s) {
 static int cons_send_fn(int s, struct iovec *iovs, int niovs,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
-    const void *type = socktype(s);
-    if(dill_slow(!type)) return -1;
-    if(dill_slow(type != cons_type)) {errno = EPROTOTYPE; return -1;}
-    struct cons *cns = sockdata(s);
-    if(dill_slow(cns->out < 0)) {errno = EOPNOTSUPP; return -1;}
+    struct cons *cns = sockdata(s, cons_type);
+    if(dill_slow(!cns)) return -1;
+    if(dill_slow(cns->out < 0)) {errno = ENOTSUP; return -1;}
     return socksendmsg(cns->out, iovs, niovs, inctrl, outctrl, deadline);
 }
 
 static int cons_recv_fn(int s, struct iovec *iovs, int niovs, size_t *outlen,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
-    const void *type = socktype(s);
-    if(dill_slow(!type)) return -1;
-    if(dill_slow(type != cons_type)) {errno = EPROTOTYPE; return -1;}
-    struct cons *cns = sockdata(s);
-    if(dill_slow(cns->in < 0)) {errno = EOPNOTSUPP; return -1;}
+    struct cons *cns = sockdata(s, cons_type);
+    if(dill_slow(!cns)) return -1;
+    if(dill_slow(cns->in < 0)) {errno = ENOTSUP; return -1;}
     return sockrecvmsg(cns->in, iovs, niovs, outlen, inctrl, outctrl, deadline);
 }
 
 int consattach(int in, int out) {
     /* Check whether arguments are sockets. */
     if(in != -1) {
-        const void *type = socktype(in);
-        if(dill_slow(!type)) return -1;
+        void *data = sockdata(in, NULL);
+        if(dill_slow(!data)) {errno = EINVAL; return -1;}
     }
     if(out != -1) {
-        const void *type = socktype(out);
-        if(dill_slow(!type)) return -1;
+        void *data = sockdata(out, NULL);
+        if(dill_slow(!data)) {errno = EINVAL; return -1;}
     }
     /* Merge flags from the two underlying sockets. */
     int flags = 0;
@@ -101,10 +98,8 @@ int consattach(int in, int out) {
 }
 
 int consdetach(int s, int *in, int *out) {
-    const void *type = socktype(s);
-    if(dill_slow(!type)) return -1;
-    if(dill_slow(type != cons_type)) {errno = EPROTOTYPE; return -1;}
-    struct cons *cns = sockdata(s);
+    struct cons *cns = sockdata(s, cons_type);
+    if(dill_slow(!cns)) return -1;
     if(in)
        *in = cns->in;
     if(out)

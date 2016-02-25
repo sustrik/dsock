@@ -37,7 +37,7 @@ int main() {
     int rc = iplocal(&addr, NULL, 5555, 0);
     assert(rc == 0);
     int lst = tcplisten(&addr, 10);
-    assert(lst);
+    assert(lst >= 0);
     hclose(lst);
 
     /* Simple ping-pong test. */
