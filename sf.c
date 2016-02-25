@@ -138,6 +138,12 @@ int sfattach(int u) {
     /* Check whether u is a socket. */
     void *data = sockdata(u, NULL);
     if(dill_slow(!data)) {errno = EINVAL; return -1;}
+    /* Make sure that underlying socket is a bidirectional bytestream. */
+    /* TODO: Maybe allowing unidirectional bytestreams would be useful? */
+    int uflags = sockflags(u);
+    if(dill_slow(!((uflags & SOCK_IN) && !(uflags & SOCK_INMSG) &&
+          (uflags & SOCK_OUT) && !(uflags & SOCK_OUTMSG)))) {
+        errno = EPROTOTYPE; return -1;}
     /* Create the object. */
     struct sfconn *conn = malloc(sizeof(struct sfconn));
     if(dill_slow(!conn)) {errno = ENOMEM; return -1;}
