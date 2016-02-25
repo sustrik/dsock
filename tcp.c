@@ -49,8 +49,8 @@ struct tcpconn {
     uint8_t *txbuf;
     size_t txbuf_len;
     size_t txbuf_capacity;
-    chan tosender;
-    chan fromsender;
+    int tosender;
+    int fromsender;
     int sender;
     /* Receiver side. */
     uint8_t *rxbuf;
@@ -125,9 +125,9 @@ static int tcpconn_init(struct tcpconn *conn, int fd) {
     conn->txbuf_len = 0;
     conn->txbuf_capacity = 0;
     conn->tosender = channel(0, 0);
-    dill_assert(conn->tosender);
+    dill_assert(conn->tosender >= 0);
     conn->fromsender = channel(0, 0);
-    dill_assert(conn->fromsender);
+    dill_assert(conn->fromsender >= 0);
     conn->sender = go(tcpconn_sender(conn));
     /* Receiver side. */
     conn->rxbuf = NULL;
@@ -150,8 +150,8 @@ static void tcpconn_stop_fn(int s) {
     dill_assert(conn);
     /* Sender side. */
     hclose(conn->sender);
-    chclose(conn->tosender);
-    chclose(conn->fromsender);
+    hclose(conn->tosender);
+    hclose(conn->fromsender);
     free(conn->txbuf);
     /* Receiver side. */
     free(conn->rxbuf);
