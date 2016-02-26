@@ -122,17 +122,21 @@ struct sockopt {
     int opt;
 };
 
-typedef void (*sockstop_fn)(int s);
-typedef int (*socksend_fn)(int s, struct iovec *iovs, int niovs,
-    const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
-typedef int (*sockrecv_fn)(int s, struct iovec *iovs, int niovs, size_t *outlen,
-    const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
+struct sockvfptrs {
+    void (*close)(int h);
+    void (*dump)(int h);
+    int (*send)(int s, struct iovec *iovs, int niovs,
+        const struct sockctrl *inctrl, struct sockctrl *outctrl,
+        int64_t deadline);
+    int (*recv)(int s, struct iovec *iovs, int niovs, size_t *outlen,
+        const struct sockctrl *inctrl, struct sockctrl *outctrl,
+        int64_t deadline);    
+};
 
 DILLSOCKS_EXPORT int sock(const void *type, int flags, void *data,
-    sockstop_fn stop_fn, socksend_fn send_fn, sockrecv_fn recv_fn);
+    const struct sockvfptrs *vfptrs);
 DILLSOCKS_EXPORT void *sockdata(int s, const void *type);
 DILLSOCKS_EXPORT int sockflags(int s);
-DILLSOCKS_EXPORT int sockdone(int s, int result);
 
 /* For users. */
 

@@ -24,6 +24,7 @@
 
 #include <fcntl.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -34,6 +35,16 @@
 static const int tcplistener_type_placeholder = 0;
 static const void *tcplistener_type = &tcplistener_type_placeholder;
 
+static void tcplistener_close(int s);
+static void tcplistener_dump(int s);
+
+static const struct sockvfptrs tcplistener_vfptrs = {
+    tcplistener_close,
+    tcplistener_dump,
+    NULL,
+    NULL
+};
+
 struct tcplistener {
     int fd;
     int port;
@@ -41,6 +52,20 @@ struct tcplistener {
 
 static const int tcpconn_type_placeholder = 0;
 static const void *tcpconn_type = &tcpconn_type_placeholder;
+
+static void tcpconn_close(int s);
+static void tcpconn_dump(int s);
+static int tcpconn_send(int s, struct iovec *iovs, int niovs,
+    const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
+static int tcpconn_recv(int s, struct iovec *iovs, int niovs, size_t *outlen,
+    const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
+
+static const struct sockvfptrs tcpconn_vfptrs = {
+    tcpconn_close,
+    tcpconn_dump,
+    tcpconn_send,
+    tcpconn_recv
+};
 
 struct tcpconn {
     int fd;
@@ -136,16 +161,20 @@ static int tcpconn_init(struct tcpconn *conn, int fd) {
     return 0;
 }
 
-static void tcplistener_stop_fn(int s) {
+static void tcplistener_close(int s) {
     struct tcplistener *lst = sockdata(s, tcplistener_type);
     dill_assert(lst);
-    int rc = sockdone(s, 0);
-    dill_assert(rc == 0);
     fdclose(lst->fd);
     free(lst);
 }
 
-static void tcpconn_stop_fn(int s) {
+static void tcplistener_dump(int s) {
+    struct tcplistener *lst = sockdata(s, tcplistener_type);
+    dill_assert(lst);
+    fprintf(stderr, "TCPLISTENER fd:%d port:%d\n", lst->fd, lst->port);
+}
+
+static void tcpconn_close(int s) {
     struct tcpconn *conn = sockdata(s, tcpconn_type);
     dill_assert(conn);
     /* Sender side. */
@@ -156,13 +185,17 @@ static void tcpconn_stop_fn(int s) {
     /* Receiver side. */
     free(conn->rxbuf);
     /* Deallocte the entire object. */
-    int rc = sockdone(s, 0);
-    dill_assert(rc == 0);
     fdclose(conn->fd);
     free(conn);
 }
 
-static int tcpconn_send_fn(int s, struct iovec *iovs, int niovs,
+static void tcpconn_dump(int s) {
+    struct tcpconn *conn = sockdata(s, tcpconn_type);
+    dill_assert(conn);
+    fprintf(stderr, "TCP fd:%d\n", conn->fd);
+}
+
+static int tcpconn_send(int s, struct iovec *iovs, int niovs,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
     struct tcpconn *conn = sockdata(s, tcpconn_type);
@@ -204,7 +237,7 @@ static int tcpconn_send_fn(int s, struct iovec *iovs, int niovs,
     return 0;
 }
 
-static int tcpconn_recv_fn(int s, struct iovec *iovs, int niovs, size_t *outlen,
+static int tcpconn_recv(int s, struct iovec *iovs, int niovs, size_t *outlen,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
     struct tcpconn *conn = sockdata(s, tcpconn_type);
@@ -294,7 +327,7 @@ int tcplisten(const ipaddr *addr, int backlog) {
     lst->fd = s;
     lst->port = port;
     /* Bind the object to a sock handle. */
-    int hndl = sock(tcplistener_type, 0, lst, tcplistener_stop_fn, NULL, NULL);
+    int hndl = sock(tcplistener_type, 0, lst, &tcplistener_vfptrs);
     if(dill_slow(hndl < 0)) {err = errno; goto error2;}
     return hndl;
 error2:
@@ -333,8 +366,7 @@ int tcpaccept(int s, int64_t deadline) {
     if(dill_slow(rc < 0)) {err = errno; goto error2;}
     conn->addr = addr;
     /* Bind the object to a sock handle. */
-    int hndl = sock(tcpconn_type, SOCK_IN | SOCK_OUT, conn,
-        tcpconn_stop_fn, tcpconn_send_fn, tcpconn_recv_fn);
+    int hndl = sock(tcpconn_type, SOCK_IN | SOCK_OUT, conn, &tcpconn_vfptrs);
     if(dill_slow(hndl < 0)) {err = errno; goto error2;}
     return hndl;
 error2:
@@ -369,8 +401,7 @@ int tcpconnect(const ipaddr *addr, int64_t deadline) {
     rc = tcpconn_init(conn, s);
     if(dill_slow(rc < 0)) {err = errno; goto error2;}
     /* Bind the object to a sock handle. */
-    int hndl = sock(tcpconn_type, SOCK_IN | SOCK_OUT, conn,
-        tcpconn_stop_fn, tcpconn_send_fn, tcpconn_recv_fn);
+    int hndl = sock(tcpconn_type, SOCK_IN | SOCK_OUT, conn, &tcpconn_vfptrs);
     if(dill_slow(hndl < 0)) {err = errno; goto error2;}
     return hndl;
 error2:

@@ -22,6 +22,7 @@
 
 */
 
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "dillsocks.h"
@@ -30,36 +31,24 @@
 static const int cons_type_placeholder = 0;
 static const void *cons_type = &cons_type_placeholder;
 
+static void cons_close(int s);
+static void cons_dump(int s);
+static int cons_send(int s, struct iovec *iovs, int niovs,
+    const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
+static int cons_recv(int s, struct iovec *iovs, int niovs, size_t *outlen,
+    const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
+
+static const struct sockvfptrs cons_vfptrs = {
+    cons_close,
+    cons_dump,
+    cons_send,
+    cons_recv
+};   
+
 struct cons {
     int in;
     int out;
 };
-
-static void cons_stop_fn(int s) {
-    struct cons *cns = sockdata(s, cons_type);
-    dill_assert(cns);
-    int rc = sockdone(s, 0);
-    dill_assert(rc == 0);
-    free(cns);
-}
-
-static int cons_send_fn(int s, struct iovec *iovs, int niovs,
-      const struct sockctrl *inctrl, struct sockctrl *outctrl,
-      int64_t deadline) {
-    struct cons *cns = sockdata(s, cons_type);
-    if(dill_slow(!cns)) return -1;
-    if(dill_slow(cns->out < 0)) {errno = ENOTSUP; return -1;}
-    return socksendmsg(cns->out, iovs, niovs, inctrl, outctrl, deadline);
-}
-
-static int cons_recv_fn(int s, struct iovec *iovs, int niovs, size_t *outlen,
-      const struct sockctrl *inctrl, struct sockctrl *outctrl,
-      int64_t deadline) {
-    struct cons *cns = sockdata(s, cons_type);
-    if(dill_slow(!cns)) return -1;
-    if(dill_slow(cns->in < 0)) {errno = ENOTSUP; return -1;}
-    return sockrecvmsg(cns->in, iovs, niovs, outlen, inctrl, outctrl, deadline);
-}
 
 int consattach(int in, int out) {
     /* Check whether arguments are sockets. */
@@ -86,8 +75,7 @@ int consattach(int in, int out) {
     if(dill_slow(!cns)) {errno = ENOMEM; return -1;}
     cns->in = in;
     cns->out = out;
-    int h = sock(cons_type, flags, cns, cons_stop_fn, cons_send_fn,
-        cons_recv_fn);
+    int h = sock(cons_type, flags, cns, &cons_vfptrs);
     if(dill_slow(h < 0)) {
         int err = errno;
         free(cns);
@@ -95,6 +83,36 @@ int consattach(int in, int out) {
         return -1;
     };
     return h;
+}
+
+static void cons_close(int s) {
+    struct cons *cns = sockdata(s, cons_type);
+    dill_assert(cns);
+    free(cns);
+}
+
+static void cons_dump(int s) {
+    struct cons *cns = sockdata(s, cons_type);
+    dill_assert(cns);
+    fprintf(stderr, "  CONS in:{%d} out:{%d}\n", cns->in, cns->out);
+}
+
+static int cons_send(int s, struct iovec *iovs, int niovs,
+      const struct sockctrl *inctrl, struct sockctrl *outctrl,
+      int64_t deadline) {
+    struct cons *cns = sockdata(s, cons_type);
+    if(dill_slow(!cns)) return -1;
+    if(dill_slow(cns->out < 0)) {errno = ENOTSUP; return -1;}
+    return socksendmsg(cns->out, iovs, niovs, inctrl, outctrl, deadline);
+}
+
+static int cons_recv(int s, struct iovec *iovs, int niovs, size_t *outlen,
+      const struct sockctrl *inctrl, struct sockctrl *outctrl,
+      int64_t deadline) {
+    struct cons *cns = sockdata(s, cons_type);
+    if(dill_slow(!cns)) return -1;
+    if(dill_slow(cns->in < 0)) {errno = ENOTSUP; return -1;}
+    return sockrecvmsg(cns->in, iovs, niovs, outlen, inctrl, outctrl, deadline);
 }
 
 int consdetach(int s, int *in, int *out) {

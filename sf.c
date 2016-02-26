@@ -24,6 +24,7 @@
 
 #include <errno.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "dillsocks.h"
@@ -32,20 +33,67 @@
 static const int sf_type_placeholder = 0;
 static const void *sf_type = &sf_type_placeholder;
 
+static void sf_close(int s);
+static void sf_dump(int s);
+static int sf_send(int s, struct iovec *iovs, int niovs,
+    const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
+static int sf_recv(int s, struct iovec *iovs, int niovs, size_t *outlen,
+    const struct sockctrl *inctrl, struct sockctrl *outctrl, int64_t deadline);
+
+static const struct sockvfptrs sf_vfptrs = {
+    sf_close,
+    sf_dump,
+    sf_send,
+    sf_recv
+};   
+
 struct sfconn {
     int u;
     uint64_t rxmsgsz; /* 0 means that header was not yet read. */
 };
 
-static void sf_stop_fn(int s) {
-    struct sfconn *conn = sockdata(s, sf_type);
-    dill_assert(conn);
-    int rc = sockdone(s, 0);
-    dill_assert(rc == 0);
+int sfattach(int u) {
+    int err;
+    /* Check whether u is a socket. */
+    void *data = sockdata(u, NULL);
+    if(dill_slow(!data)) {errno = EINVAL; return -1;}
+    /* Make sure that underlying socket is a bidirectional bytestream. */
+    /* TODO: Maybe allowing unidirectional bytestreams would be useful? */
+    int uflags = sockflags(u);
+    if(dill_slow(!((uflags & SOCK_IN) && !(uflags & SOCK_INMSG) &&
+          (uflags & SOCK_OUT) && !(uflags & SOCK_OUTMSG)))) {
+        errno = EPROTOTYPE; return -1;}
+    /* Create the object. */
+    struct sfconn *conn = malloc(sizeof(struct sfconn));
+    if(dill_slow(!conn)) {errno = ENOMEM; return -1;}
+    conn->u = u;
+    conn->rxmsgsz = 0;
+    /* Bind the object a socket handle. */
+    int hndl = sock(sf_type, SOCK_IN | SOCK_OUT | SOCK_INMSG | SOCK_OUTMSG |
+        SOCK_INREL | SOCK_OUTREL | SOCK_INORD | SOCK_OUTORD, conn, &sf_vfptrs);
+    if(dill_slow(hndl < 0)) {err = errno; goto error1;}
+    return hndl;
+error1:
     free(conn);
+    errno = err;
+    return -1;
 }
 
-static int sf_send_fn(int s, struct iovec *iovs, int niovs,
+int sfdetach(int s, int *u, int64_t deadline) {
+    struct sfconn *conn = sockdata(s, sf_type);
+    if(dill_slow(!conn)) return -1;
+    /* Send termination message. */
+    const uint64_t tm = 0xffffffffffffffff;
+    int rc = socksend(conn->u, &tm, 8, deadline);
+    if(dill_slow(rc < 0)) return -1; /* TODO: object should be stopped even here. */
+    /* Read incoming messages until termination message is encountered. */
+    /* TODO */
+    if(u) *u = conn->u;
+    hclose(s);
+    return 0;
+}
+
+static int sf_send(int s, struct iovec *iovs, int niovs,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
     struct sfconn *conn = sockdata(s, sf_type);
@@ -77,7 +125,7 @@ static int sf_send_fn(int s, struct iovec *iovs, int niovs,
     return rc;
 }
 
-static int sf_recv_fn(int s, struct iovec *iovs, int niovs, size_t *outlen,
+static int sf_recv(int s, struct iovec *iovs, int niovs, size_t *outlen,
       const struct sockctrl *inctrl, struct sockctrl *outctrl,
       int64_t deadline) {
     struct sfconn *conn = sockdata(s, sf_type);
@@ -133,45 +181,15 @@ static int sf_recv_fn(int s, struct iovec *iovs, int niovs, size_t *outlen,
     return rc;
 }
 
-int sfattach(int u) {
-    int err;
-    /* Check whether u is a socket. */
-    void *data = sockdata(u, NULL);
-    if(dill_slow(!data)) {errno = EINVAL; return -1;}
-    /* Make sure that underlying socket is a bidirectional bytestream. */
-    /* TODO: Maybe allowing unidirectional bytestreams would be useful? */
-    int uflags = sockflags(u);
-    if(dill_slow(!((uflags & SOCK_IN) && !(uflags & SOCK_INMSG) &&
-          (uflags & SOCK_OUT) && !(uflags & SOCK_OUTMSG)))) {
-        errno = EPROTOTYPE; return -1;}
-    /* Create the object. */
-    struct sfconn *conn = malloc(sizeof(struct sfconn));
-    if(dill_slow(!conn)) {errno = ENOMEM; return -1;}
-    conn->u = u;
-    conn->rxmsgsz = 0;
-    /* Bind the object a socket handle. */
-    int hndl = sock(sf_type, SOCK_IN | SOCK_OUT | SOCK_INMSG | SOCK_OUTMSG |
-        SOCK_INREL | SOCK_OUTREL | SOCK_INORD | SOCK_OUTORD, conn, sf_stop_fn,
-        sf_send_fn, sf_recv_fn);
-    if(dill_slow(hndl < 0)) {err = errno; goto error1;}
-    return hndl;
-error1:
+static void sf_close(int s) {
+    struct sfconn *conn = sockdata(s, sf_type);
+    dill_assert(conn);
     free(conn);
-    errno = err;
-    return -1;
 }
 
-int sfdetach(int s, int *u, int64_t deadline) {
+static void sf_dump(int s) {
     struct sfconn *conn = sockdata(s, sf_type);
-    if(dill_slow(!conn)) return -1;
-    /* Send termination message. */
-    const uint64_t tm = 0xffffffffffffffff;
-    int rc = socksend(conn->u, &tm, 8, deadline);
-    if(dill_slow(rc < 0)) return -1; /* TODO: object should be stopped even here. */
-    /* Read incoming messages until termination message is encountered. */
-    /* TODO */
-    if(u) *u = conn->u;
-    hclose(s);
-    return 0;
+    dill_assert(conn);
+    fprintf(stderr, "  SF underlying:{%d}\n", conn->u);
 }
 
