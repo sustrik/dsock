@@ -33,6 +33,7 @@ lib_LTLIBRARIES = libdillsocks.la
 
 libdillsocks_la_SOURCES = \
     cons.c \
+    inproc.c \
     ip.c \
     sf.c \
     sock.c \

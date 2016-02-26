@@ -179,5 +179,12 @@ DILL_EXPORT int sfdetach(int s, int *u, int64_t deadline);
 DILL_EXPORT int consattach(int in, int out);
 DILL_EXPORT int consdetach(int s, int *in, int *out);
 
+/******************************************************************************/
+/*  Inproc - a transport based on channels.                                   */
+/******************************************************************************/
+
+DILL_EXPORT int inprocpair(int s[2]);
+DILL_EXPORT int inprocclose(int s);
+
 #endif
 
