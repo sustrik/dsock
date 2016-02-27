@@ -31,3 +31,4 @@ tests/tcp
 tests/sf
 tests/cons
 tests/inproc
+tests/ipc

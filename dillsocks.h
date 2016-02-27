@@ -166,6 +166,15 @@ DILLSOCKS_EXPORT int tcppeer(int s, ipaddr *addr);
 DILLSOCKS_EXPORT int tcpclose(int s, int64_t deadline);
 
 /******************************************************************************/
+/*  IPC - UNIX domain sockets                                                 */
+/******************************************************************************/
+
+DILLSOCKS_EXPORT int ipclisten(const char *addr, int backlog);
+DILLSOCKS_EXPORT int ipcaccept(int s, int64_t deadline);
+DILLSOCKS_EXPORT int ipcconnect(const char *addr, int64_t deadline);
+DILLSOCKS_EXPORT int ipcclose(int s, int64_t deadline);
+
+/******************************************************************************/
 /*  Simple framing protocol (size + data)                                     */
 /******************************************************************************/
 

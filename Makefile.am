@@ -35,6 +35,7 @@ libdillsocks_la_SOURCES = \
     cons.c \
     inproc.c \
     ip.c \
+    ipc.c \
     sf.c \
     sock.c \
     tcp.c \
@@ -61,7 +62,8 @@ check_PROGRAMS = \
     tests/tcp \
     tests/sf \
     tests/cons \
-    tests/inproc
+    tests/inproc \
+    tests/ipc
 
 EXTRA_DIST = tests/create_connection.inc
 
