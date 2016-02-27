@@ -28,21 +28,12 @@
 
 #include "../dillsocks.h"
 
-#include "create_connection.inc"
-
 int main() {
-
-    /* Open and close listening socket. */
-    ipaddr addr;
-    int rc = iplocal(&addr, NULL, 5555, 0);
-    assert(rc == 0);
-    int lst = tcplisten(&addr, 10);
-    assert(lst >= 0);
-    hclose(lst);
 
     /* Simple ping-pong test. */
     int s[2];
-    create_tcp_connection(s);
+    int rc = inprocpair(s);
+    assert(rc == 0);
     rc = socksend(s[0], "ABC", 3, -1);
     assert(rc == 0);
     char buf[3];
@@ -58,38 +49,6 @@ int main() {
     rc = hclose(s[0]);
     assert(rc == 0);
     rc = hclose(s[1]);
-    assert(rc == 0);
-
-    /* Receive less than requested amount of data when connection is closed. */
-    create_tcp_connection(s);
-    rc = socksend(s[0], "ZX", 2, -1);
-    assert(rc == 0);
-    rc = tcpclose(s[0], -1);
-    assert(rc == 0);
-    rc = sockrecv(s[1], buf, 3, &sz, -1);
-    assert(rc == -1 && errno == ECONNRESET);
-    assert(sz == 2 && buf[0] == 'Z' && buf[1] == 'X');
-    rc = sockrecv(s[1], buf, 2, &sz, -1);
-    assert(rc == -1 && errno == ECONNRESET);
-    assert(sz == 0);
-    rc = tcpclose(s[1], -1);
-    assert(rc == 0);
-
-    /* Test writing to a closed connection. */
-    create_tcp_connection(s);
-    rc = tcpclose(s[0], -1);
-    assert(rc == 0);
-    rc = msleep(now() + 100);
-    assert(rc == 0);
-    /* Send operation can be asynchronous on multiple levels. Thus, several
-       writes may succeed before error is returned. */
-    while(1) {
-        rc = socksend(s[1], "ABC", 3, -1);
-        if(rc == -1 && errno == ECONNRESET)
-            break;
-        assert(rc == 0);
-    }
-    rc = tcpclose(s[1], -1);
     assert(rc == 0);
 
     return 0;

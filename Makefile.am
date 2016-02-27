@@ -60,7 +60,8 @@ pkgconfig_DATA = dillsocks.pc
 check_PROGRAMS = \
     tests/tcp \
     tests/sf \
-    tests/cons
+    tests/cons \
+    tests/inproc
 
 EXTRA_DIST = tests/create_connection.inc
 

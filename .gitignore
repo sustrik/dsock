@@ -30,3 +30,4 @@ tests/*.trs
 tests/tcp
 tests/sf
 tests/cons
+tests/inproc
