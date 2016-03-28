@@ -33,12 +33,10 @@ static const int dill_sock_type_placeholder = 0;
 static const void *dill_sock_type = &dill_sock_type_placeholder;
 
 static void dill_sock_close(int h);
-static int dill_sock_wait(int h, int *result, int64_t deadline);
 static void dill_sock_dump(int h);
 
 static const struct hvfptrs dill_sock_vfptrs = {
     dill_sock_close,
-    dill_sock_wait,
     dill_sock_dump
 };
 
@@ -98,12 +96,6 @@ static void dill_sock_close(int h) {
     dill_assert(sck);
     sck->vfptrs.close(h);
     free(sck);
-}
-
-static int dill_sock_wait(int h, int *result, int64_t deadline) {
-    /* What does "wait for a socket to finish" even mean? */
-    errno = ENOTSUP;
-    return -1;
 }
 
 static void dill_sock_dump(int h) {

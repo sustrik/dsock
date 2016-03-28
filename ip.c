@@ -266,16 +266,14 @@ int ipremote(ipaddr *addr, const char *name, int port, int mode,
         if(rc == EAGAIN) {
             int fd = dns_ai_pollfd(ai);
             dill_assert(fd >= 0);
-            int events = fdwait(fd, FDW_IN, deadline);
+            int rc = fdin(fd, deadline);
             /* There's no guarantee that the file descriptor will be reused
                in next iteration. We have to clean the fdwait cache here
                to be on the safe side. */
             fdclean(fd);
-            if(dill_slow(!events)) {
-                errno = ETIMEDOUT;
-                return -1;
-            }
-            dill_assert(events == FDW_IN);
+            if(dill_slow(rc < 0 && errno == ETIMEDOUT)) {
+                errno = ETIMEDOUT; return -1;}
+            dill_assert(rc == 0);
             continue;
         }
         if(rc == ENOENT)

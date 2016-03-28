@@ -111,11 +111,8 @@ static coroutine int ipcconn_sender(struct ipcconn *conn) {
         uint8_t *pos = conn->txbuf;
         size_t len = conn->txbuf_len;
         while(len) {
-            rc = fdwait(conn->fd, FDW_OUT, -1);
-            if(dill_slow(rc == -1 && errno == ECANCELED)) goto error1;
-            dill_assert(rc != -1);
-            if(dill_slow(rc & FDW_ERR)) goto error1;
-            dill_assert(rc == FDW_OUT);
+            rc = fdout(conn->fd, -1);
+            if(dill_slow(rc < 0)) goto error1;
             ssize_t sz = send(conn->fd, pos, len, 0);
             if(dill_slow(sz < 0)) goto error1;
             pos += sz;
@@ -274,9 +271,8 @@ static int ipcconn_recv(int s, struct iovec *iovs, int niovs, size_t *outlen,
             conn->rxbuf_capacity = sz;
         }
         while(conn->rxbuf_len < sz) {
-            int rc = fdwait(conn->fd, FDW_IN, deadline);
+            int rc = fdin(conn->fd, deadline);
             if(dill_slow(rc < 0)) return -1;
-            dill_assert(rc == FDW_IN);
             ssize_t nbytes = recv(conn->fd, conn->rxbuf + conn->rxbuf_len,
                 sz - conn->rxbuf_len, 0);
             if(dill_slow(nbytes < 0)) return -1;
@@ -358,9 +354,8 @@ int ipcaccept(int s, int64_t deadline) {
         dill_assert(as == -1);
         if(dill_slow(errno != EAGAIN && errno != EWOULDBLOCK)) return -1;
         /* Wait till new connection is available. */
-        int rc = fdwait(lst->fd, FDW_IN, deadline);
+        int rc = fdin(lst->fd, deadline);
         if(dill_slow(rc < 0)) return -1;
-        dill_assert(rc == FDW_IN);
     }
     /* Create the object. */
     ipctune(as);
@@ -395,7 +390,7 @@ int ipcconnect(const char *addr, int64_t deadline) {
     if(rc != 0) {
         dill_assert(rc == -1);
         if(dill_slow(errno != EINPROGRESS)) return -1;
-        rc = fdwait(s, FDW_OUT, deadline);
+        rc = fdout(s, deadline);
         if(dill_slow(rc < 0)) return -1;
         socklen_t errsz = sizeof(err);
         rc = getsockopt(s, SOL_SOCKET, SO_ERROR, (void*)&err, &errsz);
