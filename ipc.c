@@ -113,7 +113,7 @@ static coroutine int ipcconn_sender(struct ipcconn *conn) {
         while(len) {
             rc = fdout(conn->fd, -1);
             if(dill_slow(rc < 0)) goto error1;
-            ssize_t sz = send(conn->fd, pos, len, 0);
+            ssize_t sz = send(conn->fd, pos, len, MSG_NOSIGNAL);
             if(dill_slow(sz < 0)) goto error1;
             pos += sz;
             len -= sz;
