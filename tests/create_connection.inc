@@ -53,7 +53,7 @@ void create_tcp_connection(int s[2]) {
     assert(s[0] >= 0);
     rc = chrecv(ch, &s[1], sizeof(int), -1);
     assert(rc == 0);
-    rc = hwait(chndl, NULL, -1);
+    rc = hclose(chndl);
     assert(rc == 0);
     rc = hclose(ch);
     assert(rc == 0);
@@ -80,7 +80,7 @@ void create_ipc_connection(int s[2]) {
     assert(s[0] >= 0);
     int rc = chrecv(ch, &s[1], sizeof(int), -1);
     assert(rc == 0);
-    rc = hwait(chndl, NULL, -1);
+    rc = hclose(chndl);
     assert(rc == 0);
     rc = hclose(ch);
     assert(rc == 0);
