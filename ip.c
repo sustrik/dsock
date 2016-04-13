@@ -52,7 +52,6 @@ DILL_CT_ASSERT(sizeof(ipaddr) >= sizeof(struct sockaddr_in6));
 static struct dns_resolv_conf *dill_dns_conf = NULL;
 static struct dns_hosts *dill_dns_hosts = NULL;
 static struct dns_hints *dill_dns_hints = NULL;
-static struct dns_resolver *dill_dns_resolver = NULL;
 
 static int dill_ipany(ipaddr *addr, int port, int mode)
 {
@@ -236,7 +235,7 @@ int ipremote(ipaddr *addr, const char *name, int port, int mode,
     if(rc == 0)
        return 0;
     /* Load DNS config files, unless they are already chached. */
-    if(dill_slow(!dill_dns_resolver)) {
+    if(dill_slow(!dill_dns_conf)) {
         /* TODO: Maybe re-read the configuration once in a while? */
         dill_dns_conf = dns_resconf_local(&rc);
         dill_assert(dill_dns_conf);
@@ -244,11 +243,11 @@ int ipremote(ipaddr *addr, const char *name, int port, int mode,
         dill_assert(dill_dns_hosts);
         dill_dns_hints = dns_hints_local(dill_dns_conf, &rc);
         dill_assert(dill_dns_hints);
-        dill_dns_resolver = dns_res_open(dill_dns_conf, dill_dns_hosts,
-            dill_dns_hints, NULL, dns_opts(), &rc);
-        dill_assert(dill_dns_resolver);
     }
     /* Let's do asynchronous DNS query here. */
+    struct dns_resolver *resolver = dns_res_open(dill_dns_conf, dill_dns_hosts,
+        dill_dns_hints, NULL, dns_opts(), &rc);
+    dill_assert(resolver);
     dill_assert(port >= 0 && port <= 0xffff);
     char portstr[8];
     snprintf(portstr, sizeof(portstr), "%d", port);
@@ -256,8 +255,9 @@ int ipremote(ipaddr *addr, const char *name, int port, int mode,
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = PF_UNSPEC;
     struct dns_addrinfo *ai = dns_ai_open(name, portstr, DNS_T_A, &hints,
-        dill_dns_resolver, &rc);
+        resolver, &rc);
     dill_assert(ai);
+    dns_res_close(resolver);
     struct addrinfo *ipv4 = NULL;
     struct addrinfo *ipv6 = NULL;
     struct addrinfo *it = NULL;
