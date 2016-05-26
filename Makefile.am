@@ -32,13 +32,8 @@ dillsocksinclude_HEADERS = dillsocks.h
 lib_LTLIBRARIES = libdillsocks.la
 
 libdillsocks_la_SOURCES = \
-    cons.c \
-    inproc.c \
     ip.c \
-    ipc.c \
-    sf.c \
-    sock.c \
-    tcp.c \
+    helpers.c \
     utils.h \
     utils.c \
     dns/dns.h \
@@ -58,14 +53,8 @@ pkgconfig_DATA = dillsocks.pc
 #  automated tests                                                             #
 ################################################################################
 
-check_PROGRAMS = \
-    tests/tcp \
-    tests/sf \
-    tests/cons \
-    tests/inproc \
-    tests/ipc
-
-EXTRA_DIST = tests/create_connection.inc
+check_PROGRAMS =  \
+    tests/helpers
 
 LDADD = libdillsocks.la
 
@@ -94,7 +83,7 @@ dist-hook:
 	fi; \
 	$(srcdir)/package_version.sh > $(distdir)/.version
 
-EXTRA_DIST += \
+EXTRA_DIST = \
     ./abi_version.sh \
     ./package_version.sh \
     ./CMakeLists.txt

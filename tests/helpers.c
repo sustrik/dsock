@@ -22,34 +22,60 @@
 
 */
 
+#include <arpa/inet.h>
 #include <assert.h>
-#include <stdio.h>
-#include <libdill.h>
+#include <netinet/in.h>
+#include <string.h>
 
 #include "../dillsocks.h"
 
-int main() {
+coroutine void client(void) {
+    int s = socket(AF_INET, SOCK_STREAM, 0);
+    assert(s >= 0);
+    int rc = dsunblock(s);
+    assert(rc == 0);
+    ipaddr addr;
+    rc = ipremote(&addr, "127.0.0.1", 5555, 0, -1);
+    assert(rc == 0);
+    rc = dsconnect(s, (struct sockaddr*)&addr, iplen(&addr), -1);
+    assert(rc == 0);
+    size_t len = 3;
+    rc = dssend(s, "ABC", &len, -1);
+    assert(rc == 0);
+    assert(len == 3);
+    fdclean(s);
+    dsclose(s);
+}
 
-    /* Simple ping-pong test. */
-    int s[2];
-    int rc = inprocpair(s);
+int main(void) {
+    int s = socket(AF_INET, SOCK_STREAM, 0);
+    assert(s >= 0);
+
+    /* This allows the test to run multiple times in short intervals. */
+    int opt = 1;
+    int rc = setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof (opt));
     assert(rc == 0);
-    rc = socksend(s[0], "ABC", 3, -1);
+
+    rc = dsunblock(s);
     assert(rc == 0);
+    ipaddr addr;
+    rc = iplocal(&addr, NULL, 5555, 0);
+    assert(rc == 0);
+    rc = bind(s, (struct sockaddr*)&addr, iplen(&addr));
+    assert(rc == 0);
+    rc = listen(s, 10);
+    assert(rc == 0);
+    go(client());
+    int as = dsaccept(s, NULL, NULL, -1);
+    assert(as >= 0);
     char buf[3];
-    size_t sz;
-    rc = sockrecv(s[1], buf, 3, &sz, -1);
+    size_t len = 3;
+    rc = dsrecv(as, buf, &len, -1);
     assert(rc == 0);
-    assert(sz == 3 && buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
-    rc = socksend(s[1], "DEF", 3, -1);
-    assert(rc == 0);
-    rc = sockrecv(s[0], buf, 3, &sz, -1);
-    assert(rc == 0);
-    assert(sz == 3 && buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
-    rc = hclose(s[0]);
-    assert(rc == 0);
-    rc = hclose(s[1]);
-    assert(rc == 0);
+    assert(len == 3);
+    assert(memcmp(buf, "ABC", 3) == 0);
+    dsclose(as);
+    dsclose(s);
 
     return 0;
 }
