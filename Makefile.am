@@ -32,8 +32,11 @@ dillsocksinclude_HEADERS = dillsocks.h
 lib_LTLIBRARIES = libdillsocks.la
 
 libdillsocks_la_SOURCES = \
+    bsock.c \
     ip.c \
     helpers.c \
+    msock.c \
+    tcp.c \
     utils.h \
     utils.c \
     dns/dns.h \
@@ -54,7 +57,8 @@ pkgconfig_DATA = dillsocks.pc
 ################################################################################
 
 check_PROGRAMS =  \
-    tests/helpers
+    tests/helpers \
+    tests/tcp
 
 LDADD = libdillsocks.la
 
