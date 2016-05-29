@@ -36,6 +36,7 @@ libdillsocks_la_SOURCES = \
     ip.c \
     helpers.c \
     msock.c \
+    sf.c \
     tcp.c \
     utils.h \
     utils.c \
@@ -58,7 +59,8 @@ pkgconfig_DATA = dillsocks.pc
 
 check_PROGRAMS =  \
     tests/helpers \
-    tests/tcp
+    tests/tcp \
+    tests/sf
 
 LDADD = libdillsocks.la
 

@@ -152,7 +152,7 @@ DILLSOCKS_EXPORT int msend(int s, const void *buf, size_t len,
 DILLSOCKS_EXPORT int mrecv(int s, void *buf, size_t *len, int64_t deadline);
 
 /******************************************************************************/
-/*  TCP sockets                                                               */
+/*  TCP socket                                                                */
 /******************************************************************************/
 
 DILLSOCKS_EXPORT int tcplisten(const ipaddr *addr, int backlog);
@@ -160,6 +160,13 @@ DILLSOCKS_EXPORT int tcpaccept(int s, int64_t deadline);
 DILLSOCKS_EXPORT int tcpconnect(const ipaddr *addr, int64_t deadline);
 DILLSOCKS_EXPORT int tcpport(int s);
 DILLSOCKS_EXPORT int tcppeer(int s, ipaddr *addr);
+
+/******************************************************************************/
+/*  Simple framing socket                                                     */
+/******************************************************************************/
+
+DILLSOCKS_EXPORT int sfattach(int s);
+DILLSOCKS_EXPORT int sfdetach(int s, int64_t deadline);
 
 #endif
  

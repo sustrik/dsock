@@ -29,3 +29,4 @@ tests/*.log
 tests/*.trs
 tests/helpers
 tests/tcp
+tests/sf
