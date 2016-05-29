@@ -58,17 +58,20 @@ static coroutine void sf_oworker(struct sf *conn) {
         int rc = chrecv(conn->ochan, &msg, sizeof(msg), -1);
         if(dill_slow(rc < 0 && errno == ECANCELED)) return;
         dill_assert(rc == 0);
-        uint8_t hdr[8];
-        dill_putll(hdr, msg.len);
-        rc = bsend(conn->u, hdr, sizeof(hdr), -1);
+        uint64_t hdr;
+        dill_putll((uint8_t*)&hdr, msg.len);
+        rc = bsend(conn->u, &hdr, sizeof(hdr), -1);
         if(dill_slow(rc < 0 && errno == ECANCELED)) {free(msg.buf); return;}
+        if(dill_slow(rc < 0 && errno == ECONNRESET)) {free(msg.buf); return;}
         dill_assert(rc == 0);
         rc = bsend(conn->u, msg.buf, msg.len, -1);
         if(dill_slow(rc < 0 && errno == ECANCELED)) {free(msg.buf); return;}
+        if(dill_slow(rc < 0 && errno == ECONNRESET)) {free(msg.buf); return;}
         dill_assert(rc == 0);
         free(msg.buf);
         rc = bflush(conn->u, -1);
         if(dill_slow(rc < 0 && errno == ECANCELED)) return;
+        if(dill_slow(rc < 0 && errno == ECONNRESET)) return;
         dill_assert(rc == 0);
     }
 }
@@ -76,12 +79,13 @@ static coroutine void sf_oworker(struct sf *conn) {
 static coroutine void sf_iworker(struct sf *conn) {
     while(1) {
         struct msg msg;
-        uint8_t hdr[8];
-        int rc = brecv(conn->u, hdr, sizeof(hdr), -1);
+        uint64_t hdr;
+        int rc = brecv(conn->u, &hdr, sizeof(hdr), -1);
         if(dill_slow(rc < 0 && errno == ECANCELED)) return;
         if(dill_slow(rc < 0 && errno == ECONNRESET)) return;
         dill_assert(rc >= 0);
-        msg.len = (size_t)dill_getll(hdr);
+        if(dill_slow(hdr == 0xffffffffffffffff)) break;
+        msg.len = (size_t)dill_getll((uint8_t*)&hdr);
         msg.buf = malloc(msg.len);
         dill_assert(msg.buf);
         rc = brecv(conn->u, msg.buf, msg.len, -1);
