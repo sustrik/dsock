@@ -41,7 +41,9 @@ coroutine void client(void) {
     rc = msend(sf, "ABC", 3, -1);
     assert(rc == 0);
 
-    rc = hclose(sf);
+    s = sfdetach(sf, -1);
+    assert(s >= 0);
+    rc = hclose(s);
     assert(rc == 0);
 }
 
@@ -64,7 +66,9 @@ int main(void) {
     assert(rc == 0);
     assert(len == 3 && memcmp(buf, "ABC", 3) == 0);
 
-    rc = hclose(sf);
+    as = sfdetach(sf, -1);
+    assert(as >= 0);
+    rc = hclose(as);
     assert(rc == 0);
     rc = hclose(ls);
     assert(rc == 0);

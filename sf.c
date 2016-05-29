@@ -27,6 +27,8 @@
 #include "dillsocks.h"
 #include "utils.h"
 
+#define TERMSEQUENCE 0x1122334455667788
+
 static const int sf_type_placeholder = 0;
 static const void *sf_type = &sf_type_placeholder;
 static void sf_close(int s);
@@ -57,6 +59,7 @@ static coroutine void sf_oworker(struct sf *conn) {
     while(1) {
         int rc = chrecv(conn->ochan, &msg, sizeof(msg), -1);
         if(dill_slow(rc < 0 && errno == ECANCELED)) return;
+        if(dill_slow(rc < 0 && errno == EPIPE)) break;
         dill_assert(rc == 0);
         uint64_t hdr;
         dill_putll((uint8_t*)&hdr, msg.len);
@@ -74,6 +77,17 @@ static coroutine void sf_oworker(struct sf *conn) {
         if(dill_slow(rc < 0 && errno == ECONNRESET)) return;
         dill_assert(rc == 0);
     }
+    if(conn->u < 0) return;
+    uint64_t hdr = TERMSEQUENCE;
+    int rc = bsend(conn->u, &hdr, sizeof(hdr), -1);
+    if(dill_slow(rc < 0 && errno == ECANCELED)) return;
+    if(dill_slow(rc < 0 && errno == ECONNRESET)) return;
+    dill_assert(rc == 0);
+    if(conn->u < 0) return;
+    rc = bflush(conn->u, -1);
+    if(dill_slow(rc < 0 && errno == ECANCELED)) return;
+    if(dill_slow(rc < 0 && errno == ECONNRESET)) return;
+    dill_assert(rc == 0);
 }
 
 static coroutine void sf_iworker(struct sf *conn) {
@@ -84,7 +98,7 @@ static coroutine void sf_iworker(struct sf *conn) {
         if(dill_slow(rc < 0 && errno == ECANCELED)) return;
         if(dill_slow(rc < 0 && errno == ECONNRESET)) return;
         dill_assert(rc >= 0);
-        if(dill_slow(hdr == 0xffffffffffffffff)) break;
+        if(dill_slow(hdr == TERMSEQUENCE)) break;
         msg.len = (size_t)dill_getll((uint8_t*)&hdr);
         msg.buf = malloc(msg.len);
         dill_assert(msg.buf);
@@ -96,6 +110,8 @@ static coroutine void sf_iworker(struct sf *conn) {
         if(dill_slow(rc < 0 && errno == ECANCELED)) {free(msg.buf); return;}
         dill_assert(rc == 0);
     }
+    int rc = chdone(conn->ichan);
+    dill_assert(rc == 0);
 }
 
 int sfattach(int s) {
@@ -137,7 +153,26 @@ error1:
     return -1;
 }
 
-int sfdetach(int s, int64_t deadline);
+int sfdetach(int s, int64_t deadline) {
+    struct sf *conn = msockdata(s, sf_type);
+    if(dill_slow(!conn)) return -1;
+    /* Ask protocol to terminate. */
+    int rc = chdone(conn->ochan);
+    dill_assert(rc == 0);
+    /* Read and drop any pending inbound messages. */
+    while(1) {
+        struct msg msg;
+        rc = chrecv(conn->ichan, &msg, sizeof(msg), deadline);
+        if(rc < 0 && errno == EPIPE) break;
+        dill_assert(rc == 0);
+        free(msg.buf);
+    }
+    /* Close the sf socket and return the underlying socket. */
+    int u = conn->u;
+    conn->u = -1;
+    sf_close(s);
+    return u;
+}
 
 static void sf_close(int s) {
     struct sf *conn = msockdata(s, sf_type);
@@ -150,8 +185,10 @@ static void sf_close(int s) {
     dill_assert(rc == 0);
     rc = hclose(conn->ochan);
     dill_assert(rc == 0);
-    rc = hclose(conn->u);
-    dill_assert(rc == 0);
+    if(conn->u >= 0) {
+        rc = hclose(conn->u);
+        dill_assert(rc == 0);
+    }
 }
 
 static int sf_send(int s, const void *buf, size_t len, int64_t deadline) {

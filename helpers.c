@@ -119,7 +119,10 @@ int dsrecv(int s, void *buf, size_t *len, int64_t deadline) {
                 return 0;
         }
         int rc = fdin(s, deadline);
-        if(dill_slow(rc < 0)) return -1;
+        if(dill_slow(rc < 0)) {
+            *len = received;
+            return -1;
+        }
     }
 }
 
