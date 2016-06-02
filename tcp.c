@@ -51,12 +51,12 @@ struct tcplistener {
 
 static const int tcpconn_type_placeholder = 0;
 static const void *tcpconn_type = &tcpconn_type_placeholder;
-static void tcpconn_close(int s);
+static int tcpconn_finish(int s, int64_t deadline);
 static int tcpconn_send(int s, const void *buf, size_t len, int64_t deadline);
 static int tcpconn_recv(int s, void *buf, size_t len, int64_t deadline);
 static int tcpconn_flush(int s, int64_t deadline);
 static const struct bsockvfptrs tcpconn_vfptrs = {
-    tcpconn_close,
+    tcpconn_finish,
     tcpconn_send,
     tcpconn_recv,
     tcpconn_flush
@@ -375,11 +375,22 @@ static int tcpconn_flush(int s, int64_t deadline) {
 /*  Connection teardown                                                       */
 /******************************************************************************/
 
-static void tcpconn_close(int s) {
+static int tcpconn_finish(int s, int64_t deadline) {
+    int rc;
+    int err = 0;
     struct tcpconn *conn = bsockdata(s, tcpconn_type);
-    dill_assert(conn);
-    int rc = dsclose(conn->fd);
+    if(dill_slow(!conn)) return -1;
+    /* First, let's try to flush remaining outbound data. */
+    if(deadline != 0) {
+        rc = tcpconn_flush(s, deadline);
+        if(dill_slow(rc < 0)) err = errno;
+    }
+    /* Close the underlying socket. */
+    rc = dsclose(conn->fd);
     dill_assert(rc == 0);
+    /* Deallocate the object. */
     tcpconn_destroy(conn);
+    errno = err;
+    return err ? -1 : 0;
 }
 

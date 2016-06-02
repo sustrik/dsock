@@ -40,9 +40,17 @@ coroutine void client(void) {
 
     rc = msend(sf, "ABC", 3, -1);
     assert(rc == 0);
+    rc = msend(sf, "DEF", 3, -1);
+    assert(rc == 0);
 
     s = sfdetach(sf, -1);
     assert(s >= 0);
+
+    rc = bsend(s, "GHI", 3, -1);
+    assert(rc == 0);
+    rc = bflush(s, -1);
+    assert(rc == 0);
+
     rc = hclose(s);
     assert(rc == 0);
 }
@@ -68,6 +76,11 @@ int main(void) {
 
     as = sfdetach(sf, -1);
     assert(as >= 0);
+
+    rc = brecv(as, buf, 3, -1);
+    assert(rc == 0);
+    assert(len == 3 && memcmp(buf, "GHI", 3) == 0);
+
     rc = hclose(as);
     assert(rc == 0);
     rc = hclose(ls);

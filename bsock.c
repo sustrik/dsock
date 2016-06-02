@@ -68,7 +68,9 @@ void *bsockdata(int s, const void *type) {
 static void dill_bsock_close(int h) {
     struct dill_bsock *sck = hdata(h, dill_bsock_type);
     dill_assert(sck);
-    sck->vfptrs.close(h);
+    dill_assert(sck->vfptrs.finish);
+    int rc = sck->vfptrs.finish(h, 0);
+    dill_assert(rc == 0);
     free(sck);
 }
 
@@ -91,5 +93,12 @@ int bflush(int s, int64_t deadline) {
     if(dill_slow(!sck)) return -1;
     if(dill_slow(!sck->vfptrs.flush)) {errno = ENOTSUP; return -1;}
     return sck->vfptrs.flush(s, deadline);
+}
+
+int bfinish(int s, int64_t deadline) {
+    struct dill_bsock *sck = hdata(s, dill_bsock_type);
+    if(dill_slow(!sck)) return -1;
+    if(dill_slow(!sck->vfptrs.finish)) {errno = ENOTSUP; return -1;}
+    return sck->vfptrs.finish(s, deadline);
 }
 

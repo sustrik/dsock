@@ -68,7 +68,8 @@ void *msockdata(int s, const void *type) {
 static void dill_msock_close(int h) {
     struct dill_msock *sck = hdata(h, dill_msock_type);
     dill_assert(sck);
-    sck->vfptrs.close(h);
+    int rc = sck->vfptrs.finish(h, 0);
+    dill_assert(rc == 0);
     free(sck);
 }
 
@@ -84,5 +85,12 @@ int mrecv(int s, void *buf, size_t *len, int64_t deadline) {
     if(dill_slow(!sck)) return -1;
     if(dill_slow(!sck->vfptrs.recv)) {errno = ENOTSUP; return -1;}
     return sck->vfptrs.recv(s, buf, len, deadline);
+}
+
+int mfinish(int s, int64_t deadline) {
+    struct dill_msock *sck = hdata(s, dill_msock_type);
+    if(dill_slow(!sck)) return -1;
+    if(dill_slow(!sck->vfptrs.finish)) {errno = ENOTSUP; return -1;}
+    return sck->vfptrs.finish(s, deadline);
 }
 
