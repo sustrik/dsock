@@ -35,14 +35,16 @@ static uint64_t sf_termsequence = 0xffffffffffffffff;
 
 static const int sf_type_placeholder = 0;
 static const void *sf_type = &sf_type_placeholder;
-static int sf_finish(int s, int64_t deadline);
 static int sf_send(int s, const void *buf, size_t len, int64_t deadline);
 static int sf_recv(int s, void *buf, size_t *len, int64_t deadline);
+static int sf_finish(int s, int64_t deadline);
+static void sf_close(int s);
 
-static const struct msockvfptrs sf_vfptrs = {
-    sf_finish,
+static const struct msockvfptrs sf_vfptrs = {    
     sf_send,
-    sf_recv
+    sf_recv,
+    sf_finish,
+    sf_close
 };
 
 struct sf {
@@ -167,9 +169,14 @@ dealloc:
 static int sf_finish(int s, int64_t deadline) {
     int u = sfdetach(s, deadline);
     if(dill_slow(u < 0)) return -1;
-    int rc = bfinish(u, deadline);
+    int rc = hfinish(u, deadline);
     if(dill_slow(rc != 0)) return -1;
     return 0;
+}
+
+static void sf_close(int s) {
+    int rc = sf_finish(s, 0);
+    dill_assert(rc == 0);
 }
 
 #define CHECKRC \

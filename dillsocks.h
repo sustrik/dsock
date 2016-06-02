@@ -112,10 +112,11 @@ DILLSOCKS_EXPORT int dsclose(int s);
 /* For implementors. */
 
 struct bsockvfptrs {
-    int (*finish)(int h, int64_t deadline);
     int (*send)(int s, const void *buf, size_t len, int64_t deadline);
     int (*recv)(int s, void *buf, size_t len, int64_t deadline);
     int (*flush)(int s, int64_t deadline);
+    int (*finish)(int s, int64_t deadline);
+    void (*close)(int s);
 };
 
 DILLSOCKS_EXPORT int bsock(const void *type, void *data,
@@ -128,7 +129,6 @@ DILLSOCKS_EXPORT int bsend(int s, const void *buf, size_t len,
     int64_t deadline);
 DILLSOCKS_EXPORT int brecv(int s, void *buf, size_t len, int64_t deadline);
 DILLSOCKS_EXPORT int bflush(int s, int64_t deadline);
-DILLSOCKS_EXPORT int bfinish(int s, int64_t deadline);
 
 /******************************************************************************/
 /*  Virtual message socket                                                    */
@@ -137,9 +137,10 @@ DILLSOCKS_EXPORT int bfinish(int s, int64_t deadline);
 /* For implementors. */
 
 struct msockvfptrs {
-    int (*finish)(int h, int64_t deadline);
     int (*send)(int s, const void *buf, size_t len, int64_t deadline);
     int (*recv)(int s, void *buf, size_t *len, int64_t deadline);
+    int (*finish)(int s, int64_t deadline);
+    void (*close)(int s);
 };
 
 DILLSOCKS_EXPORT int msock(const void *type, void *data,
@@ -151,7 +152,6 @@ DILLSOCKS_EXPORT void *msockdata(int s, const void *type);
 DILLSOCKS_EXPORT int msend(int s, const void *buf, size_t len,
     int64_t deadline);
 DILLSOCKS_EXPORT int mrecv(int s, void *buf, size_t *len, int64_t deadline);
-DILLSOCKS_EXPORT int mfinish(int s, int64_t deadline);
 
 /******************************************************************************/
 /*  TCP socket                                                                */

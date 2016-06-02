@@ -32,8 +32,12 @@
 
 static const int dill_bsock_type_placeholder = 0;
 static const void *dill_bsock_type = &dill_bsock_type_placeholder;
+static int dill_bsock_finish(int h, int64_t deadline);
 static void dill_bsock_close(int h);
-static const struct hvfptrs dill_bsock_vfptrs = {dill_bsock_close};
+static const struct hvfptrs dill_bsock_vfptrs = {
+    dill_bsock_finish,
+    dill_bsock_close
+};
 
 struct dill_bsock {
     const void *type;
@@ -65,12 +69,22 @@ void *bsockdata(int s, const void *type) {
     return sck->data;
 }
 
+static int dill_bsock_finish(int h, int64_t deadline) {
+    struct dill_bsock *sck = hdata(h, dill_bsock_type);
+    if(dill_slow(!sck)) return -1;
+    if(dill_slow(sck->vfptrs.finish)) {errno = ENOTSUP; return -1;}
+    int rc = sck->vfptrs.finish(h, deadline);
+    int err = errno;
+    free(sck);
+    errno = err;
+    return rc;
+}
+
 static void dill_bsock_close(int h) {
     struct dill_bsock *sck = hdata(h, dill_bsock_type);
     dill_assert(sck);
-    dill_assert(sck->vfptrs.finish);
-    int rc = sck->vfptrs.finish(h, 0);
-    dill_assert(rc == 0);
+    dill_assert(sck->vfptrs.close);
+    sck->vfptrs.close(h);
     free(sck);
 }
 

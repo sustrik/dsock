@@ -41,8 +41,12 @@
 
 static const int tcplistener_type_placeholder = 0;
 static const void *tcplistener_type = &tcplistener_type_placeholder;
+static int tcplistener_finish(int s, int64_t deadline);
 static void tcplistener_close(int s);
-static const struct hvfptrs tcplistener_vfptrs = {tcplistener_close};
+static const struct hvfptrs tcplistener_vfptrs = {
+    tcplistener_finish,
+    tcplistener_close
+};
 
 struct tcplistener {
     int fd;
@@ -51,15 +55,18 @@ struct tcplistener {
 
 static const int tcpconn_type_placeholder = 0;
 static const void *tcpconn_type = &tcpconn_type_placeholder;
-static int tcpconn_finish(int s, int64_t deadline);
 static int tcpconn_send(int s, const void *buf, size_t len, int64_t deadline);
 static int tcpconn_recv(int s, void *buf, size_t len, int64_t deadline);
 static int tcpconn_flush(int s, int64_t deadline);
+static int tcpconn_finish(int s, int64_t deadline);
+static void tcpconn_close(int s);
+
 static const struct bsockvfptrs tcpconn_vfptrs = {
-    tcpconn_finish,
     tcpconn_send,
     tcpconn_recv,
-    tcpconn_flush
+    tcpconn_flush,
+    tcpconn_finish,
+    tcpconn_close
 };
 
 struct tcpconn {
@@ -237,6 +244,11 @@ int tcppeer(int s, ipaddr *addr) {
     return 0;
 }
 
+static int tcplistener_finish(int s, int64_t deadline) {
+    tcplistener_close(s);
+    return 0;
+}
+
 static void tcplistener_close(int s) {
     struct tcplistener *lst = hdata(s, tcplistener_type);
     dill_assert(lst);
@@ -392,5 +404,10 @@ static int tcpconn_finish(int s, int64_t deadline) {
     tcpconn_destroy(conn);
     errno = err;
     return err ? -1 : 0;
+}
+
+static void tcpconn_close(int s) {
+    int rc = tcpconn_finish(s, 0);
+    dill_assert(rc == 0);
 }
 

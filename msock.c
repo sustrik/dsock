@@ -32,8 +32,12 @@
 
 static const int dill_msock_type_placeholder = 0;
 static const void *dill_msock_type = &dill_msock_type_placeholder;
+static int dill_msock_finish(int h, int64_t deadline);
 static void dill_msock_close(int h);
-static const struct hvfptrs dill_msock_vfptrs = {dill_msock_close};
+static const struct hvfptrs dill_msock_vfptrs = {
+    dill_msock_finish,
+    dill_msock_close
+};
 
 struct dill_msock {
     const void *type;
@@ -65,11 +69,22 @@ void *msockdata(int s, const void *type) {
     return sck->data;
 }
 
+static int dill_msock_finish(int h, int64_t deadline) {
+    struct dill_msock *sck = hdata(h, dill_msock_type);
+    if(dill_slow(!sck)) return -1;
+    if(dill_slow(sck->vfptrs.finish)) {errno = ENOTSUP; return -1;}
+    int rc = sck->vfptrs.finish(h, deadline);
+    int err = errno;
+    free(sck);
+    errno = err;
+    return rc;
+}
+
 static void dill_msock_close(int h) {
     struct dill_msock *sck = hdata(h, dill_msock_type);
     dill_assert(sck);
-    int rc = sck->vfptrs.finish(h, 0);
-    dill_assert(rc == 0);
+    dill_assert(sck->vfptrs.close);
+    sck->vfptrs.close(h);
     free(sck);
 }
 
