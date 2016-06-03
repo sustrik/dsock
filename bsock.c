@@ -72,7 +72,7 @@ void *bsockdata(int s, const void *type) {
 static int dill_bsock_finish(int h, int64_t deadline) {
     struct dill_bsock *sck = hdata(h, dill_bsock_type);
     if(dill_slow(!sck)) return -1;
-    if(dill_slow(sck->vfptrs.finish)) {errno = ENOTSUP; return -1;}
+    if(dill_slow(!sck->vfptrs.finish)) {errno = ENOTSUP; return -1;}
     int rc = sck->vfptrs.finish(h, deadline);
     int err = errno;
     free(sck);
