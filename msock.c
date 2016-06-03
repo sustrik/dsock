@@ -1,7 +1,6 @@
-
 /*
 
-  Copyright (c) 2015 Martin Sustrik
+  Copyright (c) 2016 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -24,8 +23,8 @@
 */
 
 #include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "dillsocks.h"
 #include "utils.h"
@@ -72,7 +71,7 @@ void *msockdata(int s, const void *type) {
 static int dill_msock_finish(int h, int64_t deadline) {
     struct dill_msock *sck = hdata(h, dill_msock_type);
     if(dill_slow(!sck)) return -1;
-    if(dill_slow(sck->vfptrs.finish)) {errno = ENOTSUP; return -1;}
+    if(dill_slow(!sck->vfptrs.finish)) {errno = ENOTSUP; return -1;}
     int rc = sck->vfptrs.finish(h, deadline);
     int err = errno;
     free(sck);
@@ -89,6 +88,7 @@ static void dill_msock_close(int h) {
 }
 
 int msend(int s, const void *buf, size_t len, int64_t deadline) {
+    if(dill_slow(len && !buf)) {errno = EINVAL; return -1;}
     struct dill_msock *sck = hdata(s, dill_msock_type);
     if(dill_slow(!sck)) return -1;
     if(dill_slow(!sck->vfptrs.send)) {errno = ENOTSUP; return -1;}
@@ -96,6 +96,7 @@ int msend(int s, const void *buf, size_t len, int64_t deadline) {
 }
 
 int mrecv(int s, void *buf, size_t *len, int64_t deadline) {
+    if(dill_slow(!len || (*len && !buf))) {errno = EINVAL; return -1;}
     struct dill_msock *sck = hdata(s, dill_msock_type);
     if(dill_slow(!sck)) return -1;
     if(dill_slow(!sck->vfptrs.recv)) {errno = ENOTSUP; return -1;}

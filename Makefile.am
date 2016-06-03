@@ -33,6 +33,7 @@ lib_LTLIBRARIES = libdillsocks.la
 
 libdillsocks_la_SOURCES = \
     bsock.c \
+    dbuf.h \
     ip.c \
     helpers.c \
     msock.c \

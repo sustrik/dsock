@@ -1,7 +1,6 @@
-
 /*
 
-  Copyright (c) 2015 Martin Sustrik
+  Copyright (c) 2016 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -24,7 +23,6 @@
 */
 
 #include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "dillsocks.h"

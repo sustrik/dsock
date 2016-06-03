@@ -179,10 +179,10 @@ static void sf_close(int s) {
     dill_assert(rc == 0);
 }
 
-#define CHECKRC \
+#define CHECKRC(restype) \
     if(dill_slow(rc < 0 && errno == ECANCELED)) break;\
     if(dill_slow(rc < 0 && errno == ECONNRESET)) {\
-        conn->ores = SF_RESET; break;}\
+        conn->restype = SF_RESET; break;}\
     dill_assert(rc == 0);
 
 static int sf_send(int s, const void *buf, size_t len, int64_t deadline) {
@@ -222,14 +222,14 @@ static coroutine void sf_oworker(struct sf *conn) {
         uint64_t hdr;
         dill_putll((uint8_t*)&hdr, msg.len);
         rc = bsend(conn->u, &hdr, sizeof(hdr), -1);
-        CHECKRC
+        CHECKRC(ores)
         rc = bsend(conn->u, msg.buf, msg.len, -1);
-        CHECKRC
+        CHECKRC(ores)
         free(msg.buf);
         msg.buf = NULL;
         msg.len = 0;
         rc = bflush(conn->u, -1);
-        CHECKRC
+        CHECKRC(ores)
     }
     free(msg.buf);
     int rc = chdone(conn->ochan);
@@ -265,13 +265,13 @@ static coroutine void sf_iworker(struct sf *conn) {
     while(1) {
         uint64_t hdr;
         int rc = brecv(conn->u, &hdr, sizeof(hdr), -1);
-        CHECKRC
+        CHECKRC(ires)
         if(dill_slow(hdr == sf_termsequence)) {conn->ires = SF_DONE; break;}
         msg.len = (size_t)dill_getll((uint8_t*)&hdr);
         msg.buf = malloc(msg.len);
         dill_assert(msg.buf);
         rc = brecv(conn->u, msg.buf, msg.len, -1);
-        CHECKRC
+        CHECKRC(ires)
         rc = chsend(conn->ichan, &msg, sizeof(msg), -1);
         if(dill_slow(rc < 0 && errno == ECANCELED)) break;
         dill_assert(rc == 0);

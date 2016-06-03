@@ -106,6 +106,20 @@ DILLSOCKS_EXPORT int dsrecv(int s, void *buf, size_t *len, int64_t deadline);
 DILLSOCKS_EXPORT int dsclose(int s);
 
 /******************************************************************************/
+/*  Data buffer.                                                              */
+/******************************************************************************/
+
+struct dbuf {
+    size_t len;
+    char data[56];
+};
+
+DILLSOCKS_EXPORT int dbufalloc(struct dbuf *buf, size_t len);
+DILLSOCKS_EXPORT void *dbufdata(struct dbuf *buf);
+DILLSOCKS_EXPORT size_t dbuflen(struct dbuf *buf);
+DILLSOCKS_EXPORT void dbuffree(struct dbuf *buf);
+
+/******************************************************************************/
 /*  Virtual bytestream socket                                                 */
 /******************************************************************************/
 

@@ -89,7 +89,6 @@ int main(void) {
 
     /* Test attach & detach. */
     create_tcp_connection(s);
-printf("s0=%d s1=%d\n", s[0], s[1]);
     s[0] = sfattach(s[0]);
     assert(s[0] >= 0);
     s[1] = sfattach(s[1]);
@@ -103,7 +102,6 @@ printf("s0=%d s1=%d\n", s[0], s[1]);
     rc = msend(s[0], "DEF", 3, -1);
     assert(rc == 0);
     detach_sf(s);
-printf("s0=%d s1=%d\n", s[0], s[1]);
     rc = bsend(s[0], "GHI", 3, -1);
     assert(rc == 0);
     rc = hfinish(s[0], -1);
@@ -113,6 +111,17 @@ printf("s0=%d s1=%d\n", s[0], s[1]);
     assert(len == 3 && memcmp(buf, "GHI", 3) == 0);
     rc = hclose(s[1]);
     assert(rc == 0);
+
+    /* Test disconnection. */
+    create_tcp_connection(s);
+    s[0] = sfattach(s[0]);
+    assert(s[0] >= 0);
+    rc = hclose(s[1]);
+    assert(rc == 0);
+    rc = mrecv(s[0], buf, &len, -1);
+    assert(rc == -1 && errno == ECONNRESET);
+    rc = hfinish(s[0], -1);
+    assert(rc == -1 && errno == ECONNRESET);
 
     return 0;
 }
