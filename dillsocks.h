@@ -92,7 +92,7 @@ DILLSOCKS_EXPORT int iplen(const ipaddr *addr);
 DILLSOCKS_EXPORT int ipport(const ipaddr *addr);
 
 /******************************************************************************/
-/*  Basic helper functions                                                    */
+/*  Basic helper functions.                                                   */
 /******************************************************************************/
 
 DILLSOCKS_EXPORT int dsunblock(int s);
@@ -185,4 +185,4 @@ DILLSOCKS_EXPORT int sfattach(int s);
 DILLSOCKS_EXPORT int sfdetach(int s, int64_t deadline);
 
 #endif
- 
+

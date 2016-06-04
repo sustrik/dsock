@@ -31,6 +31,12 @@
 #include "dillsocks.h"
 #include "utils.h"
 
+#if defined MSG_NOSIGNAL
+#define DILL_NOSIGNAL MSG_NOSIGNAL
+#else
+#define DILL_NOSIGNAL 0
+#endif
+
 int dsunblock(int s) {
     int opt = fcntl(s, F_GETFL, 0);
     if (opt == -1)
@@ -83,7 +89,7 @@ int dsaccept(int s, struct sockaddr *addr, socklen_t *addrlen,
 int dssend(int s, const void *buf, size_t *len, int64_t deadline) {
     size_t sent = 0;
     while(sent < *len) {
-        ssize_t sz = send(s, ((char*)buf) + sent, *len - sent, 0);
+        ssize_t sz = send(s, ((char*)buf) + sent, *len - sent, DILL_NOSIGNAL);
         if(sz < 0) {
             if(dill_slow(errno != EWOULDBLOCK && errno != EAGAIN)) {
                 *len = sent;
