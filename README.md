@@ -1,5 +1,7 @@
 **Dillsocks: Protocol library for libdill**
 
+This project is an experiment. Do not use!
+
 Principles:
 
 1. The goal is to allow for true micro-protocol that can be composed like
