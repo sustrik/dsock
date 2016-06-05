@@ -132,7 +132,7 @@ static void tcptune(int s) {
 }
 
 /******************************************************************************/
-/*  Connection establishment                                                  */
+/*  Listener socket.                                                          */
 /******************************************************************************/
 
 int tcplisten(const ipaddr *addr, int backlog) {
@@ -175,6 +175,12 @@ error1:
     return -1;
 }
 
+int tcpport(int s) {
+    struct tcplistener *lst = hdata(s, tcplistener_type);
+    if(dill_slow(!lst)) return -1;
+    return lst->port;
+}
+
 int tcpaccept(int s, int64_t deadline) {
     int err;
     struct tcplistener *lst = hdata(s, tcplistener_type);
@@ -203,6 +209,23 @@ error1:;
     return -1;
 }
 
+static int tcplistener_finish(int s, int64_t deadline) {
+    tcplistener_close(s);
+    return 0;
+}
+
+static void tcplistener_close(int s) {
+    struct tcplistener *lst = hdata(s, tcplistener_type);
+    dill_assert(lst);
+    int rc = dsclose(lst->fd);
+    dill_assert(rc == 0);
+    free(lst);
+}
+
+/******************************************************************************/
+/*  TCP connection socket.                                                    */
+/******************************************************************************/
+
 int tcpconnect(const ipaddr *addr, int64_t deadline) {
     int err;
     /* Open a socket. */
@@ -230,12 +253,6 @@ error1:
     return -1;
 }
 
-int tcpport(int s) {
-    struct tcplistener *lst = hdata(s, tcplistener_type);
-    if(dill_slow(!lst)) return -1;
-    return lst->port;
-}
-
 int tcppeer(int s, ipaddr *addr) {
     struct tcpconn *conn = bsockdata(s, tcpconn_type);
     if(dill_slow(!conn)) return -1;
@@ -243,23 +260,6 @@ int tcppeer(int s, ipaddr *addr) {
         *addr = conn->addr;
     return 0;
 }
-
-static int tcplistener_finish(int s, int64_t deadline) {
-    tcplistener_close(s);
-    return 0;
-}
-
-static void tcplistener_close(int s) {
-    struct tcplistener *lst = hdata(s, tcplistener_type);
-    dill_assert(lst);
-    int rc = dsclose(lst->fd);
-    dill_assert(rc == 0);
-    free(lst);
-}
-
-/******************************************************************************/
-/*  Sending and receiving data                                                */
-/******************************************************************************/
 
 static int tcpconn_send(int s, const void *buf, size_t len, int64_t deadline) {
     struct tcpconn *conn = bsockdata(s, tcpconn_type);
@@ -382,10 +382,6 @@ static int tcpconn_flush(int s, int64_t deadline) {
     errno = err;
     return -1;
 }
-
-/******************************************************************************/
-/*  Connection teardown                                                       */
-/******************************************************************************/
 
 static int tcpconn_finish(int s, int64_t deadline) {
     int rc;
