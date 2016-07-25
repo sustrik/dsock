@@ -22,31 +22,45 @@
 
 */
 
-#include "bsock.h"
-#include "dsock.h"
-#include "utils.h"
+#include <assert.h>
+#include <string.h>
 
-static const int bsock_type_placeholder = 0;
-const void *bsock_type = &bsock_type_placeholder;
+#include "../dsock.h"
 
-size_t bsend(int s, const void *buf, size_t len, int64_t deadline) {
-    struct hvfptr *h = hdata(s, bsock_type);
-    if(dsock_slow(!h)) return 0;
-    struct bsockvfptrs *b = (struct bsockvfptrs*)h;
-    return b->bsend(s, buf, len, deadline);
+coroutine void client(void) {
+    ipaddr addr;
+    int rc = ipremote(&addr, "127.0.0.1", 5555, 0, -1);
+    assert(rc == 0);
+    int s = tcpconnect(&addr, -1);
+    assert(s >= 0);
+    size_t sz = bsend(s, "ABC", 3, -1);
+    assert(sz == 3);
+
+
+    rc = hclose(s);
+    assert(rc == 0);
 }
 
-int bflush(int s, int64_t deadline) {
-    struct hvfptr *h = hdata(s, bsock_type);
-    if(dsock_slow(!h)) return 0;
-    struct bsockvfptrs *b = (struct bsockvfptrs*)h;
-    return b->bflush(s, deadline);
-}
+int main(void) {
+    ipaddr addr;
+    int rc = iplocal(&addr, NULL, 5555, 0);
+    assert(rc == 0);
+    int lst = tcplisten(&addr, 10);
+    assert(lst >= 0);
+    size_t sz = bsend(lst, "", 0, -1);
+    assert(sz == 0 && errno == EOPNOTSUPP);
+    go(client());
+    int s = tcpaccept(lst, -1);
+    assert(s >= 0);   
 
-size_t brecv(int s, void *buf, size_t len, int64_t deadline) {
-    struct hvfptr *h = hdata(s, bsock_type);
-    if(dsock_slow(!h)) return 0;
-    struct bsockvfptrs *b = (struct bsockvfptrs*)h;
-    return b->brecv(s, buf, len, deadline);
-}
+    char buf[3];
+    sz = brecv(s, buf, sizeof(buf), -1);
+    assert(sz == 3 && memcmp(buf, "ABC", 3) == 0);
 
+    rc = hclose(s);
+    assert(rc == 0);
+    rc = hclose(lst);
+    assert(rc == 0);
+
+    return 0;
+}

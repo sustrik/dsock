@@ -24,11 +24,9 @@
 
 #include <fcntl.h>
 #include <libdill.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
 
-#include "dsock.h"
+#include "helpers.h"
 #include "utils.h"
 
 #if defined MSG_NOSIGNAL
@@ -38,34 +36,42 @@
 #endif
 
 int dsunblock(int s) {
+    /* Switch to non-blocking mode. */
     int opt = fcntl(s, F_GETFL, 0);
     if (opt == -1)
         opt = 0;
     int rc = fcntl(s, F_SETFL, opt | O_NONBLOCK);
-    return rc >= 0 ? 0 : -1;
+    dsock_assert(rc == 0);
+    /*  Allow re-using the same local address rapidly. */
+    opt = 1;
+    rc = setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof (opt));
+    dsock_assert(rc == 0);
+    /* If possible, prevent SIGPIPE signal when writing to the connection
+        already closed by the peer. */
+#ifdef SO_NOSIGPIPE
+    opt = 1;
+    rc = setsockopt (s, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof (opt));
+    dsock_assert (rc == 0 || errno == EINVAL);
+#endif
+
 }
 
 int dsconnect(int s, const struct sockaddr *addr, socklen_t addrlen,
       int64_t deadline) {
-    int err;
     /* Initiate connect. */
     int rc = connect(s, addr, addrlen);
     if(rc == 0) return 0;
-    if(dsock_slow(errno != EINPROGRESS)) {err = errno; goto error;}
+    if(dsock_slow(errno != EINPROGRESS)) return -1;
     /* Connect is in progress. Let's wait till it's done. */
     rc = fdout(s, deadline);
-    if(dsock_slow(rc == -1)) {err = errno; goto error;}
+    if(dsock_slow(rc == -1)) return -1;
     /* Retrieve the error from the socket, if any. */
+    int err = 0;
     socklen_t errsz = sizeof(err);
     rc = getsockopt(s, SOL_SOCKET, SO_ERROR, (void*)&err, &errsz);
-    if(dsock_slow(rc != 0)) {err = errno; goto error;}
-    if(dsock_slow(err != 0)) goto error;
+    if(dsock_slow(rc != 0)) return -1;
+    if(dsock_slow(err != 0)) {errno = err; return -1;}
     return 0;
-error:
-    fdclean(s);
-    close(s);
-    errno = err;
-    return -1;
 }
 
 int dsaccept(int s, struct sockaddr *addr, socklen_t *addrlen,

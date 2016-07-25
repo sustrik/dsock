@@ -32,8 +32,10 @@ dsockinclude_HEADERS = dsock.h
 lib_LTLIBRARIES = libdsock.la
 
 libdsock_la_SOURCES = \
+    bsock.h \
     bsock.c \
     ip.c \
+    helpers.h \
     helpers.c \
     tcp.c \
     utils.h \
@@ -55,7 +57,8 @@ pkgconfig_DATA = dsock.pc
 #  automated tests                                                             #
 ################################################################################
 
-check_PROGRAMS =
+check_PROGRAMS = \
+    tests/tcp
 
 LDADD = libdsock.la
 

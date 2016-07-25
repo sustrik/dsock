@@ -113,7 +113,7 @@ DSOCK_EXPORT size_t bsend(
     const void *buf,
     size_t len,
     int64_t deadline);
-DSOCK_EXPORT void bflush(
+DSOCK_EXPORT int bflush(
     int s,
     int64_t deadline);
 DSOCK_EXPORT size_t brecv(
@@ -129,18 +129,15 @@ DSOCK_EXPORT size_t brecv(
 DSOCK_EXPORT int tcplisten(
     const ipaddr *addr,
     int backlog);
-DSOCK_EXPORT int tcpport(
-    int s);
 DSOCK_EXPORT int tcpaccept(
     int s,
     int64_t deadline);
-DSOCK_EXPORT ipaddr tcpaddr(
-    int s);
 DSOCK_EXPORT int tcpconnect(
     const ipaddr *addr,
     int64_t deadline);
-DSOCK_EXPORT void tcpclose(
-    int s);
+DSOCK_EXPORT int tcpaddr(
+    int s,
+    ipaddr *addr);
 
 #endif
 

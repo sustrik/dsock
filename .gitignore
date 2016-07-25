@@ -27,4 +27,4 @@ test-suite.log
 tests/.dirstamp
 tests/*.log
 tests/*.trs
-tests/helpers
+tests/tcp
