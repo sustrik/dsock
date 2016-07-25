@@ -81,14 +81,66 @@
 
 typedef struct {char data[32];} ipaddr;
 
-DSOCK_EXPORT int iplocal(ipaddr *addr, const char *name, int port, int mode);
-DSOCK_EXPORT int ipremote(ipaddr *addr, const char *name, int port, int mode,
+DSOCK_EXPORT int iplocal(
+    ipaddr *addr,
+    const char *name,
+    int port,
+    int mode);
+DSOCK_EXPORT int ipremote(
+    ipaddr *addr,
+    const char *name,
+    int port,
+    int mode,
     int64_t deadline);
-DSOCK_EXPORT const char *ipaddrstr(const ipaddr *addr, char *ipstr);
-DSOCK_EXPORT int ipfamily(const ipaddr *addr);
-DSOCK_EXPORT const struct sockaddr *ipsockaddr(const ipaddr *addr);
-DSOCK_EXPORT int iplen(const ipaddr *addr);
-DSOCK_EXPORT int ipport(const ipaddr *addr);
+DSOCK_EXPORT const char *ipaddrstr(
+    const ipaddr *addr,
+    char *ipstr);
+DSOCK_EXPORT int ipfamily(
+    const ipaddr *addr);
+DSOCK_EXPORT const struct sockaddr *ipsockaddr(
+    const ipaddr *addr);
+DSOCK_EXPORT int iplen(
+    const ipaddr *addr);
+DSOCK_EXPORT int ipport(
+    const ipaddr *addr);
+
+/******************************************************************************/
+/*  Bytestream sockets                                                        */
+/******************************************************************************/
+
+DSOCK_EXPORT size_t bsend(
+    int s,
+    const void *buf,
+    size_t len,
+    int64_t deadline);
+DSOCK_EXPORT void bflush(
+    int s,
+    int64_t deadline);
+DSOCK_EXPORT size_t brecv(
+    int s,
+    void *buf,
+    size_t len,
+    int64_t deadline);
+
+/******************************************************************************/
+/*  TCP library                                                               */
+/******************************************************************************/
+
+DSOCK_EXPORT int tcplisten(
+    const ipaddr *addr,
+    int backlog);
+DSOCK_EXPORT int tcpport(
+    int s);
+DSOCK_EXPORT int tcpaccept(
+    int s,
+    int64_t deadline);
+DSOCK_EXPORT ipaddr tcpaddr(
+    int s);
+DSOCK_EXPORT int tcpconnect(
+    const ipaddr *addr,
+    int64_t deadline);
+DSOCK_EXPORT void tcpclose(
+    int s);
 
 #endif
 

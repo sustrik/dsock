@@ -32,8 +32,10 @@ dsockinclude_HEADERS = dsock.h
 lib_LTLIBRARIES = libdsock.la
 
 libdsock_la_SOURCES = \
+    bsock.c \
     ip.c \
     helpers.c \
+    tcp.c \
     utils.h \
     utils.c \
     dns/dns.h \
