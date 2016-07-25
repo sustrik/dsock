@@ -26,9 +26,9 @@
 
 AC_PREREQ([2.53])
 
-AC_INIT([dillsocks], [m4_esyscmd([./package_version.sh])],
-   [libmill@freelists.org], [dillsocks], [http://libdill.org/])
-AC_CONFIG_SRCDIR([dillsocks.pc.in])
+AC_INIT([dsock], [m4_esyscmd([./package_version.sh])],
+   [libmill@freelists.org], [dsock], [http://libdill.org/])
+AC_CONFIG_SRCDIR([dsock.pc.in])
 AM_INIT_AUTOMAKE([1.6 foreign subdir-objects tar-ustar])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
@@ -41,16 +41,16 @@ AC_CANONICAL_HOST
 AC_PROG_SED
 AC_PROG_AWK
 
-DILLSOCKS_ABI_VERSION=m4_esyscmd([./abi_version.sh])
-DILLSOCKS_PACKAGE_VERSION=m4_esyscmd([./package_version.sh])
-DILLSOCKS_LIBTOOL_VERSION=m4_esyscmd([./abi_version.sh -libtool])
+DSOCK_ABI_VERSION=m4_esyscmd([./abi_version.sh])
+DSOCK_PACKAGE_VERSION=m4_esyscmd([./package_version.sh])
+DSOCK_LIBTOOL_VERSION=m4_esyscmd([./abi_version.sh -libtool])
 
-AC_SUBST(DILLSOCKS_ABI_VERSION)
-AC_SUBST(DILLSOCKS_PACKAGE_VERSION)
-AC_SUBST(DILLSOCKS_LIBTOOL_VERSION)
+AC_SUBST(DSOCK_ABI_VERSION)
+AC_SUBST(DSOCK_PACKAGE_VERSION)
+AC_SUBST(DSOCK_LIBTOOL_VERSION)
 
-AC_MSG_NOTICE([Millsocks package version: $DILLSOCKS_PACKAGE_VERSION])
-AC_MSG_NOTICE([Millsocks ABI version: $DILLSOCKS_ABI_VERSION])
+AC_MSG_NOTICE([Millsocks package version: $DSOCK_PACKAGE_VERSION])
+AC_MSG_NOTICE([Millsocks ABI version: $DSOCK_ABI_VERSION])
 
 ################################################################################
 #  Check the compilers.                                                        #
@@ -93,6 +93,6 @@ LT_INIT
 
 AC_CONFIG_MACRO_DIR([m4])
 
-AC_OUTPUT([Makefile dillsocks.pc])
+AC_OUTPUT([Makefile dsock.pc])
 cp confdefs.h config.h
 

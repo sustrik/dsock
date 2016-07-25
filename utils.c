@@ -24,31 +24,31 @@
 
 #include "utils.h"
 
-uint16_t dill_gets(const uint8_t *buf) {
+uint16_t dsock_gets(const uint8_t *buf) {
     return (((uint16_t)buf[0]) << 8) |
            ((uint16_t)buf[1]);
 }
 
-void dill_puts(uint8_t *buf, uint16_t val) {
+void dsock_puts(uint8_t *buf, uint16_t val) {
     buf[0] = (uint8_t)(((val) >> 8) & 0xff);
     buf[1] = (uint8_t)(val & 0xff);
 }
 
-uint32_t dill_getl(const uint8_t *buf) {
+uint32_t dsock_getl(const uint8_t *buf) {
     return (((uint32_t)buf[0]) << 24) |
            (((uint32_t)buf[1]) << 16) |
            (((uint32_t)buf[2]) << 8) |
            ((uint32_t)buf[3]);
 }
 
-void dill_putl(uint8_t *buf, uint32_t val) {
+void dsock_putl(uint8_t *buf, uint32_t val) {
     buf[0] = (uint8_t)(((val) >> 24) & 0xff);
     buf[1] = (uint8_t)(((val) >> 16) & 0xff);
     buf[2] = (uint8_t)(((val) >> 8) & 0xff);
     buf[3] = (uint8_t)(val & 0xff);
 }
 
-uint64_t dill_getll(const uint8_t *buf) {
+uint64_t dsock_getll(const uint8_t *buf) {
     return (((uint64_t)buf[0]) << 56) |
            (((uint64_t)buf[1]) << 48) |
            (((uint64_t)buf[2]) << 40) |
@@ -59,7 +59,7 @@ uint64_t dill_getll(const uint8_t *buf) {
            (((uint64_t)buf[7] << 0));
 }
 
-void dill_putll(uint8_t *buf, uint64_t val) {
+void dsock_putll(uint8_t *buf, uint64_t val) {
     buf[0] = (uint8_t)((val >> 56) & 0xff);
     buf[1] = (uint8_t)((val >> 48) & 0xff);
     buf[2] = (uint8_t)((val >> 40) & 0xff);

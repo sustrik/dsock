@@ -23,47 +23,39 @@
 ACLOCAL_AMFLAGS = -I m4
 
 ################################################################################
-#  dillsocks library                                                           #
+#  dsock library                                                               #
 ################################################################################
 
-dillsocksincludedir = $(includedir)
-dillsocksinclude_HEADERS = dillsocks.h
+dsockincludedir = $(includedir)
+dsockinclude_HEADERS = dsock.h
 
-lib_LTLIBRARIES = libdillsocks.la
+lib_LTLIBRARIES = libdsock.la
 
-libdillsocks_la_SOURCES = \
-    bsock.c \
-    dbuf.h \
+libdsock_la_SOURCES = \
     ip.c \
     helpers.c \
-    msock.c \
-    sf.c \
-    tcp.c \
     utils.h \
     utils.c \
     dns/dns.h \
     dns/dns.c
 
-libdillsocks_la_LDFLAGS = -no-undefined -version-info \
-    @DILLSOCKS_LIBTOOL_VERSION@
+libdsock_la_LDFLAGS = -no-undefined -version-info \
+    @DSOCK_LIBTOOL_VERSION@
 
-libdillsocks_la_CFLAGS = \
+libdsock_la_CFLAGS = \
     -fvisibility=hidden\
-    -DDILLSOCKS_EXPORTS
+    -DDSOCK_EXPORTS
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = dillsocks.pc
+pkgconfig_DATA = dsock.pc
 
 ################################################################################
 #  automated tests                                                             #
 ################################################################################
 
-check_PROGRAMS =  \
-    tests/helpers \
-    tests/tcp \
-    tests/sf
+check_PROGRAMS =
 
-LDADD = libdillsocks.la
+LDADD = libdsock.la
 
 TESTS = $(check_PROGRAMS)
 

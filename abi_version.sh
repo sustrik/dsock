@@ -20,17 +20,17 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-if [ ! -f dillsocks.h ]; then
-    echo "abi_version.sh: error: dillsocks.h does not exist" 1>&2
+if [ ! -f dsock.h ]; then
+    echo "abi_version.sh: error: dsock.h does not exist" 1>&2
     exit 1
 fi
 
-CURRENT=`egrep '^#define +DILLSOCKS_VERSION_CURRENT +[0-9]+$' dillsocks.h`
-REVISION=`egrep '^#define +DILLSOCKS_VERSION_REVISION +[0-9]+$' dillsocks.h`
-AGE=`egrep '^#define +DILLSOCKS_VERSION_AGE +[0-9]+$' dillsocks.h`
+CURRENT=`egrep '^#define +DSOCK_VERSION_CURRENT +[0-9]+$' dsock.h`
+REVISION=`egrep '^#define +DSOCK_VERSION_REVISION +[0-9]+$' dsock.h`
+AGE=`egrep '^#define +DSOCK_VERSION_AGE +[0-9]+$' dsock.h`
 
 if [ -z "$CURRENT" -o -z "$REVISION" -o -z "$AGE" ]; then
-    echo "abi_version.sh: error: could not extract version from dillsocks.h" 1>&2
+    echo "abi_version.sh: error: could not extract version from dsock.h" 1>&2
     exit 1
 fi
 

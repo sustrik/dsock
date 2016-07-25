@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2015 Martin Sustrik
+  Copyright (c) 2016 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -28,13 +28,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "dillsocks.h"
+#include "dsock.h"
 #include "utils.h"
 
 #if defined MSG_NOSIGNAL
-#define DILL_NOSIGNAL MSG_NOSIGNAL
+#define DSOCK_NOSIGNAL MSG_NOSIGNAL
 #else
-#define DILL_NOSIGNAL 0
+#define DSOCK_NOSIGNAL 0
 #endif
 
 int dsunblock(int s) {
@@ -51,15 +51,15 @@ int dsconnect(int s, const struct sockaddr *addr, socklen_t addrlen,
     /* Initiate connect. */
     int rc = connect(s, addr, addrlen);
     if(rc == 0) return 0;
-    if(dill_slow(errno != EINPROGRESS)) {err = errno; goto error;}
+    if(dsock_slow(errno != EINPROGRESS)) {err = errno; goto error;}
     /* Connect is in progress. Let's wait till it's done. */
     rc = fdout(s, deadline);
-    if(dill_slow(rc == -1)) {err = errno; goto error;}
+    if(dsock_slow(rc == -1)) {err = errno; goto error;}
     /* Retrieve the error from the socket, if any. */
     socklen_t errsz = sizeof(err);
     rc = getsockopt(s, SOL_SOCKET, SO_ERROR, (void*)&err, &errsz);
-    if(dill_slow(rc != 0)) {err = errno; goto error;}
-    if(dill_slow(err != 0)) goto error;
+    if(dsock_slow(rc != 0)) {err = errno; goto error;}
+    if(dsock_slow(err != 0)) goto error;
     return 0;
 error:
     fdclean(s);
@@ -74,29 +74,29 @@ int dsaccept(int s, struct sockaddr *addr, socklen_t *addrlen,
     while(1) {
         /* Try to accept new connection synchronously. */
         as = accept(s, addr, addrlen);
-        if(dill_fast(as >= 0))
+        if(dsock_fast(as >= 0))
             break;
-        if(dill_slow(errno != EAGAIN && errno != EWOULDBLOCK)) return -1;
+        if(dsock_slow(errno != EAGAIN && errno != EWOULDBLOCK)) return -1;
         /* Operation is in progress. Wait till new connection is available. */
         int rc = fdin(s, deadline);
-        if(dill_slow(rc < 0)) return -1;
+        if(dsock_slow(rc < 0)) return -1;
     }
     int rc = dsunblock(as);
-    dill_assert(rc == 0);
+    dsock_assert(rc == 0);
     return as;
 }
 
 int dssend(int s, const void *buf, size_t *len, int64_t deadline) {
     size_t sent = 0;
     while(sent < *len) {
-        ssize_t sz = send(s, ((char*)buf) + sent, *len - sent, DILL_NOSIGNAL);
+        ssize_t sz = send(s, ((char*)buf) + sent, *len - sent, DSOCK_NOSIGNAL);
         if(sz < 0) {
-            if(dill_slow(errno != EWOULDBLOCK && errno != EAGAIN)) {
+            if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) {
                 *len = sent;
                 return -1;
             }
             int rc = fdout(s, deadline);
-            if(dill_slow(rc < 0)) return -1;
+            if(dsock_slow(rc < 0)) return -1;
             continue;
         }
         sent += sz;
@@ -108,13 +108,13 @@ int dsrecv(int s, void *buf, size_t *len, int64_t deadline) {
     size_t received = 0;
     while(1) {
         ssize_t sz = recv(s, ((char*)buf) + received, *len - received, 0);
-        if(dill_slow(sz == 0)) {
+        if(dsock_slow(sz == 0)) {
             *len = received;
             errno = ECONNRESET;
             return -1;
         }
         if(sz < 0) {
-            if(dill_slow(errno != EWOULDBLOCK && errno != EAGAIN)) {
+            if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) {
                 *len = received;
                 return -1;
             }
@@ -125,7 +125,7 @@ int dsrecv(int s, void *buf, size_t *len, int64_t deadline) {
                 return 0;
         }
         int rc = fdin(s, deadline);
-        if(dill_slow(rc < 0)) {
+        if(dsock_slow(rc < 0)) {
             *len = received;
             return -1;
         }

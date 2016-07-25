@@ -43,19 +43,20 @@
 
 #include "dns/dns.h"
 
-#include "dillsocks.h"
+#include "dsock.h"
 #include "utils.h"
 
-DILL_CT_ASSERT(sizeof(ipaddr) >= sizeof(struct sockaddr_in));
-DILL_CT_ASSERT(sizeof(ipaddr) >= sizeof(struct sockaddr_in6));
+/* Make sure that both IPv4 and IPv6 address fits into ipaddr. */
+DSOCK_CT_ASSERT(sizeof(ipaddr) >= sizeof(struct sockaddr_in));
+DSOCK_CT_ASSERT(sizeof(ipaddr) >= sizeof(struct sockaddr_in6));
 
-static struct dns_resolv_conf *dill_dns_conf = NULL;
-static struct dns_hosts *dill_dns_hosts = NULL;
-static struct dns_hints *dill_dns_hints = NULL;
+static struct dns_resolv_conf *dsock_dns_conf = NULL;
+static struct dns_hosts *dsock_dns_hosts = NULL;
+static struct dns_hints *dsock_dns_hints = NULL;
 
-static int dill_ipany(ipaddr *addr, int port, int mode)
+static int dsock_ipany(ipaddr *addr, int port, int mode)
 {
-    if(dill_slow(port < 0 || port > 0xffff)) {errno = EINVAL; return -1;}
+    if(dsock_slow(port < 0 || port > 0xffff)) {errno = EINVAL; return -1;}
     if (mode == 0 || mode == IPADDR_IPV4 || mode == IPADDR_PREF_IPV4) {
         struct sockaddr_in *ipv4 = (struct sockaddr_in*)addr;
         ipv4->sin_family = AF_INET;
@@ -73,52 +74,52 @@ static int dill_ipany(ipaddr *addr, int port, int mode)
 }
 
 /* Convert literal IPv4 address to a binary one. */
-static int dill_ipv4_literal(ipaddr *addr, const char *name, int port) {
+static int dsock_ipv4_literal(ipaddr *addr, const char *name, int port) {
     struct sockaddr_in *ipv4 = (struct sockaddr_in*)addr;
     int rc = inet_pton(AF_INET, name, &ipv4->sin_addr);
-    dill_assert(rc >= 0);
-    if(dill_slow(rc != 1)) {errno = EINVAL; return -1;}
+    dsock_assert(rc >= 0);
+    if(dsock_slow(rc != 1)) {errno = EINVAL; return -1;}
     ipv4->sin_family = AF_INET;
     ipv4->sin_port = htons((uint16_t)port);
     return 0;
 }
 
 /* Convert literal IPv6 address to a binary one. */
-static int dill_ipv6_literal(ipaddr *addr, const char *name, int port) {
+static int dsock_ipv6_literal(ipaddr *addr, const char *name, int port) {
     struct sockaddr_in6 *ipv6 = (struct sockaddr_in6*)addr;
     int rc = inet_pton(AF_INET6, name, &ipv6->sin6_addr);
-    dill_assert(rc >= 0);
-    if(dill_slow(rc != 1)) {errno = EINVAL; return -1;}
+    dsock_assert(rc >= 0);
+    if(dsock_slow(rc != 1)) {errno = EINVAL; return -1;}
     ipv6->sin6_family = AF_INET6;
     ipv6->sin6_port = htons((uint16_t)port);
     return 0;
 }
 
 /* Convert literal IPv4 or IPv6 address to a binary one. */
-static int dill_ipliteral(ipaddr *addr, const char *name, int port, int mode) {
-    if(dill_slow(!addr || port < 0 || port > 0xffff)) {
+static int dsock_ipliteral(ipaddr *addr, const char *name, int port, int mode) {
+    if(dsock_slow(!addr || port < 0 || port > 0xffff)) {
         errno = EINVAL;
         return -1;
     }
     int rc;
     switch(mode) {
     case IPADDR_IPV4:
-        return dill_ipv4_literal(addr, name, port);
+        return dsock_ipv4_literal(addr, name, port);
     case IPADDR_IPV6:
-        return dill_ipv6_literal(addr, name, port);
+        return dsock_ipv6_literal(addr, name, port);
     case 0:
     case IPADDR_PREF_IPV4:
-        rc = dill_ipv4_literal(addr, name, port);
+        rc = dsock_ipv4_literal(addr, name, port);
         if(rc == 0)
             return 0;
-        return dill_ipv6_literal(addr, name, port);
+        return dsock_ipv6_literal(addr, name, port);
     case IPADDR_PREF_IPV6:
-        rc = dill_ipv6_literal(addr, name, port);
+        rc = dsock_ipv6_literal(addr, name, port);
         if(rc == 0)
             return 0;
-        return dill_ipv4_literal(addr, name, port);
+        return dsock_ipv4_literal(addr, name, port);
     default:
-        dill_assert(0);
+        dsock_assert(0);
     }
 }
 
@@ -155,8 +156,8 @@ const char *ipaddrstr(const ipaddr *addr, char *ipstr) {
 
 int iplocal(ipaddr *addr, const char *name, int port, int mode) {
     if(!name) 
-        return dill_ipany(addr, port, mode);
-    int rc = dill_ipliteral(addr, name, port, mode);
+        return dsock_ipany(addr, port, mode);
+    int rc = dsock_ipliteral(addr, name, port, mode);
 #if defined __sun
     return rc;
 #else
@@ -165,8 +166,8 @@ int iplocal(ipaddr *addr, const char *name, int port, int mode) {
     /* Address is not a literal. It must be an interface name then. */
     struct ifaddrs *ifaces = NULL;
     rc = getifaddrs (&ifaces);
-    dill_assert (rc == 0);
-    dill_assert (ifaces);
+    dsock_assert (rc == 0);
+    dsock_assert (ifaces);
     /*  Find first IPv4 and first IPv6 address. */
     struct ifaddrs *ipv4 = NULL;
     struct ifaddrs *ipv6 = NULL;
@@ -178,11 +179,11 @@ int iplocal(ipaddr *addr, const char *name, int port, int mode) {
             continue;
         switch(it->ifa_addr->sa_family) {
         case AF_INET:
-            dill_assert(!ipv4);
+            dsock_assert(!ipv4);
             ipv4 = it;
             break;
         case AF_INET6:
-            dill_assert(!ipv6);
+            dsock_assert(!ipv6);
             ipv6 = it;
             break;
         }
@@ -207,7 +208,7 @@ int iplocal(ipaddr *addr, const char *name, int port, int mode) {
            ipv4 = NULL;
         break;
     default:
-        dill_assert(0);
+        dsock_assert(0);
     }
     if(ipv4) {
         struct sockaddr_in *inaddr = (struct sockaddr_in*)addr;
@@ -231,24 +232,24 @@ int iplocal(ipaddr *addr, const char *name, int port, int mode) {
 
 int ipremote(ipaddr *addr, const char *name, int port, int mode,
       int64_t deadline) {
-    int rc = dill_ipliteral(addr, name, port, mode);
+    int rc = dsock_ipliteral(addr, name, port, mode);
     if(rc == 0)
        return 0;
     /* Load DNS config files, unless they are already chached. */
-    if(dill_slow(!dill_dns_conf)) {
+    if(dsock_slow(!dsock_dns_conf)) {
         /* TODO: Maybe re-read the configuration once in a while? */
-        dill_dns_conf = dns_resconf_local(&rc);
-        dill_assert(dill_dns_conf);
-        dill_dns_hosts = dns_hosts_local(&rc);
-        dill_assert(dill_dns_hosts);
-        dill_dns_hints = dns_hints_local(dill_dns_conf, &rc);
-        dill_assert(dill_dns_hints);
+        dsock_dns_conf = dns_resconf_local(&rc);
+        dsock_assert(dsock_dns_conf);
+        dsock_dns_hosts = dns_hosts_local(&rc);
+        dsock_assert(dsock_dns_hosts);
+        dsock_dns_hints = dns_hints_local(dsock_dns_conf, &rc);
+        dsock_assert(dsock_dns_hints);
     }
     /* Let's do asynchronous DNS query here. */
-    struct dns_resolver *resolver = dns_res_open(dill_dns_conf, dill_dns_hosts,
-        dill_dns_hints, NULL, dns_opts(), &rc);
-    dill_assert(resolver);
-    dill_assert(port >= 0 && port <= 0xffff);
+    struct dns_resolver *resolver = dns_res_open(dsock_dns_conf,
+        dsock_dns_hosts, dsock_dns_hints, NULL, dns_opts(), &rc);
+    dsock_assert(resolver);
+    dsock_assert(port >= 0 && port <= 0xffff);
     char portstr[8];
     snprintf(portstr, sizeof(portstr), "%d", port);
     struct addrinfo hints;
@@ -256,7 +257,7 @@ int ipremote(ipaddr *addr, const char *name, int port, int mode,
     hints.ai_family = PF_UNSPEC;
     struct dns_addrinfo *ai = dns_ai_open(name, portstr, DNS_T_A, &hints,
         resolver, &rc);
-    dill_assert(ai);
+    dsock_assert(ai);
     dns_res_close(resolver);
     struct addrinfo *ipv4 = NULL;
     struct addrinfo *ipv6 = NULL;
@@ -265,15 +266,15 @@ int ipremote(ipaddr *addr, const char *name, int port, int mode,
         rc = dns_ai_nextent(&it, ai);
         if(rc == EAGAIN) {
             int fd = dns_ai_pollfd(ai);
-            dill_assert(fd >= 0);
+            dsock_assert(fd >= 0);
             int rc = fdin(fd, deadline);
             /* There's no guarantee that the file descriptor will be reused
                in next iteration. We have to clean the fdwait cache here
                to be on the safe side. */
             fdclean(fd);
-            if(dill_slow(rc < 0 && errno == ETIMEDOUT)) {
+            if(dsock_slow(rc < 0 && errno == ETIMEDOUT)) {
                 errno = ETIMEDOUT; return -1;}
-            dill_assert(rc == 0);
+            dsock_assert(rc == 0);
             continue;
         }
         if(rc == ENOENT)
@@ -302,7 +303,7 @@ int ipremote(ipaddr *addr, const char *name, int port, int mode,
            ipv4 = NULL;
         break;
     default:
-        dill_assert(0);
+        dsock_assert(0);
     }
     if(ipv4) {
         struct sockaddr_in *inaddr = (struct sockaddr_in*)addr;

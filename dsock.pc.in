@@ -1,12 +1,13 @@
+
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: dillsocks
+Name: dsock
 Description: Socket library for libdill
 URL: http://libdill.org/
-Version: @DILLSOCKS_ABI_VERSION@
+Version: @DSOCK_ABI_VERSION@
 Requires:
-Libs: -L${libdir} -ldillsocks @LIBS@
+Libs: -L${libdir} -ldsock @LIBS@
 Cflags: -I${includedir}
