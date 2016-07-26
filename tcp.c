@@ -91,6 +91,7 @@ static size_t tcpconn_bsend(int s, const void *buf, size_t len,
     size_t sz = len;
     int rc = dssend(obj->fd, buf, &sz, deadline);
     if(dsock_fast(rc == 0)) return len;
+    if(errno == EPIPE) errno = ECONNRESET;
     return sz;
 }
 

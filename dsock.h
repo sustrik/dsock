@@ -139,5 +139,9 @@ DSOCK_EXPORT int tcpaddr(
     int s,
     ipaddr *addr);
 
+#define tcpsend bsend
+#define tcpflush bflush
+#define tcprecv brecv
+
 #endif
 
