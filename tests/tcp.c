@@ -32,6 +32,10 @@ coroutine void client(int port) {
     assert(rc == 0);
     int cs = tcpconnect(&addr, -1);
     assert(cs >= 0);
+    ipaddr addr2;
+    rc = tcpaddr(cs, &addr2);
+    assert(rc == 0);
+    assert(ipport(&addr2) == port);
 
     rc = msleep(now() + 100);
     assert(rc == 0);
@@ -70,6 +74,10 @@ int main() {
     assert(rc == 0);
     int ls = tcplisten(&addr, 10);
     assert(ls >= 0);
+    ipaddr addr2;
+    rc = tcpaddr(ls, &addr2);
+    assert(rc == 0);
+    assert(ipport(&addr2) == 5555);
 
     go(client(5555));
 

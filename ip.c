@@ -142,6 +142,13 @@ int ipport(const ipaddr *addr) {
         ((struct sockaddr_in6*)addr)->sin6_port);
 }
 
+void ipsetport(ipaddr *addr, int port) {
+    if(ipfamily(addr) == AF_INET)
+        ((struct sockaddr_in*)addr)->sin_port = htons(port);
+    else
+        ((struct sockaddr_in6*)addr)->sin6_port = htons(port);
+}
+
 /* Convert IP address from network format to ASCII dot notation. */
 const char *ipaddrstr(const ipaddr *addr, char *ipstr) {
     if(ipfamily(addr) == AF_INET) {

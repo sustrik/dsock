@@ -103,6 +103,9 @@ DSOCK_EXPORT int iplen(
     const ipaddr *addr);
 DSOCK_EXPORT int ipport(
     const ipaddr *addr);
+DSOCK_EXPORT void ipsetport(
+    ipaddr *addr,
+    int port);
 
 /******************************************************************************/
 /*  Bytestream sockets                                                        */
