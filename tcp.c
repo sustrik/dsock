@@ -37,7 +37,6 @@
 
 static const int tcpconn_type_placeholder = 0;
 static const void *tcpconn_type = &tcpconn_type_placeholder;
-static int tcpconn_finish(int s, int64_t deadline) {return -1;}
 static void tcpconn_close(int s);
 static ssize_t tcpconn_bsend(int s, const void *buf, size_t len,
     int64_t deadline);
@@ -63,7 +62,6 @@ int tcpconnect(const ipaddr *addr, int64_t deadline) {
     /* Create the object. */
     struct tcpconn *obj = malloc(sizeof(struct tcpconn));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error2;}
-    obj->vfptrs.hvfptrs.finish = tcpconn_finish;
     obj->vfptrs.hvfptrs.close = tcpconn_close;
     obj->vfptrs.type = tcpconn_type;
     obj->vfptrs.bsend = tcpconn_bsend;
@@ -120,12 +118,8 @@ static void tcpconn_close(int s) {
 
 static const int tcplistener_type_placeholder = 0;
 static const void *tcplistener_type = &tcplistener_type_placeholder;
-static int tcplistener_finish(int s, int64_t deadline) {return -1;}
 static void tcplistener_close(int s);
-static const struct hvfptrs tcplistener_vfptrs = {
-    tcplistener_finish,
-    tcplistener_close
-};
+static const struct hvfptrs tcplistener_vfptrs = {tcplistener_close};
 
 struct tcplistener {
     struct bsockvfptrs vfptrs;
@@ -189,7 +183,6 @@ int tcpaccept(int s, int64_t deadline) {
     /* Create the object. */
     struct tcpconn *obj = malloc(sizeof(struct tcpconn));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error2;}
-    obj->vfptrs.hvfptrs.finish = tcpconn_finish;
     obj->vfptrs.hvfptrs.close = tcpconn_close;
     obj->vfptrs.type = tcpconn_type;
     obj->vfptrs.bsend = tcpconn_bsend;
