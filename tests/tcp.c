@@ -37,7 +37,7 @@ coroutine void client(int port) {
     assert(rc == 0);
 
     char buf[16];
-    size_t sz = tcprecv(cs, buf, 3, -1);
+    ssize_t sz = tcprecv(cs, buf, 3, -1);
     assert(sz == 3 && buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
 
     sz = tcpsend(cs, "456", 3, -1);
@@ -77,8 +77,8 @@ int main() {
 
     /* Test deadline. */
     int64_t deadline = now() + 30;
-    size_t sz = tcprecv(as, buf, sizeof(buf), deadline);
-    assert(sz == 0 && errno == ETIMEDOUT);
+    ssize_t sz = tcprecv(as, buf, sizeof(buf), deadline);
+    assert(sz == -1 && errno == ETIMEDOUT);
     int64_t diff = now() - deadline;
     assert(diff > -20 && diff < 20);
 
@@ -103,8 +103,8 @@ int main() {
     assert(as >= 0);
     char buffer[2048];
     while(1) {
-        size_t sz = tcpsend(as, buffer, 2048, -1);
-        if(sz == 0 && errno == ECONNRESET)
+        ssize_t sz = tcpsend(as, buffer, 2048, -1);
+        if(sz == -1 && errno == ECONNRESET)
             break;
         assert(sz > 0);
         rc = tcpflush(as, -1);

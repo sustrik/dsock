@@ -29,7 +29,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/socket.h>
-#include <sys/uio.h>
+#include <sys/types.h>
 
 /******************************************************************************/
 /*  ABI versioning support                                                    */
@@ -108,7 +108,7 @@ DSOCK_EXPORT int ipport(
 /*  Bytestream sockets                                                        */
 /******************************************************************************/
 
-DSOCK_EXPORT size_t bsend(
+DSOCK_EXPORT ssize_t bsend(
     int s,
     const void *buf,
     size_t len,
@@ -116,7 +116,7 @@ DSOCK_EXPORT size_t bsend(
 DSOCK_EXPORT int bflush(
     int s,
     int64_t deadline);
-DSOCK_EXPORT size_t brecv(
+DSOCK_EXPORT ssize_t brecv(
     int s,
     void *buf,
     size_t len,

@@ -39,10 +39,10 @@ static const int tcpconn_type_placeholder = 0;
 static const void *tcpconn_type = &tcpconn_type_placeholder;
 static int tcpconn_finish(int s, int64_t deadline) {return -1;}
 static void tcpconn_close(int s);
-static size_t tcpconn_bsend(int s, const void *buf, size_t len,
+static ssize_t tcpconn_bsend(int s, const void *buf, size_t len,
     int64_t deadline);
 static int tcpconn_bflush(int s, int64_t deadline);
-static size_t tcpconn_brecv(int s, void *buf, size_t len, int64_t deadline);
+static ssize_t tcpconn_brecv(int s, void *buf, size_t len, int64_t deadline);
 
 struct tcpconn {
     struct bsockvfptrs vfptrs;
@@ -84,15 +84,14 @@ error1:
     return -1;
 }
 
-static size_t tcpconn_bsend(int s, const void *buf, size_t len,
+static ssize_t tcpconn_bsend(int s, const void *buf, size_t len,
       int64_t deadline) {
     struct tcpconn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == tcpconn_type);
-    size_t sz = len;
-    int rc = dssend(obj->fd, buf, &sz, deadline);
-    if(dsock_fast(rc == 0)) return len;
+    ssize_t sz = dssend(obj->fd, buf, len, deadline);
+    if(dsock_fast(sz >= 0)) return sz;
     if(errno == EPIPE) errno = ECONNRESET;
-    return sz;
+    return -1;
 }
 
 static int tcpconn_bflush(int s, int64_t deadline) {
@@ -101,13 +100,10 @@ static int tcpconn_bflush(int s, int64_t deadline) {
     return 0;
 }
 
-static size_t tcpconn_brecv(int s, void *buf, size_t len, int64_t deadline) {
+static ssize_t tcpconn_brecv(int s, void *buf, size_t len, int64_t deadline) {
     struct tcpconn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == tcpconn_type);
-    size_t sz = len;
-    int rc = dsrecv(obj->fd, buf, &sz, deadline);
-    if(dsock_fast(rc == 0)) return len;
-    return sz;
+    return dsrecv(obj->fd, buf, len, deadline);
 }
 
 static void tcpconn_close(int s) {
