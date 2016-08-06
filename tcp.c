@@ -31,6 +31,8 @@
 #include "helpers.h"
 #include "utils.h"
 
+static int tcpmakeconn(int fd, const ipaddr *addr);
+
 /******************************************************************************/
 /*  TCP connection socket                                                     */
 /******************************************************************************/
@@ -60,22 +62,10 @@ int tcpconnect(const ipaddr *addr, int64_t deadline) {
     /* Connect to the remote endpoint. */
     rc = dsconnect(s, ipsockaddr(addr), iplen(addr), deadline);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
-    /* Create the object. */
-    struct tcpconn *obj = malloc(sizeof(struct tcpconn));
-    if(dsock_slow(!obj)) {err = ENOMEM; goto error2;}
-    obj->vfptrs.hvfptrs.close = tcpconn_close;
-    obj->vfptrs.type = tcpconn_type;
-    obj->vfptrs.bsend = tcpconn_bsend;
-    obj->vfptrs.bflush = tcpconn_bflush;
-    obj->vfptrs.brecv = tcpconn_brecv;
-    obj->fd = s;
-    obj->addr = *addr;
     /* Create the handle. */
-    int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);
-    if(dsock_slow(h < 0)) {err = errno; goto error3;}
+    int h = tcpmakeconn(s, addr);
+    if(dsock_slow(h < 0)) {err = errno; goto error2;}
     return h;
-error3:
-    free(obj);
 error2:
     rc = dsclose(s);
     dsock_assert(rc == 0);
@@ -184,22 +174,10 @@ int tcpaccept(int s, int64_t deadline) {
     /* Set it to non-blocking mode. */
     int rc = dsunblock(as);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
-    /* Create the object. */
-    struct tcpconn *obj = malloc(sizeof(struct tcpconn));
-    if(dsock_slow(!obj)) {err = ENOMEM; goto error2;}
-    obj->vfptrs.hvfptrs.close = tcpconn_close;
-    obj->vfptrs.type = tcpconn_type;
-    obj->vfptrs.bsend = tcpconn_bsend;
-    obj->vfptrs.bflush = tcpconn_bflush;
-    obj->vfptrs.brecv = tcpconn_brecv;
-    obj->fd = as;
-    obj->addr = addr;
-    /* Create handle. */
-    int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);
-    if(dsock_slow(h < 0)) {err = errno; goto error3;}
+    /* Create the handle. */
+    int h = tcpmakeconn(as, &addr);
+    if(dsock_slow(h < 0)) {err = errno; goto error2;}
     return h;
-error3:
-    free(obj);
 error2:
     rc = dsclose(s);
     dsock_assert(rc == 0);
@@ -232,5 +210,32 @@ int tcpaddr(int s, ipaddr *addr) {
     struct tcpconn *conn = (struct tcpconn*)bsock;
     *addr = conn->addr;
     return 0;
+}
+
+/******************************************************************************/
+/*  Helpers                                                                   */
+/******************************************************************************/
+
+static int tcpmakeconn(int fd, const ipaddr *addr) {
+    int err;
+    /* Create the object. */
+    struct tcpconn *obj = malloc(sizeof(struct tcpconn));
+    if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
+    obj->vfptrs.hvfptrs.close = tcpconn_close;
+    obj->vfptrs.type = tcpconn_type;
+    obj->vfptrs.bsend = tcpconn_bsend;
+    obj->vfptrs.bflush = tcpconn_bflush;
+    obj->vfptrs.brecv = tcpconn_brecv;
+    obj->fd = fd;
+    obj->addr = *addr;
+    /* Create the handle. */
+    int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);
+    if(dsock_slow(h < 0)) {err = errno; goto error2;}
+    return h;
+error2:
+    free(obj);
+error1:
+    errno = err;
+    return -1;
 }
 

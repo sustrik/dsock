@@ -208,7 +208,7 @@ int unixpair(int s[2]) {
     s[0] = unixmakeconn(fds[0]);
     if(dsock_slow(s[0] < 0)) {err = errno; goto error3;}
     s[1] = unixmakeconn(fds[1]);
-    if(dsock_slow(s[0] < 0)) {err = errno; goto error4;}
+    if(dsock_slow(s[1] < 0)) {err = errno; goto error4;}
     return 0;
 error4:
     rc = hclose(s[0]);
