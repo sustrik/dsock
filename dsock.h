@@ -180,7 +180,7 @@ DSOCK_EXPORT int unixpair(
 /*  UDP library                                                               */
 /******************************************************************************/
 
-DSOCK_EXPORT int udplisten(
+DSOCK_EXPORT int udpsocket(
     ipaddr *local,
     const ipaddr *remote);
 DSOCK_EXPORT ssize_t udpsend(

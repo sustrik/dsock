@@ -44,7 +44,7 @@ struct udpsock {
     ipaddr remote;
 };
 
-int udplisten(ipaddr *local, const ipaddr *remote) {
+int udpsocket(ipaddr *local, const ipaddr *remote) {
     int err;
     /* Sanity checking. */
     if(dsock_slow(!local)) {err = EINVAL; goto error1;}
