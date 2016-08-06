@@ -186,12 +186,8 @@ DSOCK_EXPORT int unixpair(
 /******************************************************************************/
 
 DSOCK_EXPORT int udplisten(
-    const ipaddr *local,
-    const ipaddr *remote);
-DSOCK_EXPORT int udpaddr(
-    int s,
     ipaddr *local,
-    ipaddr *remote);
+    const ipaddr *remote);
 DSOCK_EXPORT ssize_t udpsend(
     int s,
     const ipaddr *addr,

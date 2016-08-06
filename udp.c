@@ -41,11 +41,10 @@ struct udpsock {
     struct msockvfptrs vfptrs;
     int fd;
     int hasremote;
-    ipaddr local;
     ipaddr remote;
 };
 
-int udplisten(const ipaddr *local, const ipaddr *remote) {
+int udplisten(ipaddr *local, const ipaddr *remote) {
     int err;
     /* Sanity checking. */
     if(dsock_slow(!local)) {err = EINVAL; goto error1;}
@@ -60,14 +59,13 @@ int udplisten(const ipaddr *local, const ipaddr *remote) {
     /* Start listening. */
     rc = bind(s, ipsockaddr(local), iplen(local));
     if(s < 0) {err = errno; goto error2;}
-    /* Get the (ephemeral) port number. */
-    int port = ipport(local);
-    if(port == 0) {
+    /* Get the ephemeral port number. */
+    if(ipport(local) == 0) {
         ipaddr baddr;
         socklen_t len = sizeof(ipaddr);
         rc = getsockname(s, (struct sockaddr*)&baddr, &len);
         if(dsock_slow(rc < 0)) {err = errno; goto error2;}
-        port = ipport(&baddr);
+        ipsetport(local, ipport(&baddr));
     }
     /* Create the object. */
     struct udpsock *obj = malloc(sizeof(struct udpsock));
@@ -78,8 +76,6 @@ int udplisten(const ipaddr *local, const ipaddr *remote) {
     obj->vfptrs.mrecv = udp_mrecv;
     obj->fd = s;
     obj->hasremote = remote ? 1 : 0;
-    obj->local = *local;
-    ipsetport(&obj->local, port);
     if(remote) obj->remote = *remote;
     /* Create the handle. */
     int h = handle(msock_type, obj, &obj->vfptrs.hvfptrs);
@@ -93,14 +89,6 @@ error2:
 error1:
     errno = err;
     return -1;
-}
-
-int udpaddr(int s, ipaddr *local, ipaddr *remote) {
-    struct udpsock *obj = hdata(s, udp_type);
-    if(!obj) return -1;
-    if(local) *local = obj->local;
-    if(remote) *remote = obj->remote;
-    return 0;
 }
 
 ssize_t udpsend(int s, const ipaddr *addr, const void *buf, size_t len) {
