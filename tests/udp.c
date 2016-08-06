@@ -35,16 +35,14 @@ int main() {
     ipaddr addr2;
     rc = iplocal(&addr2, NULL, 5556, 0);
     assert(rc == 0);
-    int s2 = udplisten(&addr2, NULL);
+    int s2 = udplisten(&addr2, &addr1);
     assert(s2 >= 0);
 
     while(1) {
         ssize_t sz = udpsend(s1, &addr2, "ABC", 3);
         assert(sz == 3);
-
         char buf[3];
-        ipaddr addr;
-        sz = udprecv(s2, &addr, buf, sizeof(buf), now() + 100);
+        sz = mrecv(s2, buf, sizeof(buf), now() + 100);
         if(sz < 0 && errno == ETIMEDOUT)
             continue;
         assert(sz == 3);
@@ -52,9 +50,8 @@ int main() {
     }
 
     while(1) {
-        ssize_t sz = udpsend(s2, &addr1, "DEF", 3);
+        ssize_t sz = msend(s2, "DEF", 3, -1);
         assert(sz == 3);
-
         char buf[3];
         ipaddr addr;
         sz = udprecv(s1, &addr, buf, sizeof(buf), now() + 100);
