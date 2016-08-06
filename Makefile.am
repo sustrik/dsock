@@ -38,6 +38,7 @@ libdsock_la_SOURCES = \
     helpers.h \
     helpers.c \
     tcp.c \
+    unix.c \
     utils.h \
     utils.c \
     dns/dns.h \
@@ -58,7 +59,8 @@ pkgconfig_DATA = dsock.pc
 ################################################################################
 
 check_PROGRAMS = \
-    tests/tcp
+    tests/tcp \
+    tests/unix
 
 LDADD = libdsock.la
 

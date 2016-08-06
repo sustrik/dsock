@@ -146,5 +146,25 @@ DSOCK_EXPORT int tcpaddr(
 #define tcpflush bflush
 #define tcprecv brecv
 
+/******************************************************************************/
+/*  UNIX library                                                              */
+/******************************************************************************/
+
+DSOCK_EXPORT int unixlisten(
+    const char *addr,
+    int backlog);
+DSOCK_EXPORT int unixaccept(
+    int s,
+    int64_t deadline);
+DSOCK_EXPORT int unixconnect(
+    const char *addr,
+    int64_t deadline);
+DSOCK_EXPORT int unixpair(
+    int s[2]);
+
+#define unixsend bsend
+#define unixflush bflush
+#define unixrecv brecv
+
 #endif
 
