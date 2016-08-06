@@ -50,7 +50,10 @@ int udpsocket(ipaddr *local, const ipaddr *remote) {
     if(dsock_slow(local && remote && ipfamily(local) != ipfamily(remote))) {
         err = EINVAL; goto error1;}
     /* Open the listening socket. */
-    int s = socket(local ? ipfamily(local) : AF_INET, SOCK_DGRAM, 0);
+    int family = AF_INET;
+    if(local) family = ipfamily(local);
+    if(remote) family = ipfamily(remote);
+    int s = socket(family, SOCK_DGRAM, 0);
     if(s < 0) {err = errno; goto error1;}
     /* Set it to non-blocking mode. */
     int rc = dsunblock(s);
