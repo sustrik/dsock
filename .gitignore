@@ -28,4 +28,5 @@ tests/.dirstamp
 tests/*.log
 tests/*.trs
 tests/tcp
+tests/udp
 tests/unix

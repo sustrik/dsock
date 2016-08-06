@@ -181,5 +181,28 @@ DSOCK_EXPORT int unixpair(
 #define unixflush bflush
 #define unixrecv brecv
 
+/******************************************************************************/
+/*  UDP library                                                               */
+/******************************************************************************/
+
+DSOCK_EXPORT int udplisten(
+    const ipaddr *local,
+    const ipaddr *remote);
+DSOCK_EXPORT int udpaddr(
+    int s,
+    ipaddr *local,
+    ipaddr *remote);
+DSOCK_EXPORT ssize_t udpsend(
+    int s,
+    const ipaddr *addr,
+    const void *buf,
+    size_t len);
+DSOCK_EXPORT ssize_t udprecv(
+    int s,
+    ipaddr *addr,
+    void *buf,
+    size_t len,
+    int64_t deadline);
+
 #endif
 

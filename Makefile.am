@@ -40,6 +40,7 @@ libdsock_la_SOURCES = \
     msock.h \
     msock.c \
     tcp.c \
+    udp.c \
     unix.c \
     utils.h \
     utils.c \
@@ -62,6 +63,7 @@ pkgconfig_DATA = dsock.pc
 
 check_PROGRAMS = \
     tests/tcp \
+    tests/udp \
     tests/unix
 
 LDADD = libdsock.la
