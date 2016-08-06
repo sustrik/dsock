@@ -37,6 +37,8 @@ libdsock_la_SOURCES = \
     ip.c \
     helpers.h \
     helpers.c \
+    msock.h \
+    msock.c \
     tcp.c \
     unix.c \
     utils.h \
