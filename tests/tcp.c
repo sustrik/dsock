@@ -33,9 +33,6 @@ coroutine void client(int port) {
     int cs = tcpconnect(&addr, -1);
     assert(cs >= 0);
     ipaddr addr2;
-    rc = tcpaddr(cs, &addr2);
-    assert(rc == 0);
-    assert(ipport(&addr2) == port);
 
     rc = msleep(now() + 100);
     assert(rc == 0);
@@ -74,14 +71,10 @@ int main() {
     assert(rc == 0);
     int ls = tcplisten(&addr, 10);
     assert(ls >= 0);
-    ipaddr addr2;
-    rc = tcpaddr(ls, &addr2);
-    assert(rc == 0);
-    assert(ipport(&addr2) == 5555);
 
     go(client(5555));
 
-    int as = tcpaccept(ls, -1);
+    int as = tcpaccept(ls, NULL, -1);
 
     /* Test deadline. */
     int64_t deadline = now() + 30;
@@ -107,7 +100,7 @@ int main() {
     /* Test whether we perform correctly when faced with TCP pushback. */
     ls = tcplisten(&addr, 10);
     go(client2(5555));
-    as = tcpaccept(ls, -1);
+    as = tcpaccept(ls, NULL, -1);
     assert(as >= 0);
     char buffer[2048];
     while(1) {

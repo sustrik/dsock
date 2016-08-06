@@ -145,17 +145,15 @@ DSOCK_EXPORT ssize_t mrecv(
 /******************************************************************************/
 
 DSOCK_EXPORT int tcplisten(
-    const ipaddr *addr,
+    ipaddr *addr,
     int backlog);
 DSOCK_EXPORT int tcpaccept(
     int s,
+    ipaddr *addr,
     int64_t deadline);
 DSOCK_EXPORT int tcpconnect(
     const ipaddr *addr,
     int64_t deadline);
-DSOCK_EXPORT int tcpaddr(
-    int s,
-    ipaddr *addr);
 
 #define tcpsend bsend
 #define tcpflush bflush
