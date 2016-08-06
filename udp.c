@@ -47,8 +47,7 @@ struct udpsock {
 int udpsocket(ipaddr *local, const ipaddr *remote) {
     int err;
     /* Sanity checking. */
-    if(dsock_slow(!local)) {err = EINVAL; goto error1;}
-    if(dsock_slow(remote && ipfamily(local) != ipfamily(remote))) {
+    if(dsock_slow(local && remote && ipfamily(local) != ipfamily(remote))) {
         err = EINVAL; goto error1;}
     /* Open the listening socket. */
     int s = socket(ipfamily(local), SOCK_DGRAM, 0);
@@ -57,15 +56,17 @@ int udpsocket(ipaddr *local, const ipaddr *remote) {
     int rc = dsunblock(s);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Start listening. */
-    rc = bind(s, ipsockaddr(local), iplen(local));
-    if(s < 0) {err = errno; goto error2;}
-    /* Get the ephemeral port number. */
-    if(ipport(local) == 0) {
-        ipaddr baddr;
-        socklen_t len = sizeof(ipaddr);
-        rc = getsockname(s, (struct sockaddr*)&baddr, &len);
-        if(dsock_slow(rc < 0)) {err = errno; goto error2;}
-        ipsetport(local, ipport(&baddr));
+    if(local) {
+        rc = bind(s, ipsockaddr(local), iplen(local));
+        if(s < 0) {err = errno; goto error2;}
+        /* Get the ephemeral port number. */
+        if(ipport(local) == 0) {
+            ipaddr baddr;
+            socklen_t len = sizeof(ipaddr);
+            rc = getsockname(s, (struct sockaddr*)&baddr, &len);
+            if(dsock_slow(rc < 0)) {err = errno; goto error2;}
+            ipsetport(local, ipport(&baddr));
+        }
     }
     /* Create the object. */
     struct udpsock *obj = malloc(sizeof(struct udpsock));
