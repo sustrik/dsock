@@ -36,13 +36,6 @@ ssize_t bsend(int s, const void *buf, size_t len, int64_t deadline) {
     return b->bsend(s, buf, len, deadline);
 }
 
-int bflush(int s, int64_t deadline) {
-    struct hvfptr *h = hdata(s, bsock_type);
-    if(dsock_slow(!h)) return 0;
-    struct bsockvfptrs *b = (struct bsockvfptrs*)h;
-    return b->bflush(s, deadline);
-}
-
 ssize_t brecv(int s, void *buf, size_t len, int64_t deadline) {
     struct hvfptr *h = hdata(s, bsock_type);
     if(dsock_slow(!h)) return 0;

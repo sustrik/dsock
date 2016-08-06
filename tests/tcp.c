@@ -43,8 +43,6 @@ coroutine void client(int port) {
 
     sz = tcpsend(cs, "456", 3, -1);
     assert(sz == 3);
-    rc = tcpflush(cs, -1);
-    assert(rc == 0);
 
     rc = hclose(cs);
     assert(rc == 0);
@@ -85,8 +83,6 @@ int main() {
 
     sz = tcpsend(as, "ABC", 3, -1);
     assert(sz == 3);
-    rc = tcpflush(as, -1);
-    assert(rc == 0);
 
     sz = tcprecv(as, buf, sizeof(buf), -1);
     assert(sz == 3);
@@ -108,10 +104,6 @@ int main() {
         if(sz == -1 && errno == ECONNRESET)
             break;
         assert(sz > 0);
-        rc = tcpflush(as, -1);
-        if(rc < 0 && errno == ECONNRESET)
-            break;
-        assert(rc == 0);
     }
     rc = hclose(as);
     assert(rc == 0);

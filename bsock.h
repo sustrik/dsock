@@ -31,7 +31,6 @@ struct bsockvfptrs {
     struct hvfptrs hvfptrs; /* type should be set to bsock_type */
     const void *type;
     ssize_t (*bsend)(int s, const void *buf, size_t len, int64_t deadline);
-    int (*bflush)(int s, int64_t deadline);
     ssize_t (*brecv)(int s, void *buf, size_t len, int64_t deadline);
 };
 

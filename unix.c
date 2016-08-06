@@ -45,7 +45,6 @@ static const void *unixconn_type = &unixconn_type_placeholder;
 static void unixconn_close(int s);
 static ssize_t unixconn_bsend(int s, const void *buf, size_t len,
     int64_t deadline);
-static int unixconn_bflush(int s, int64_t deadline);
 static ssize_t unixconn_brecv(int s, void *buf, size_t len, int64_t deadline);
 
 struct unixconn {
@@ -88,12 +87,6 @@ static ssize_t unixconn_bsend(int s, const void *buf, size_t len,
     if(dsock_fast(sz >= 0)) return sz;
     if(errno == EPIPE) errno = ECONNRESET;
     return -1;
-}
-
-static int unixconn_bflush(int s, int64_t deadline) {
-    struct unixconn *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == unixconn_type);
-    return 0;
 }
 
 static ssize_t unixconn_brecv(int s, void *buf, size_t len, int64_t deadline) {
@@ -244,7 +237,6 @@ static int unixmakeconn(int fd) {
     obj->vfptrs.hvfptrs.close = unixconn_close;
     obj->vfptrs.type = unixconn_type;
     obj->vfptrs.bsend = unixconn_bsend;
-    obj->vfptrs.bflush = unixconn_bflush;
     obj->vfptrs.brecv = unixconn_brecv;
     obj->fd = fd;
     /* Create the handle. */

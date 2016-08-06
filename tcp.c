@@ -42,7 +42,6 @@ static const void *tcpconn_type = &tcpconn_type_placeholder;
 static void tcpconn_close(int s);
 static ssize_t tcpconn_bsend(int s, const void *buf, size_t len,
     int64_t deadline);
-static int tcpconn_bflush(int s, int64_t deadline);
 static ssize_t tcpconn_brecv(int s, void *buf, size_t len, int64_t deadline);
 
 struct tcpconn {
@@ -81,12 +80,6 @@ static ssize_t tcpconn_bsend(int s, const void *buf, size_t len,
     if(dsock_fast(sz >= 0)) return sz;
     if(errno == EPIPE) errno = ECONNRESET;
     return -1;
-}
-
-static int tcpconn_bflush(int s, int64_t deadline) {
-    struct tcpconn *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == tcpconn_type);
-    return 0;
 }
 
 static ssize_t tcpconn_brecv(int s, void *buf, size_t len, int64_t deadline) {
@@ -201,7 +194,6 @@ static int tcpmakeconn(int fd) {
     obj->vfptrs.hvfptrs.close = tcpconn_close;
     obj->vfptrs.type = tcpconn_type;
     obj->vfptrs.bsend = tcpconn_bsend;
-    obj->vfptrs.bflush = tcpconn_bflush;
     obj->vfptrs.brecv = tcpconn_brecv;
     obj->fd = fd;
     /* Create the handle. */

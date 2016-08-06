@@ -43,8 +43,6 @@ coroutine void client(void) {
 
     sz = unixsend(cs, "456", 3, -1);
     assert(sz == 3);
-    rc = unixflush(cs, -1);
-    assert(rc == 0);
 
     rc = hclose(cs);
     assert(rc == 0);
@@ -81,14 +79,12 @@ int main() {
 
     sz = unixsend(as, "ABC", 3, -1);
     assert(sz == 3);
-    int rc = unixflush(as, -1);
-    assert(rc == 0);
 
     sz = unixrecv(as, buf, sizeof(buf), -1);
     assert(sz == 3);
     assert(buf[0] == '4' && buf[1] == '5' && buf[2] == '6');
 
-    rc = hclose(as);
+    int rc = hclose(as);
     assert(rc == 0);
     rc = hclose(ls);
     assert(rc == 0);
@@ -107,10 +103,6 @@ int main() {
         if(sz == -1 && errno == ECONNRESET)
             break;
         assert(sz > 0);
-        rc = unixflush(hndls[0], -1);
-        if(rc < 0 && errno == ECONNRESET)
-            break;
-        assert(rc == 0);
     }
     rc = hclose(hndls[0]);
     assert(rc == 0);

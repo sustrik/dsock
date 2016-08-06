@@ -116,9 +116,6 @@ DSOCK_EXPORT ssize_t bsend(
     const void *buf,
     size_t len,
     int64_t deadline);
-DSOCK_EXPORT int bflush(
-    int s,
-    int64_t deadline);
 DSOCK_EXPORT ssize_t brecv(
     int s,
     void *buf,
