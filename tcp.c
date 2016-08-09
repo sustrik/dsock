@@ -40,9 +40,8 @@ static int tcpmakeconn(int fd);
 static const int tcpconn_type_placeholder = 0;
 static const void *tcpconn_type = &tcpconn_type_placeholder;
 static void tcpconn_close(int s);
-static ssize_t tcpconn_bsend(int s, const void *buf, size_t len,
-    int64_t deadline);
-static ssize_t tcpconn_brecv(int s, void *buf, size_t len, int64_t deadline);
+static int tcpconn_send(int s, const void *buf, size_t *len, int64_t deadline);
+static int tcpconn_recv(int s, void *buf, size_t *len, int64_t deadline);
 
 struct tcpconn {
     struct bsockvfptrs vfptrs;
@@ -72,8 +71,7 @@ error1:
     return -1;
 }
 
-static ssize_t tcpconn_bsend(int s, const void *buf, size_t len,
-      int64_t deadline) {
+static int tcpconn_send(int s, const void *buf, size_t *len, int64_t deadline) {
     struct tcpconn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == tcpconn_type);
     ssize_t sz = dssend(obj->fd, buf, len, deadline);
@@ -82,7 +80,7 @@ static ssize_t tcpconn_bsend(int s, const void *buf, size_t len,
     return -1;
 }
 
-static ssize_t tcpconn_brecv(int s, void *buf, size_t len, int64_t deadline) {
+static int tcpconn_recv(int s, void *buf, size_t *len, int64_t deadline) {
     struct tcpconn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == tcpconn_type);
     return dsrecv(obj->fd, buf, len, deadline);
@@ -193,8 +191,8 @@ static int tcpmakeconn(int fd) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->vfptrs.hvfptrs.close = tcpconn_close;
     obj->vfptrs.type = tcpconn_type;
-    obj->vfptrs.bsend = tcpconn_bsend;
-    obj->vfptrs.brecv = tcpconn_brecv;
+    obj->vfptrs.bsend = tcpconn_send;
+    obj->vfptrs.brecv = tcpconn_recv;
     obj->fd = fd;
     /* Create the handle. */
     int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);

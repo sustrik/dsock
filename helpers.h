@@ -41,15 +41,15 @@ int dsaccept(
     struct sockaddr *addr,
     socklen_t *addrlen,
     int64_t deadline);
-ssize_t dssend(
+int dssend(
     int s,
     const void *buf,
-    size_t len,
+    size_t *len,
     int64_t deadline);
-ssize_t dsrecv(
+int dsrecv(
     int s,
     void *buf,
-    size_t len,
+    size_t *len,
     int64_t deadline);
 int dsclose(
     int s);

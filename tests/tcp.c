@@ -38,10 +38,14 @@ coroutine void client(int port) {
     assert(rc == 0);
 
     char buf[16];
-    ssize_t sz = tcprecv(cs, buf, 3, -1);
+    ssize_t sz = 3;
+    rc = tcprecv(cs, buf, &sz, -1);
+    assert(rc == 0);
     assert(sz == 3 && buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
 
-    sz = tcpsend(cs, "456", 3, -1);
+    sz = 3;
+    rc = tcpsend(cs, "456", &sz, -1);
+    assert(rc == 0);
     assert(sz == 3);
 
     rc = hclose(cs);
@@ -76,15 +80,20 @@ int main() {
 
     /* Test deadline. */
     int64_t deadline = now() + 30;
-    ssize_t sz = tcprecv(as, buf, sizeof(buf), deadline);
-    assert(sz == -1 && errno == ETIMEDOUT);
+    ssize_t sz = sizeof(buf);
+    rc = tcprecv(as, buf, &sz, deadline);
+    assert(rc == -1 && errno == ETIMEDOUT);
     int64_t diff = now() - deadline;
     assert(diff > -20 && diff < 20);
 
-    sz = tcpsend(as, "ABC", 3, -1);
+    sz = 3;
+    rc = tcpsend(as, "ABC", &sz, -1);
+    assert(rc == 0);
     assert(sz == 3);
 
-    sz = tcprecv(as, buf, sizeof(buf), -1);
+    sz = sizeof(buf);
+    rc = tcprecv(as, buf, &sz, -1);
+    assert(rc == -1 && errno == ECONNRESET);
     assert(sz == 3);
     assert(buf[0] == '4' && buf[1] == '5' && buf[2] == '6');
 
@@ -100,8 +109,9 @@ int main() {
     assert(as >= 0);
     char buffer[2048];
     while(1) {
-        ssize_t sz = tcpsend(as, buffer, 2048, -1);
-        if(sz == -1 && errno == ECONNRESET)
+        ssize_t sz =2048;
+        rc = tcpsend(as, buffer, &sz, -1);
+        if(rc == -1 && errno == ECONNRESET)
             break;
         assert(sz > 0);
     }

@@ -111,30 +111,30 @@ DSOCK_EXPORT void ipsetport(
 /*  Bytestream sockets                                                        */
 /******************************************************************************/
 
-DSOCK_EXPORT ssize_t bsend(
+DSOCK_EXPORT int bsend(
     int s,
     const void *buf,
-    size_t len,
+    size_t *len,
     int64_t deadline);
-DSOCK_EXPORT ssize_t brecv(
+DSOCK_EXPORT int brecv(
     int s,
     void *buf,
-    size_t len,
+    size_t *len,
     int64_t deadline);
 
 /******************************************************************************/
 /*  Message sockets                                                           */
 /******************************************************************************/
 
-DSOCK_EXPORT ssize_t msend(
+DSOCK_EXPORT int msend(
     int s,
     const void *buf,
-    size_t len,
+    size_t *len,
     int64_t deadline);
-DSOCK_EXPORT ssize_t mrecv(
+DSOCK_EXPORT int mrecv(
     int s,
     void *buf,
-    size_t len,
+    size_t *len,
     int64_t deadline);
 
 /******************************************************************************/
@@ -153,7 +153,6 @@ DSOCK_EXPORT int tcpconnect(
     int64_t deadline);
 
 #define tcpsend bsend
-#define tcpflush bflush
 #define tcprecv brecv
 
 /******************************************************************************/
@@ -173,7 +172,6 @@ DSOCK_EXPORT int unixpair(
     int s[2]);
 
 #define unixsend bsend
-#define unixflush bflush
 #define unixrecv brecv
 
 /******************************************************************************/
@@ -183,16 +181,16 @@ DSOCK_EXPORT int unixpair(
 DSOCK_EXPORT int udpsocket(
     ipaddr *local,
     const ipaddr *remote);
-DSOCK_EXPORT ssize_t udpsend(
+DSOCK_EXPORT int udpsend(
     int s,
     const ipaddr *addr,
     const void *buf,
-    size_t len);
-DSOCK_EXPORT ssize_t udprecv(
+    size_t *len);
+DSOCK_EXPORT int udprecv(
     int s,
     ipaddr *addr,
     void *buf,
-    size_t len,
+    size_t *len,
     int64_t deadline);
 
 #endif

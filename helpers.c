@@ -92,43 +92,54 @@ int dsaccept(int s, struct sockaddr *addr, socklen_t *addrlen,
     return as;
 }
 
-ssize_t dssend(int s, const void *buf, size_t len, int64_t deadline) {
+int dssend(int s, const void *buf, size_t *len, int64_t deadline) {
+    if(dsock_slow(!len || (*len > 0 && !buf))) {errno = EINVAL; return -1;}
     ssize_t sent = 0;
-    while(sent < len) {
-        ssize_t sz = send(s, ((char*)buf) + sent, len - sent, DSOCK_NOSIGNAL);
+    while(sent < *len) {
+        ssize_t sz = send(s, ((char*)buf) + sent, *len - sent, DSOCK_NOSIGNAL);
         if(sz < 0) {
-            if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) goto error;
+            if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) {
+                *len = sent;
+                return -1;
+            }
             int rc = fdout(s, deadline);
-            if(dsock_slow(rc < 0)) goto error;
+            if(dsock_slow(rc < 0)) {
+                *len = sent;
+                return -1;
+            }
             continue;
         }
         sent += sz;
     }
-    return len;
-error:
-    if(dsock_slow(!sent)) return -1;
-    return sent;
+    return 0;
 }
 
-ssize_t dsrecv(int s, void *buf, size_t len, int64_t deadline) {
+int dsrecv(int s, void *buf, size_t *len, int64_t deadline) {
+    if(dsock_slow(!len || (*len > 0 && !buf))) {errno = EINVAL; return -1;}
     ssize_t received = 0;
     while(1) {
-        ssize_t sz = recv(s, ((char*)buf) + received, len - received, 0);
-        if(dsock_slow(sz == 0)) {errno = ECONNRESET; goto error;}
+        ssize_t sz = recv(s, ((char*)buf) + received, *len - received, 0);
+        if(dsock_slow(sz == 0)) {
+            *len = received;
+            errno = ECONNRESET;
+            return -1;
+        }
         if(sz < 0) {
-            if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) goto error;
+            if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) {
+                *len = received;
+                return -1;
+            }
         }
         else {
             received += sz;
-            if(received >= len) break;
+            if(received >= *len) return 0;
         }
         int rc = fdin(s, deadline);
-        if(dsock_slow(rc < 0)) goto error;
+        if(dsock_slow(rc < 0)) {
+            *len = received;
+            return -1;
+        }
     }
-    return len;
-error:
-    if(dsock_slow(!received)) return -1;
-    return received;
 }
 
 int dsclose(int s) {
