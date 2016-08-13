@@ -151,6 +151,10 @@ DSOCK_EXPORT int tcpaccept(
 DSOCK_EXPORT int tcpconnect(
     const ipaddr *addr,
     int64_t deadline);
+DSOCK_EXPORT int tcpattach(
+    int fd);
+DSOCK_EXPORT int tcpdetach(
+    int s);
 
 #define tcpsend bsend
 #define tcprecv brecv
@@ -168,6 +172,10 @@ DSOCK_EXPORT int unixaccept(
 DSOCK_EXPORT int unixconnect(
     const char *addr,
     int64_t deadline);
+DSOCK_EXPORT int unixattach(
+    int fd);
+DSOCK_EXPORT int unixdetach(
+    int s);
 DSOCK_EXPORT int unixpair(
     int s[2]);
 
@@ -181,6 +189,10 @@ DSOCK_EXPORT int unixpair(
 DSOCK_EXPORT int udpsocket(
     ipaddr *local,
     const ipaddr *remote);
+DSOCK_EXPORT int udpattach(
+    int fd);
+DSOCK_EXPORT int udpdetach(
+    int s);
 DSOCK_EXPORT int udpsend(
     int s,
     const ipaddr *addr,

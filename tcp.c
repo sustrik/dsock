@@ -71,6 +71,27 @@ error1:
     return -1;
 }
 
+int tcpattach(int fd) {
+    if(dsock_slow(fd < 0)) {errno = EINVAL; return -1;}
+    /* Set the socket to non-blocking mode. */
+    int rc = dsunblock(fd);
+    if(dsock_slow(rc < 0)) return -1;
+    /* Create the handle. */
+    int h = tcpmakeconn(fd);
+    if(dsock_slow(h < 0)) return -1;
+    return h;
+}
+
+int tcpdetach(int s) {
+    struct tcpconn *obj = hdata(s, bsock_type);
+    if(dsock_slow(!obj)) return -1;
+    if(dsock_slow(obj->vfptrs.type != tcpconn_type)) {
+        errno = EOPNOTSUPP; return -1;}
+    int fd = obj->fd;
+    free(obj);
+    return fd;
+}
+
 static int tcpconn_send(int s, const void *buf, size_t *len, int64_t deadline) {
     struct tcpconn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == tcpconn_type);
