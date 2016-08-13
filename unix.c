@@ -113,7 +113,7 @@ static void unixlistener_close(int s);
 static const struct hvfptrs unixlistener_vfptrs = {unixlistener_close};
 
 struct unixlistener {
-    struct bsockvfptrs vfptrs;
+    struct hvfptrs vfptrs;
     int fd;
 };
 

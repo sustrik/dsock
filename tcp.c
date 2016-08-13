@@ -104,7 +104,7 @@ static void tcplistener_close(int s);
 static const struct hvfptrs tcplistener_vfptrs = {tcplistener_close};
 
 struct tcplistener {
-    struct bsockvfptrs vfptrs;
+    struct hvfptrs vfptrs;
     int fd;
     ipaddr addr;
 };
