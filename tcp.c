@@ -86,7 +86,7 @@ int tcpdetach(int s) {
     struct tcpconn *obj = hdata(s, bsock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != tcpconn_type)) {
-        errno = EOPNOTSUPP; return -1;}
+        errno = ENOTSUP; return -1;}
     int fd = obj->fd;
     free(obj);
     return fd;

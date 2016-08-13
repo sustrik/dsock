@@ -105,7 +105,7 @@ int udpdetach(int s) {
     struct udpsock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != udp_type)) {
-        errno = EOPNOTSUPP; return -1;}
+        errno = ENOTSUP; return -1;}
     int fd = obj->fd;
     free(obj);
     return fd;
@@ -115,7 +115,7 @@ int udpsend(int s, const ipaddr *addr, const void *buf, size_t *len) {
     struct udpsock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != udp_type)) {
-        errno = EOPNOTSUPP; return -1;}
+        errno = ENOTSUP; return -1;}
     if(dsock_slow(!len || (*len > 0 && !buf))) {errno = EINVAL; return -1;}
     /* If no destination IP address is provided, fall back to the stored one. */
     const ipaddr *dstaddr = addr;
@@ -135,7 +135,7 @@ int udprecv(int s, ipaddr *addr, void *buf, size_t *len, int64_t deadline) {
     struct udpsock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != udp_type)) {
-        errno = EOPNOTSUPP; return -1;}
+        errno = ENOTSUP; return -1;}
     if(dsock_slow(!len || (*len > 0 && !buf))) {errno = EINVAL; return -1;}
     ssize_t sz;
     while(1) {

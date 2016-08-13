@@ -94,7 +94,7 @@ int unixdetach(int s) {
     struct unixconn *obj = hdata(s, bsock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != unixconn_type)) {
-        errno = EOPNOTSUPP; return -1;}
+        errno = ENOTSUP; return -1;}
     int fd = obj->fd;
     free(obj);
     return fd;
@@ -120,7 +120,7 @@ int unixsendfd(int s, int fd, int64_t deadline) {
     struct unixconn *obj = hdata(s, bsock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != unixconn_type)) {
-        errno = EOPNOTSUPP; return -1;}
+        errno = ENOTSUP; return -1;}
     if(dsock_slow(fd < 0)) {errno = EINVAL; return -1;}
     /* Prepare the message. */
     struct iovec iov;
@@ -156,7 +156,7 @@ int unixrecvfd(int s, int64_t deadline) {
     struct unixconn *obj = hdata(s, bsock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != unixconn_type)) {
-        errno = EOPNOTSUPP; return -1;}
+        errno = ENOTSUP; return -1;}
     /* Read one byte along with the ancillary data. */
     char buf[1];
     struct iovec iov;
