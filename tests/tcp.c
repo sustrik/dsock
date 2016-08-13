@@ -37,6 +37,11 @@ coroutine void client(int port) {
     rc = msleep(now() + 100);
     assert(rc == 0);
 
+    int fd = tcpdetach(cs);
+    assert(fd >= 0);
+    cs = tcpattach(fd);
+    assert(cs >= 0);
+
     char buf[16];
     ssize_t sz = 3;
     rc = tcprecv(cs, buf, &sz, -1);

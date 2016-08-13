@@ -95,13 +95,13 @@ error1:
     return -1;
 }
 
-int unixattach(int fd) {
+int udpattach(int fd) {
     /* TODO: Figure out how to do this. Remote address should be probably
        set to the underlying fd using connect(2). */
     dsock_assert(0);
 }
 
-int unixdetach(int s) {
+int udpdetach(int s) {
     struct udpsock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != udp_type)) {

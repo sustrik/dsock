@@ -37,6 +37,11 @@ coroutine void client(void) {
     int rc = msleep(now() + 100);
     assert(rc == 0);
 
+    int fd = unixdetach(cs);
+    assert(fd >= 0);
+    cs = unixattach(fd);
+    assert(cs >= 0);
+
     char buf[16];
     size_t sz = 3;
     rc = unixrecv(cs, buf, &sz, -1);
