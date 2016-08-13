@@ -53,6 +53,22 @@ coroutine void client(void) {
     assert(rc == 0);
     assert(sz == 3);
 
+    int p[2];
+    rc = unixpair(p);
+    assert(rc == 0);
+    fd = unixdetach(p[0]);
+    rc = unixsendfd(cs, fd, -1);
+    assert(rc == 0);
+    close(fd);
+
+    sz = 1;
+    rc = unixsend(p[1], "X", &sz, -1);
+    assert(rc == 0);
+    assert(sz == 1);
+
+    rc = hclose(p[1]);
+    assert(rc == 0);
+
     rc = hclose(cs);
     assert(rc == 0);
 }
@@ -92,12 +108,25 @@ int main() {
     assert(rc == 0);
     assert(sz == 3);
 
-    sz = sizeof(buf);
+    sz = 3;
     rc = unixrecv(as, buf, &sz, -1);
-    assert(rc == -1 && errno == ECONNRESET);
+    assert(rc == 0);
     assert(sz == 3);
     assert(buf[0] == '4' && buf[1] == '5' && buf[2] == '6');
 
+    int fd = unixrecvfd(as, -1);
+    assert(fd >= 0);
+    int rs = unixattach(fd);
+    assert(rc >= 0);
+
+    sz = 1;
+    rc = unixrecv(rs, buf, &sz, -1);
+    assert(rc == 0);
+    assert(sz == 1);
+    assert(buf[0] == 'X');
+
+    rc = hclose(rs);
+    assert(rc == 0);
     rc = hclose(as);
     assert(rc == 0);
     rc = hclose(ls);

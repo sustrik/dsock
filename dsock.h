@@ -178,6 +178,13 @@ DSOCK_EXPORT int unixdetach(
     int s);
 DSOCK_EXPORT int unixpair(
     int s[2]);
+DSOCK_EXPORT int unixsendfd(
+    int s,
+    int fd,
+    int64_t deadline);
+DSOCK_EXPORT int unixrecvfd(
+    int s,
+    int64_t deadline);
 
 #define unixsend bsend
 #define unixrecv brecv

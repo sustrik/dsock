@@ -29,6 +29,12 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#if defined MSG_NOSIGNAL
+#define DSOCK_NOSIGNAL MSG_NOSIGNAL
+#else
+#define DSOCK_NOSIGNAL 0
+#endif
+
 int dsunblock(
     int s);
 int dsconnect(

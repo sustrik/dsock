@@ -29,12 +29,6 @@
 #include "helpers.h"
 #include "utils.h"
 
-#if defined MSG_NOSIGNAL
-#define DSOCK_NOSIGNAL MSG_NOSIGNAL
-#else
-#define DSOCK_NOSIGNAL 0
-#endif
-
 int dsunblock(int s) {
     /* Switch to non-blocking mode. */
     int opt = fcntl(s, F_GETFL, 0);

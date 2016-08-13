@@ -116,6 +116,82 @@ static int unixconn_recv(int s, void *buf, size_t *len, int64_t deadline) {
     return dsrecv(obj->fd, buf, len, deadline);
 }
 
+int unixsendfd(int s, int fd, int64_t deadline) {
+    struct unixconn *obj = hdata(s, bsock_type);
+    if(dsock_slow(!obj)) return -1;
+    if(dsock_slow(obj->vfptrs.type != unixconn_type)) {
+        errno = EOPNOTSUPP; return -1;}
+    if(dsock_slow(fd < 0)) {errno = EINVAL; return -1;}
+    /* Prepare the message. */
+    struct iovec iov;
+    unsigned char buf[] = {0};
+    iov.iov_base = buf;
+    iov.iov_len = sizeof(buf);
+    struct msghdr msg;
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    char control[sizeof(struct cmsghdr) + 10];
+    msg.msg_control = control;
+    msg.msg_controllen = sizeof(control);
+    struct cmsghdr *cmsg;
+    cmsg = CMSG_FIRSTHDR(&msg);
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
+    *((int*)CMSG_DATA(cmsg)) = fd;
+    msg.msg_controllen = cmsg->cmsg_len;
+    /* Try to send it. */
+    while(1) {
+        ssize_t sz = sendmsg(obj->fd, &msg, DSOCK_NOSIGNAL);
+        if(dsock_fast(sz == 1)) return 0;
+        dsock_assert(sz < 0);
+        if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) return -1;
+        int rc = fdout(obj->fd, deadline);
+        if(dsock_slow(rc < 0)) return -1;
+    }
+}
+
+int unixrecvfd(int s, int64_t deadline) {
+    struct unixconn *obj = hdata(s, bsock_type);
+    if(dsock_slow(!obj)) return -1;
+    if(dsock_slow(obj->vfptrs.type != unixconn_type)) {
+        errno = EOPNOTSUPP; return -1;}
+    /* Read one byte along with the ancillary data. */
+    char buf[1];
+    struct iovec iov;
+    iov.iov_base = buf;
+    iov.iov_len = sizeof(buf);
+    struct msghdr msg;
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    unsigned char control[1024];
+    msg.msg_control = control;
+    msg.msg_controllen = sizeof(control);
+    while(1) {
+        ssize_t sz = recvmsg(obj->fd, &msg, 0);
+        if(dsock_fast(sz == 1)) break;
+        if(dsock_slow(sz == 0)) {errno = ECONNRESET; return -1;}
+        dsock_assert(sz < 0);
+        if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) return -1;
+        int rc = fdin(obj->fd, deadline);
+        if(dsock_slow(rc < 0)) return -1;
+    }    
+    /* Loop through the auxiliary data to find the embedded file descriptor. */
+    int fd = -1;
+    struct cmsghdr *cmsg;
+    for(cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+        if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type  == SCM_RIGHTS) {
+            /* We don't expect multiple fds here and we ignore all of them
+               except for the first one. This can result in fd leaks. */
+            fd = *(int*)CMSG_DATA(cmsg);
+            break;
+        }
+    }
+    return fd;
+}
+
 static void unixconn_close(int s) {
     struct unixconn *obj = hdata(s, bsock_type);
     dsock_assert(obj);
