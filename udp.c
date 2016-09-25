@@ -34,8 +34,8 @@
 static const int udp_type_placeholder = 0;
 static const void *udp_type = &udp_type_placeholder;
 static void udp_close(int s);
-static ssize_t udp_msend(int s, const void *buf, size_t len, int64_t deadline);
-static ssize_t udp_mrecv(int s, void *buf, size_t len, int64_t deadline);
+static int udp_msend(int s, const void *buf, size_t *len, int64_t deadline);
+static int udp_mrecv(int s, void *buf, size_t *len, int64_t deadline);
 
 struct udpsock {
     struct msockvfptrs vfptrs;
@@ -111,48 +111,51 @@ int udpdetach(int s) {
     return fd;
 }
 
-ssize_t udpsend(int s, const ipaddr *addr, const void *buf, size_t len) {
+int udpsend(int s, const ipaddr *addr, const void *buf, size_t *len) {
     struct udpsock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != udp_type)) {
         errno = ENOTSUP; return -1;}
-    if(dsock_slow(!len || (len > 0 && !buf))) {errno = EINVAL; return -1;}
+    if(dsock_slow(!len || (*len > 0 && !buf))) {errno = EINVAL; return -1;}
     /* If no destination IP address is provided, fall back to the stored one. */
     const ipaddr *dstaddr = addr;
     if(!dstaddr) {
         if(dsock_slow(!obj->hasremote)) {errno = EINVAL; return -1;}
         dstaddr = &obj->remote;
     }
-    ssize_t sz = sendto(obj->fd, buf, len, 0,
+    ssize_t sz = sendto(obj->fd, buf, *len, 0,
         (struct sockaddr*)ipsockaddr(dstaddr), iplen(dstaddr));
-    if(dsock_fast(sz == len)) return len;
+    if(dsock_fast(sz == *len)) return 0;
     dsock_assert(sz < 0);
     if(errno == EAGAIN || errno == EWOULDBLOCK) return 0;
     return -1;
 }
 
-ssize_t udprecv(int s, ipaddr *addr, void *buf, size_t len, int64_t deadline) {
+int udprecv(int s, ipaddr *addr, void *buf, size_t *len, int64_t deadline) {
     struct udpsock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != udp_type)) {
         errno = ENOTSUP; return -1;}
-    if(dsock_slow(!len || (len > 0 && !buf))) {errno = EINVAL; return -1;}
+    if(dsock_slow(!len || (*len > 0 && !buf))) {errno = EINVAL; return -1;}
     ssize_t sz;
     while(1) {
         socklen_t slen = sizeof(ipaddr);
-        sz = recvfrom(obj->fd, buf, len, 0, (struct sockaddr*)addr, &slen);
-        if(sz >= 0) return sz;
+        sz = recvfrom(obj->fd, buf, *len, 0, (struct sockaddr*)addr, &slen);
+        if(sz >= 0) {
+            *len = sz;
+            return 0;
+        }
         if(errno != EAGAIN && errno != EWOULDBLOCK) return -1;
         int rc = fdin(obj->fd, deadline);
         if(dsock_slow(rc < 0)) return -1;
     }
 }
 
-static ssize_t udp_msend(int s, const void *buf, size_t len, int64_t deadline) {
+static int udp_msend(int s, const void *buf, size_t *len, int64_t deadline) {
     return udpsend(s, NULL, buf, len);
 }
 
-static ssize_t udp_mrecv(int s, void *buf, size_t len, int64_t deadline) {
+static int udp_mrecv(int s, void *buf, size_t *len, int64_t deadline) {
     return udprecv(s, NULL, buf, len, deadline);
 }
 
