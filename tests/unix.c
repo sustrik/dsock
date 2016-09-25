@@ -43,15 +43,12 @@ coroutine void client(void) {
     assert(cs >= 0);
 
     char buf[16];
-    size_t sz = 3;
-    rc = unixrecv(cs, buf, &sz, -1);
+    rc = unixrecv(cs, buf, 3, -1);
     assert(rc == 0);
-    assert(sz == 3 && buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
+    assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
 
-    sz = 3;
-    rc = unixsend(cs, "456", &sz, -1);
+    rc = unixsend(cs, "456", 3, -1);
     assert(rc == 0);
-    assert(sz == 3);
 
     int p[2];
     rc = unixpair(p);
@@ -61,10 +58,8 @@ coroutine void client(void) {
     assert(rc == 0);
     close(fd);
 
-    sz = 1;
-    rc = unixsend(p[1], "X", &sz, -1);
+    rc = unixsend(p[1], "X", 1, -1);
     assert(rc == 0);
-    assert(sz == 1);
 
     rc = hclose(p[1]);
     assert(rc == 0);
@@ -97,21 +92,16 @@ int main() {
 
     /* Test deadline. */
     int64_t deadline = now() + 30;
-    ssize_t sz = sizeof(buf);
-    int rc = unixrecv(as, buf, &sz, deadline);
+    int rc = unixrecv(as, buf, sizeof(buf), deadline);
     assert(rc == -1 && errno == ETIMEDOUT);
     int64_t diff = now() - deadline;
     assert(diff > -20 && diff < 20);
 
-    sz = 3;
-    rc = unixsend(as, "ABC", &sz, -1);
+    rc = unixsend(as, "ABC", 3, -1);
     assert(rc == 0);
-    assert(sz == 3);
 
-    sz = 3;
-    rc = unixrecv(as, buf, &sz, -1);
+    rc = unixrecv(as, buf, 3, -1);
     assert(rc == 0);
-    assert(sz == 3);
     assert(buf[0] == '4' && buf[1] == '5' && buf[2] == '6');
 
     int fd = unixrecvfd(as, -1);
@@ -119,10 +109,8 @@ int main() {
     int rs = unixattach(fd);
     assert(rc >= 0);
 
-    sz = 1;
-    rc = unixrecv(rs, buf, &sz, -1);
+    rc = unixrecv(rs, buf, 1, -1);
     assert(rc == 0);
-    assert(sz == 1);
     assert(buf[0] == 'X');
 
     rc = hclose(rs);
@@ -142,11 +130,10 @@ int main() {
     assert(rc == 0);
     char buffer[2048];
     while(1) {
-        sz = 2048;
-        rc = unixsend(hndls[0], buffer, &sz, -1);
+        rc = unixsend(hndls[0], buffer, 2048, -1);
         if(rc == -1 && errno == ECONNRESET)
             break;
-        assert(rc == 0 && sz > 0);
+        assert(rc == 0);
     }
     rc = hclose(hndls[0]);
     assert(rc == 0);

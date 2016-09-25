@@ -114,12 +114,12 @@ DSOCK_EXPORT void ipsetport(
 DSOCK_EXPORT int bsend(
     int s,
     const void *buf,
-    size_t *len,
+    size_t len,
     int64_t deadline);
 DSOCK_EXPORT int brecv(
     int s,
     void *buf,
-    size_t *len,
+    size_t len,
     int64_t deadline);
 
 /******************************************************************************/
