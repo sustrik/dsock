@@ -40,6 +40,7 @@ libdsock_la_SOURCES = \
     helpers.c \
     msock.h \
     msock.c \
+    pfx.c \
     tcp.c \
     udp.c \
     unix.c \
@@ -66,6 +67,7 @@ check_PROGRAMS = \
     tests/tcp \
     tests/udp \
     tests/unix \
+    tests/pfx \
     tests/crlf
 
 LDADD = libdsock.la
