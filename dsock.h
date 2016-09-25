@@ -126,15 +126,15 @@ DSOCK_EXPORT int brecv(
 /*  Message sockets                                                           */
 /******************************************************************************/
 
-DSOCK_EXPORT int msend(
+DSOCK_EXPORT ssize_t msend(
     int s,
     const void *buf,
-    size_t *len,
+    size_t len,
     int64_t deadline);
-DSOCK_EXPORT int mrecv(
+DSOCK_EXPORT ssize_t mrecv(
     int s,
     void *buf,
-    size_t *len,
+    size_t len,
     int64_t deadline);
 
 /******************************************************************************/
@@ -200,16 +200,16 @@ DSOCK_EXPORT int udpattach(
     int fd);
 DSOCK_EXPORT int udpdetach(
     int s);
-DSOCK_EXPORT int udpsend(
+DSOCK_EXPORT ssize_t udpsend(
     int s,
     const ipaddr *addr,
     const void *buf,
-    size_t *len);
-DSOCK_EXPORT int udprecv(
+    size_t len);
+DSOCK_EXPORT ssize_t udprecv(
     int s,
     ipaddr *addr,
     void *buf,
-    size_t *len,
+    size_t len,
     int64_t deadline);
 
 #endif
