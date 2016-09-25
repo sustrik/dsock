@@ -34,6 +34,7 @@ lib_LTLIBRARIES = libdsock.la
 libdsock_la_SOURCES = \
     bsock.h \
     bsock.c \
+    crlf.c \
     ip.c \
     helpers.h \
     helpers.c \
@@ -64,7 +65,8 @@ pkgconfig_DATA = dsock.pc
 check_PROGRAMS = \
     tests/tcp \
     tests/udp \
-    tests/unix
+    tests/unix \
+    tests/crlf
 
 LDADD = libdsock.la
 

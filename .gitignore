@@ -30,3 +30,4 @@ tests/*.trs
 tests/tcp
 tests/udp
 tests/unix
+tests/crlf

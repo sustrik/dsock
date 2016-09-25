@@ -212,5 +212,17 @@ DSOCK_EXPORT ssize_t udprecv(
     size_t len,
     int64_t deadline);
 
+/******************************************************************************/
+/*  CRLF library                                                              */
+/******************************************************************************/
+
+DSOCK_EXPORT int crlfattach(
+    int s);
+DSOCK_EXPORT int crlfdetach(
+    int s);
+
+#define crlfsend msend
+#define crlfrecv mrecv
+
 #endif
 
