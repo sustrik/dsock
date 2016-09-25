@@ -29,14 +29,14 @@
 static const int msock_type_placeholder = 0;
 const void *msock_type = &msock_type_placeholder;
 
-int msend(int s, const void *buf, size_t *len, int64_t deadline) {
+int msend(int s, const void *buf, size_t len, int64_t deadline) {
     struct hvfptr *h = hdata(s, msock_type);
     if(dsock_slow(!h)) return 0;
     struct msockvfptrs *b = (struct msockvfptrs*)h;
     return b->msend(s, buf, len, deadline);
 }
 
-int mrecv(int s, void *buf, size_t *len, int64_t deadline) {
+ssize_t mrecv(int s, void *buf, size_t len, int64_t deadline) {
     struct hvfptr *h = hdata(s, msock_type);
     if(dsock_slow(!h)) return 0;
     struct msockvfptrs *b = (struct msockvfptrs*)h;

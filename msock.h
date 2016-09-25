@@ -29,7 +29,7 @@ const void *msock_type;
 struct msockvfptrs {
     struct hvfptrs hvfptrs; /* type should be set to msock_type */
     const void *type;
-    int (*msend)(int s, const void *buf, size_t *len, int64_t deadline);
-    int (*mrecv)(int s, void *buf, size_t *len, int64_t deadline);
+    int (*msend)(int s, const void *buf, size_t len, int64_t deadline);
+    ssize_t (*mrecv)(int s, void *buf, size_t len, int64_t deadline);
 };
 

@@ -39,32 +39,24 @@ int main() {
     assert(s2 >= 0);
 
     while(1) {
-        size_t sz = 3;
-        rc = udpsend(s1, &addr2, "ABC", &sz);
+        rc = udpsend(s1, &addr2, "ABC", 3);
         assert(rc == 0);
-        assert(sz == 3);
         char buf[3];
-        sz = 3;
-        rc = mrecv(s2, buf, &sz, now() + 100);
-        if(rc < 0 && errno == ETIMEDOUT)
+        ssize_t sz = mrecv(s2, buf, sizeof(buf), now() + 100);
+        if(sz < 0 && errno == ETIMEDOUT)
             continue;
-        assert(rc == 0);
         assert(sz == 3);
         break;
     }
 
     while(1) {
-        size_t sz = 3;
-        rc = msend(s2, "DEF", &sz, -1);
+        rc = msend(s2, "DEF", 3, -1);
         assert(rc == 0);
-        assert(sz == 3);
         char buf[3];
-        sz = 3;
         ipaddr addr;
-        rc = udprecv(s1, &addr, buf, &sz, now() + 100);
-        if(rc < 0 && errno == ETIMEDOUT)
+        ssize_t sz = udprecv(s1, &addr, buf, sizeof(buf), now() + 100);
+        if(sz < 0 && errno == ETIMEDOUT)
             continue;
-        assert(rc == 0);
         assert(sz == 3);
         break;
     }
