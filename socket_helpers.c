@@ -26,7 +26,7 @@
 #include <libdill.h>
 #include <unistd.h>
 
-#include "helpers.h"
+#include "socket_helpers.h"
 #include "utils.h"
 
 int dsunblock(int s) {

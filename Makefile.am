@@ -37,11 +37,11 @@ libdsock_la_SOURCES = \
     bthrottler.c \
     crlf.c \
     ip.c \
-    helpers.h \
-    helpers.c \
     msock.h \
     msock.c \
     pfx.c \
+    socket_helpers.h \
+    socket_helpers.c \
     tcp.c \
     udp.c \
     unix.c \

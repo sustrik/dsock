@@ -30,7 +30,7 @@
 
 #include "bsock.h"
 #include "dsock.h"
-#include "helpers.h"
+#include "socket_helpers.h"
 #include "utils.h"
 
 static int unixresolve(const char *addr, struct sockaddr_un *su);
