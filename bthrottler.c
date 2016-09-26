@@ -44,13 +44,21 @@ struct bthrottlersock {
     uint64_t send_throughput;
     uint64_t send_burst_size;
     uint64_t send_burst_time;
-    uint64_t queued;
-    int64_t last;
+    uint64_t send_queued;
+    int64_t send_last;
+    uint64_t recv_throughput;
+    uint64_t recv_burst_size;
+    uint64_t recv_burst_time;
+    uint64_t recv_queued;
+    int64_t recv_last;
 };
 
-int bthrottlerattach(int s, uint64_t send_throughput,
-      uint64_t send_burst_size) {
-    if(dsock_slow(send_throughput == 0 || send_burst_size == 0)) {
+int bthrottlerattach(int s,
+      uint64_t send_throughput, uint64_t send_burst_size,
+      uint64_t recv_throughput, uint64_t recv_burst_size) {
+    if(dsock_slow(send_throughput != 0 && send_burst_size == 0 )) {
+        errno = EINVAL; return -1;}
+    if(dsock_slow(recv_throughput != 0 && recv_burst_size == 0 )) {
         errno = EINVAL; return -1;}
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) return -1;
@@ -63,11 +71,21 @@ int bthrottlerattach(int s, uint64_t send_throughput,
     obj->vfptrs.brecv = bthrottler_brecv;
     obj->s = s;
     obj->send_throughput = send_throughput;
-    obj->send_burst_size = send_burst_size;
-    obj->send_burst_time = send_burst_size * 1000000000 /
-        send_throughput / 1000000;
-    obj->queued = 0;
-    obj->last = now();
+    if(send_throughput > 0) {
+        obj->send_burst_size = send_burst_size;
+        obj->send_burst_time = send_burst_size * 1000000000 /
+            send_throughput / 1000000;
+        obj->send_queued = 0;
+        obj->send_last = now();
+    }
+    obj->recv_throughput = recv_throughput;
+    if(recv_throughput > 0) {
+        obj->recv_burst_size = recv_burst_size;
+        obj->recv_burst_time = recv_burst_size * 1000000000 /
+            recv_throughput / 1000000;
+        obj->recv_queued = recv_burst_size;
+        obj->recv_last = now();
+    }
     /* Create the handle. */
     int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);
     if(dsock_slow(h < 0)) {
@@ -92,19 +110,22 @@ static int bthrottler_bsend(int s, const void *buf, size_t len,
       int64_t deadline) {
     struct bthrottlersock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == bthrottler_type);
+    /* If send-throttling is off forward the call. */
+    if(obj->send_throughput == 0) return bsend(obj->s, buf, len, deadline);
     /* Compute the amount of data still in bucket based on previous know
        amount and the elapsed time. */
     int64_t nw = now();
-    uint64_t drained = (nw - obj->last) *
+    uint64_t drained = (nw - obj->send_last) *
         1000000000 / obj->send_throughput / 1000000;
-    obj->queued = drained > obj->queued ? 0 : obj->queued - drained;
+    obj->send_queued = drained > obj->send_queued ? 0 :
+        obj->send_queued - drained;
     while(1) {
         /* Send batch of data. We cannot send more that maximum burst size. */
-        size_t tosend = obj->send_burst_size - obj->queued;
+        size_t tosend = obj->send_burst_size - obj->send_queued;
         if(tosend > 0) { 
             if(len < tosend) tosend = len;
-            obj->queued += tosend;
-            obj->last = nw;
+            obj->send_queued += tosend;
+            obj->send_last = nw;
             int rc = bsend(obj->s, buf, tosend, deadline);
             if(dsock_slow(rc < 0)) return -1;
             if(len == tosend) return 0;
@@ -124,7 +145,7 @@ static int bthrottler_bsend(int s, const void *buf, size_t len,
         }
         int rc = msleep(nw + obj->send_burst_time);
         if(dsock_slow(rc < 0)) return -1;
-        obj->queued = 0;
+        obj->send_queued = 0;
         /* In case of CPU exhaustion we may have slept longer than we've asked
            for. Thus, we have to fetch the actual time. */
         nw = now();
@@ -135,8 +156,12 @@ static int bthrottler_brecv(int s, void *buf, size_t len,
       int64_t deadline) {
     struct bthrottlersock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == bthrottler_type);
-    return brecv(obj->s, buf, len, deadline);
-}
+    /* If recv-throttling is off forward the call. */
+    if(obj->recv_throughput == 0) return brecv(obj->s, buf, len, deadline);
+
+    /* TODO */
+    dsock_assert(0);
+} 
 
 static void bthrottler_close(int s) {
     struct bthrottlersock *obj = hdata(s, bsock_type);

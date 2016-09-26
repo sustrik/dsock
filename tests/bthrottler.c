@@ -32,7 +32,7 @@ int main() {
     /* One big batch split into multiple bursts. */
     int rc = unixpair(s);
     assert(rc == 0);
-    int thr = bthrottlerattach(s[0], 1000, 100);
+    int thr = bthrottlerattach(s[0], 1000, 100, 0, 0);
     assert(thr >= 0);
     char buf[2000];
     int64_t start = now();
@@ -48,7 +48,7 @@ int main() {
     /* Multiple small batches in two bursts. */
     rc = unixpair(s);
     assert(rc == 0);
-    thr = bthrottlerattach(s[0], 1000, 100);
+    thr = bthrottlerattach(s[0], 1000, 100, 0, 0);
     assert(thr >= 0);
     start = now();
     int i;
