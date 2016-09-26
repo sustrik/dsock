@@ -83,7 +83,7 @@ int bthrottlerattach(int s,
         obj->recv_burst_size = recv_burst_size;
         obj->recv_burst_time = recv_burst_size * 1000000000 /
             recv_throughput / 1000000;
-        obj->recv_queued = recv_burst_size;
+        obj->recv_queued = 0;
         obj->recv_last = now();
     }
     /* Create the handle. */
@@ -158,9 +158,44 @@ static int bthrottler_brecv(int s, void *buf, size_t len,
     dsock_assert(obj->vfptrs.type == bthrottler_type);
     /* If recv-throttling is off forward the call. */
     if(obj->recv_throughput == 0) return brecv(obj->s, buf, len, deadline);
-
-    /* TODO */
-    dsock_assert(0);
+    /* Compute the amount of data still in the queue based on previous know
+       queue size and the elapsed time. */
+    int64_t nw = now();
+    uint64_t drained = (nw - obj->recv_last) *
+        1000000000 / obj->recv_throughput / 1000000;
+    obj->recv_queued = drained > obj->recv_queued ? 0 :
+        obj->recv_queued - drained;
+    while(1) {
+        /* Receive batch of data. We cannot get more that maximum burst size. */
+        size_t torecv = obj->recv_burst_size - obj->recv_queued;
+        if(torecv > 0) { 
+            if(len < torecv) torecv = len;
+            obj->recv_queued += torecv;
+            obj->recv_last = nw;
+            int rc = brecv(obj->s, buf, torecv, deadline);
+            if(dsock_slow(rc < 0)) return -1;
+            if(len == torecv) return 0;
+            buf = (char*)buf + torecv;
+            len -= torecv;
+        }
+        /* There are more bytes to receive but we've already exhausted maximum
+           burst size. We'll have to sleep while the burst is over. If deadline
+           isn't sufficient to do the waiting we'll still wait till deadline
+           expires so that send has nice consistent behaviour. */
+        if(deadline == 0) {errno = ETIMEDOUT; return -1;}
+        if(deadline > 0 && nw + obj->recv_burst_time > deadline) {
+            int rc = msleep(deadline);
+            if(dsock_slow(rc < 0)) return -1;
+            errno = ETIMEDOUT;
+            return -1;
+        }
+        int rc = msleep(nw + obj->recv_burst_time);
+        if(dsock_slow(rc < 0)) return -1;
+        obj->recv_queued = 0;
+        /* In case of CPU exhaustion we may have slept longer than we've asked
+           for. Thus, we have to fetch the actual time. */
+        nw = now();
+    }
 } 
 
 static void bthrottler_close(int s) {

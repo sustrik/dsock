@@ -29,37 +29,69 @@
 int main() {
     int s[2];
 
-    /* One big batch split into multiple bursts. */
+    /* send-throttling: One big batch split into multiple bursts. */
     int rc = unixpair(s);
     assert(rc == 0);
-    int thr = bthrottlerattach(s[0], 1000, 100, 0, 0);
+    int thr = bthrottlerattach(s[0], 1000, 10, 0, 0);
     assert(thr >= 0);
-    char buf[2000];
+    char buf[200];
     int64_t start = now();
-    rc = bsend(thr, buf, 950, -1);
+    rc = bsend(thr, buf, 95, -1);
     assert(rc == 0);
     int64_t elapsed = now() - start;
-    assert(elapsed > 800 && elapsed < 1000);
-    rc = brecv(s[1], buf, 950, -1);
+    assert(elapsed > 80 && elapsed < 100);
+    rc = brecv(s[1], buf, 95, -1);
     assert(rc == 0);
     hclose(thr);
     hclose(s[1]);
 
-    /* Multiple small batches in two bursts. */
+    /* send-throttling: Multiple small batches in two bursts. */
     rc = unixpair(s);
     assert(rc == 0);
-    thr = bthrottlerattach(s[0], 1000, 100, 0, 0);
+    thr = bthrottlerattach(s[0], 1000, 10, 0, 0);
     assert(thr >= 0);
     start = now();
     int i;
     for(i = 0; i != 50; ++i) {
-        rc = bsend(thr, buf, 30, -1);
+        rc = bsend(thr, buf, 3, -1);
         assert(rc == 0);
     }
     elapsed = now() - start;
-    assert(elapsed > 1300 && elapsed < 1500);
-    rc = brecv(s[1], buf, 1500, -1);
+    assert(elapsed > 130 && elapsed < 150);
+    rc = brecv(s[1], buf, 150, -1);
     assert(rc == 0);
+    hclose(thr);
+    hclose(s[1]);
+
+    /* recv-throttling: One big batch split into multiple bursts. */
+    rc = unixpair(s);
+    assert(rc == 0);
+    thr = bthrottlerattach(s[0], 0, 0, 1000, 10);
+    assert(thr >= 0);
+    rc = bsend(s[1], buf, 95, -1);
+    assert(rc == 0);
+    start = now();
+    rc = brecv(thr, buf, 95, -1);
+    assert(rc == 0);
+    elapsed = now() - start;
+    assert(elapsed > 80 && elapsed < 100);
+    hclose(thr);
+    hclose(s[1]);
+
+    /* recv-throttling: Multiple small batches in two bursts. */
+    rc = unixpair(s);
+    assert(rc == 0);
+    thr = bthrottlerattach(s[0], 0, 0, 1000, 10);
+    assert(thr >= 0);
+    rc = bsend(s[1], buf, 150, -1);
+    assert(rc == 0);
+    start = now();
+    for(i = 0; i != 50; ++i) {
+        rc = brecv(thr, buf, 3, -1);
+        assert(rc == 0);
+    }
+    elapsed = now() - start;
+    assert(elapsed > 130 && elapsed < 150);
     hclose(thr);
     hclose(s[1]);
 
