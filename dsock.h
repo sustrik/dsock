@@ -244,8 +244,8 @@ DSOCK_EXPORT int crlfdetach(
    in bytes. */
 DSOCK_EXPORT int bthrottlerattach(
     int s,
-    uint64_t bandwidth, 
-    uint64_t max_burst_size); 
+    uint64_t send_throughput, 
+    uint64_t send_burst_size);
 DSOCK_EXPORT int bthrottlerdetach(
     int s);
 

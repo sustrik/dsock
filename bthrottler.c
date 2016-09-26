@@ -41,15 +41,16 @@ static int bthrottler_brecv(int s, void *buf, size_t len,
 struct bthrottlersock {
     struct bsockvfptrs vfptrs;
     int s;
-    uint64_t throughput;
-    uint64_t burst_size;
-    uint64_t burst_time;
+    uint64_t send_throughput;
+    uint64_t send_burst_size;
+    uint64_t send_burst_time;
     uint64_t queued;
     int64_t last;
 };
 
-int bthrottlerattach(int s, uint64_t throughput, uint64_t max_burst_size) {
-    if(dsock_slow(throughput == 0 || max_burst_size == 0)) {
+int bthrottlerattach(int s, uint64_t send_throughput,
+      uint64_t send_burst_size) {
+    if(dsock_slow(send_throughput == 0 || send_burst_size == 0)) {
         errno = EINVAL; return -1;}
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) return -1;
@@ -61,9 +62,10 @@ int bthrottlerattach(int s, uint64_t throughput, uint64_t max_burst_size) {
     obj->vfptrs.bsend = bthrottler_bsend;
     obj->vfptrs.brecv = bthrottler_brecv;
     obj->s = s;
-    obj->throughput = throughput;
-    obj->burst_size = max_burst_size;
-    obj->burst_time = max_burst_size * 1000000000 / throughput / 1000000;
+    obj->send_throughput = send_throughput;
+    obj->send_burst_size = send_burst_size;
+    obj->send_burst_time = send_burst_size * 1000000000 /
+        send_throughput / 1000000;
     obj->queued = 0;
     obj->last = now();
     /* Create the handle. */
@@ -94,11 +96,11 @@ static int bthrottler_bsend(int s, const void *buf, size_t len,
        amount and the elapsed time. */
     int64_t nw = now();
     uint64_t drained = (nw - obj->last) *
-        1000000000 / obj->throughput / 1000000;
+        1000000000 / obj->send_throughput / 1000000;
     obj->queued = drained > obj->queued ? 0 : obj->queued - drained;
     while(1) {
         /* Send batch of data. We cannot send more that maximum burst size. */
-        size_t tosend = obj->burst_size - obj->queued;
+        size_t tosend = obj->send_burst_size - obj->queued;
         if(tosend > 0) { 
             if(len < tosend) tosend = len;
             obj->queued += tosend;
@@ -114,13 +116,13 @@ static int bthrottler_bsend(int s, const void *buf, size_t len,
            isn't sufficient to do the waiting we'll still wait till deadline
            expires so that send has nice consistent behaviour. */
         if(deadline == 0) {errno = ETIMEDOUT; return -1;}
-        if(deadline > 0 && nw + obj->burst_time > deadline) {
+        if(deadline > 0 && nw + obj->send_burst_time > deadline) {
             int rc = msleep(deadline);
             if(dsock_slow(rc < 0)) return -1;
             errno = ETIMEDOUT;
             return -1;
         }
-        int rc = msleep(nw + obj->burst_time);
+        int rc = msleep(nw + obj->send_burst_time);
         if(dsock_slow(rc < 0)) return -1;
         obj->queued = 0;
         /* In case of CPU exhaustion we may have slept longer than we've asked
