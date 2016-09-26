@@ -41,24 +41,22 @@ static int bthrottler_brecv(int s, void *buf, size_t len,
 struct bthrottlersock {
     struct bsockvfptrs vfptrs;
     int s;
-    uint64_t send_throughput;
-    uint64_t send_burst_size;
-    uint64_t send_burst_time;
-    uint64_t send_queued;
+    size_t send_full;
+    size_t send_remaining;
+    int64_t send_interval;
     int64_t send_last;
-    uint64_t recv_throughput;
-    uint64_t recv_burst_size;
-    uint64_t recv_burst_time;
-    uint64_t recv_queued;
+    size_t recv_full;
+    size_t recv_remaining;
+    int64_t recv_interval;
     int64_t recv_last;
 };
 
 int bthrottlerattach(int s,
-      uint64_t send_throughput, uint64_t send_burst_size,
-      uint64_t recv_throughput, uint64_t recv_burst_size) {
-    if(dsock_slow(send_throughput != 0 && send_burst_size == 0 )) {
+      uint64_t send_throughput, int64_t send_interval,
+      uint64_t recv_throughput, int64_t recv_interval) {
+    if(dsock_slow(send_throughput != 0 && send_interval <= 0 )) {
         errno = EINVAL; return -1;}
-    if(dsock_slow(recv_throughput != 0 && recv_burst_size == 0 )) {
+    if(dsock_slow(recv_throughput != 0 && recv_interval <= 0 )) {
         errno = EINVAL; return -1;}
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) return -1;
@@ -70,20 +68,18 @@ int bthrottlerattach(int s,
     obj->vfptrs.bsend = bthrottler_bsend;
     obj->vfptrs.brecv = bthrottler_brecv;
     obj->s = s;
-    obj->send_throughput = send_throughput;
+    obj->send_full = 0;
     if(send_throughput > 0) {
-        obj->send_burst_size = send_burst_size;
-        obj->send_burst_time = send_burst_size * 1000000000 /
-            send_throughput / 1000000;
-        obj->send_queued = 0;
+        obj->send_full = send_throughput * send_interval / 1000;
+        obj->send_remaining = obj->send_full;
+        obj->send_interval = send_interval;
         obj->send_last = now();
     }
-    obj->recv_throughput = recv_throughput;
+    obj->recv_full = 0;
     if(recv_throughput > 0) {
-        obj->recv_burst_size = recv_burst_size;
-        obj->recv_burst_time = recv_burst_size * 1000000000 /
-            recv_throughput / 1000000;
-        obj->recv_queued = 0;
+        obj->recv_full = recv_throughput * recv_interval / 1000;
+        obj->recv_remaining = obj->recv_full;
+        obj->recv_interval = recv_interval;
         obj->recv_last = now();
     }
     /* Create the handle. */
@@ -111,44 +107,27 @@ static int bthrottler_bsend(int s, const void *buf, size_t len,
     struct bthrottlersock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == bthrottler_type);
     /* If send-throttling is off forward the call. */
-    if(obj->send_throughput == 0) return bsend(obj->s, buf, len, deadline);
-    /* Compute the amount of data still in the queue based on previous know
-       queue size and the elapsed time. */
-    int64_t nw = now();
-    uint64_t drained = (nw - obj->send_last) *
-        1000000000 / obj->send_throughput / 1000000;
-    obj->send_queued = drained > obj->send_queued ? 0 :
-        obj->send_queued - drained;
+    if(obj->send_full == 0) return bsend(obj->s, buf, len, deadline);
+    /* Get rid of the corner case. */
+    if(dsock_slow(len == 0)) return 0;
     while(1) {
-        /* Send batch of data. We cannot send more that maximum burst size. */
-        size_t tosend = obj->send_burst_size - obj->send_queued;
-        if(tosend > 0) { 
-            if(len < tosend) tosend = len;
-            obj->send_queued += tosend;
-            obj->send_last = nw;
+        /* If there's capacity send as much data as possible. */
+        if(obj->send_remaining) {
+            size_t tosend = len < obj->send_remaining ?
+                len : obj->send_remaining;
             int rc = bsend(obj->s, buf, tosend, deadline);
             if(dsock_slow(rc < 0)) return -1;
-            if(len == tosend) return 0;
+            obj->send_remaining -= tosend;
             buf = (char*)buf + tosend;
             len -= tosend;
+            if(len == 0) return 0;
         }
-        /* There are more bytes to send but we've already exhausted maximum
-           burst size. We'll have to sleep while the burst is over. If deadline
-           isn't sufficient to do the waiting we'll still wait till deadline
-           expires so that send has nice consistent behaviour. */
-        if(deadline == 0) {errno = ETIMEDOUT; return -1;}
-        if(deadline > 0 && nw + obj->send_burst_time > deadline) {
-            int rc = msleep(deadline);
-            if(dsock_slow(rc < 0)) return -1;
-            errno = ETIMEDOUT;
-            return -1;
-        }
-        int rc = msleep(nw + obj->send_burst_time);
+        /* Wait till capacity can be renewed. */
+        int rc = msleep(obj->send_last + obj->send_interval);
         if(dsock_slow(rc < 0)) return -1;
-        obj->send_queued = 0;
-        /* In case of CPU exhaustion we may have slept longer than we've asked
-           for. Thus, we have to fetch the actual time. */
-        nw = now();
+        /* Renew the capacity. */
+        obj->send_remaining = obj->send_full;
+        obj->send_last = now();
     }
 }
 
@@ -157,44 +136,27 @@ static int bthrottler_brecv(int s, void *buf, size_t len,
     struct bthrottlersock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == bthrottler_type);
     /* If recv-throttling is off forward the call. */
-    if(obj->recv_throughput == 0) return brecv(obj->s, buf, len, deadline);
-    /* Compute the amount of data still in the queue based on previous know
-       queue size and the elapsed time. */
-    int64_t nw = now();
-    uint64_t drained = (nw - obj->recv_last) *
-        1000000000 / obj->recv_throughput / 1000000;
-    obj->recv_queued = drained > obj->recv_queued ? 0 :
-        obj->recv_queued - drained;
+    if(obj->recv_full == 0) return brecv(obj->s, buf, len, deadline);
+    /* Get rid of the corner case. */
+    if(dsock_slow(len == 0)) return 0;
     while(1) {
-        /* Receive batch of data. We cannot get more that maximum burst size. */
-        size_t torecv = obj->recv_burst_size - obj->recv_queued;
-        if(torecv > 0) { 
-            if(len < torecv) torecv = len;
-            obj->recv_queued += torecv;
-            obj->recv_last = nw;
+        /* If there's capacity receive as much data as possible. */
+        if(obj->recv_remaining) {
+            size_t torecv = len < obj->recv_remaining ?
+                len : obj->recv_remaining;
             int rc = brecv(obj->s, buf, torecv, deadline);
             if(dsock_slow(rc < 0)) return -1;
-            if(len == torecv) return 0;
+            obj->recv_remaining -= torecv;
             buf = (char*)buf + torecv;
             len -= torecv;
+            if(len == 0) return 0;
         }
-        /* There are more bytes to receive but we've already exhausted maximum
-           burst size. We'll have to sleep while the burst is over. If deadline
-           isn't sufficient to do the waiting we'll still wait till deadline
-           expires so that send has nice consistent behaviour. */
-        if(deadline == 0) {errno = ETIMEDOUT; return -1;}
-        if(deadline > 0 && nw + obj->recv_burst_time > deadline) {
-            int rc = msleep(deadline);
-            if(dsock_slow(rc < 0)) return -1;
-            errno = ETIMEDOUT;
-            return -1;
-        }
-        int rc = msleep(nw + obj->recv_burst_time);
+        /* Wait till capacity can be renewed. */
+        int rc = msleep(obj->recv_last + obj->recv_interval);
         if(dsock_slow(rc < 0)) return -1;
-        obj->recv_queued = 0;
-        /* In case of CPU exhaustion we may have slept longer than we've asked
-           for. Thus, we have to fetch the actual time. */
-        nw = now();
+        /* Renew the capacity. */
+        obj->recv_remaining = obj->recv_full;
+        obj->recv_last = now();
     }
 } 
 
