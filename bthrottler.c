@@ -112,8 +112,8 @@ static int bthrottler_bsend(int s, const void *buf, size_t len,
     dsock_assert(obj->vfptrs.type == bthrottler_type);
     /* If send-throttling is off forward the call. */
     if(obj->send_throughput == 0) return bsend(obj->s, buf, len, deadline);
-    /* Compute the amount of data still in bucket based on previous know
-       amount and the elapsed time. */
+    /* Compute the amount of data still in the queue based on previous know
+       queue size and the elapsed time. */
     int64_t nw = now();
     uint64_t drained = (nw - obj->send_last) *
         1000000000 / obj->send_throughput / 1000000;
