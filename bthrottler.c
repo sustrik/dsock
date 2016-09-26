@@ -41,15 +41,15 @@ static int bthrottler_brecv(int s, void *buf, size_t len,
 struct bthrottlersock {
     struct bsockvfptrs vfptrs;
     int s;
-    uint64_t bandwidth;
+    uint64_t throughput;
     uint64_t burst_size;
     uint64_t burst_time;
     uint64_t queued;
     int64_t last;
 };
 
-int bthrottlerattach(int s, uint64_t bandwidth, uint64_t max_burst_size) {
-    if(dsock_slow(bandwidth == 0 || max_burst_size == 0)) {
+int bthrottlerattach(int s, uint64_t throughput, uint64_t max_burst_size) {
+    if(dsock_slow(throughput == 0 || max_burst_size == 0)) {
         errno = EINVAL; return -1;}
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) return -1;
@@ -61,9 +61,9 @@ int bthrottlerattach(int s, uint64_t bandwidth, uint64_t max_burst_size) {
     obj->vfptrs.bsend = bthrottler_bsend;
     obj->vfptrs.brecv = bthrottler_brecv;
     obj->s = s;
-    obj->bandwidth = bandwidth;
+    obj->throughput = throughput;
     obj->burst_size = max_burst_size;
-    obj->burst_time = max_burst_size * 1000000000 / bandwidth / 1000000;
+    obj->burst_time = max_burst_size * 1000000000 / throughput / 1000000;
     obj->queued = 0;
     obj->last = now();
     /* Create the handle. */
@@ -94,7 +94,7 @@ static int bthrottler_bsend(int s, const void *buf, size_t len,
        amount and the elapsed time. */
     int64_t nw = now();
     uint64_t drained = (nw - obj->last) *
-        1000000000 / obj->bandwidth / 1000000;
+        1000000000 / obj->throughput / 1000000;
     obj->queued = drained > obj->queued ? 0 : obj->queued - drained;
     while(1) {
         /* Send batch of data. We cannot send more that maximum burst size. */
