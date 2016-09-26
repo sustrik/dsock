@@ -34,6 +34,7 @@ lib_LTLIBRARIES = libdsock.la
 libdsock_la_SOURCES = \
     bsock.h \
     bsock.c \
+    bthrottler.c \
     crlf.c \
     ip.c \
     helpers.h \
@@ -68,7 +69,8 @@ check_PROGRAMS = \
     tests/udp \
     tests/unix \
     tests/pfx \
-    tests/crlf
+    tests/crlf \
+    tests/bthrottler
 
 LDADD = libdsock.la
 

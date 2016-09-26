@@ -32,3 +32,4 @@ tests/udp
 tests/unix
 tests/pfx
 tests/crlf
+tests/bthrottler

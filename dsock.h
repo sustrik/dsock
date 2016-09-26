@@ -236,5 +236,22 @@ DSOCK_EXPORT int crlfdetach(
 #define crlfsend msend
 #define crlfrecv mrecv
 
+/******************************************************************************/
+/*  Bytestream throttler                                                      */
+/******************************************************************************/
+
+/* Bandwidth is measured in bytes per second. Burstiness is measured
+   in bytes. */
+DSOCK_EXPORT int bthrottlerattach(
+    int s,
+    uint64_t bandwidth, 
+    uint64_t max_burst_size); 
+DSOCK_EXPORT int bthrottlerdetach(
+    int s);
+
+#define bthrottlersend bsend
+#define bthrottlerrecv brecv
+
+
 #endif
 
