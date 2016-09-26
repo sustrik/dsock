@@ -22,8 +22,8 @@
 
 */
 
-#ifndef DSOCK_HELPERS_H_INCLUDED
-#define DSOCK_HELPERS_H_INCLUDED
+#ifndef DSOCK_SOCKET_HELPERS_H_INCLUDED
+#define DSOCK_SOCKET_HELPERS_H_INCLUDED
 
 #include <stdint.h>
 #include <sys/socket.h>
