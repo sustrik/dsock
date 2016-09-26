@@ -99,26 +99,28 @@ static int bthrottler_bsend(int s, const void *buf, size_t len,
     while(1) {
         /* Send batch of data. We cannot send more that maximum burst size. */
         size_t tosend = obj->burst_size - obj->queued;
-        if(len < tosend) tosend = len;
-        obj->queued += tosend;
-        obj->last = nw;
-        int rc = bsend(obj->s, buf, tosend, deadline);
-        if(dsock_slow(rc < 0)) return -1;
-        if(len == tosend) return 0;
-        buf = (char*)buf + tosend;
-        len -= tosend;
+        if(tosend > 0) { 
+            if(len < tosend) tosend = len;
+            obj->queued += tosend;
+            obj->last = nw;
+            int rc = bsend(obj->s, buf, tosend, deadline);
+            if(dsock_slow(rc < 0)) return -1;
+            if(len == tosend) return 0;
+            buf = (char*)buf + tosend;
+            len -= tosend;
+        }
         /* There are more bytes to send but we've already exhausted maximum
            burst size. We'll have to sleep while the burst is over. If deadline
            isn't sufficient to do the waiting we'll still wait till deadline
            expires so that send has nice consistent behaviour. */
         if(deadline == 0) {errno = ETIMEDOUT; return -1;}
         if(deadline > 0 && nw + obj->burst_time > deadline) {
-            rc = msleep(deadline);
+            int rc = msleep(deadline);
             if(dsock_slow(rc < 0)) return -1;
             errno = ETIMEDOUT;
             return -1;
         }
-        rc = msleep(nw + obj->burst_time);
+        int rc = msleep(nw + obj->burst_time);
         if(dsock_slow(rc < 0)) return -1;
         obj->queued = 0;
         /* In case of CPU exhaustion we may have slept longer than we've asked
