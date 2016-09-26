@@ -111,7 +111,7 @@ static int bthrottler_bsend(int s, const void *buf, size_t len,
            burst size. We'll have to sleep while the burst is over. If deadline
            isn't sufficient to do the waiting we'll still wait till deadline
            expires so that send has nice consistent behaviour. */
-        if(nw + obj->burst_time > deadline) {
+        if(deadline > 0 && nw + obj->burst_time > deadline) {
             rc = msleep(deadline);
             if(dsock_slow(rc < 0)) return -1;
             errno = ETIMEDOUT;
