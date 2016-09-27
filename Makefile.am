@@ -39,6 +39,7 @@ libdsock_la_SOURCES = \
     ip.c \
     msock.h \
     msock.c \
+    mthrottler.c \
     pfx.c \
     socket_helpers.h \
     socket_helpers.c \
@@ -70,7 +71,8 @@ check_PROGRAMS = \
     tests/unix \
     tests/pfx \
     tests/crlf \
-    tests/bthrottler
+    tests/bthrottler \
+    tests/mthrottler
 
 LDADD = libdsock.la
 

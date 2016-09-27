@@ -33,3 +33,4 @@ tests/unix
 tests/pfx
 tests/crlf
 tests/bthrottler
+tests/mthrottler

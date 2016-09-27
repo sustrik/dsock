@@ -31,14 +31,14 @@ const void *bsock_type = &bsock_type_placeholder;
 
 int bsend(int s, const void *buf, size_t len, int64_t deadline) {
     struct hvfptr *h = hdata(s, bsock_type);
-    if(dsock_slow(!h)) return 0;
+    if(dsock_slow(!h)) return -1;
     struct bsockvfptrs *b = (struct bsockvfptrs*)h;
     return b->bsend(s, buf, len, deadline);
 }
 
 int brecv(int s, void *buf, size_t len, int64_t deadline) {
     struct hvfptr *h = hdata(s, bsock_type);
-    if(dsock_slow(!h)) return 0;
+    if(dsock_slow(!h)) return -1;
     struct bsockvfptrs *b = (struct bsockvfptrs*)h;
     return b->brecv(s, buf, len, deadline);
 }
