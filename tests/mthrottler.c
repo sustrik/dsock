@@ -57,14 +57,14 @@ int main() {
     /* Recv-throttling. */
     rc = unixpair(s);
     assert(rc == 0);
-    pfx0 = pfxattach(s[0]);
+    int crlf0 = crlfattach(s[0]);
     assert(pfx0 >= 0);
-    pfx1 = pfxattach(s[1]);
+    int crlf1 = crlfattach(s[1]);
     assert(pfx1 >= 0);
-    thr = mthrottlerattach(pfx0, 0, 0, 1000, 10);
+    thr = mthrottlerattach(crlf0, 0, 0, 1000, 10);
     assert(thr >= 0);
     for(i = 0; i != 95; ++i) {
-        rc = msend(pfx1, "ABC", 3, -1);
+        rc = msend(crlf1, "ABC", 3, -1);
         assert(rc == 0);
     }
     start = now();
@@ -75,7 +75,7 @@ int main() {
     elapsed = now() - start;
     assert(elapsed > 80 && elapsed < 100);
     hclose(thr);
-    hclose(pfx1);
+    hclose(crlf1);
 
     return 0;
 }
