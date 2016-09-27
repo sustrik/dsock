@@ -108,21 +108,18 @@ static int mthrottler_msend(int s, const void *buf, size_t len,
     dsock_assert(obj->vfptrs.type == mthrottler_type);
     /* If send-throttling is off forward the call. */
     if(obj->send_full == 0) return msend(obj->s, buf, len, deadline);
-    while(1) {
-        /* If there's capacity send the message. */
-        if(obj->send_remaining) {
-            int rc = msend(obj->s, buf, len, deadline);
-            if(dsock_slow(rc < 0)) return -1;
-            --obj->send_remaining;
-            return 0;
-        }
-        /* Wait till capacity can be renewed. */
+    /* If there's no quota wait till it is renewed. */
+    if(!obj->send_remaining) {
         int rc = msleep(obj->send_last + obj->send_interval);
         if(dsock_slow(rc < 0)) return -1;
-        /* Renew the capacity. */
         obj->send_remaining = obj->send_full;
         obj->send_last = now();
     }
+    /* Send the message. */ 
+    int rc = msend(obj->s, buf, len, deadline);
+    if(dsock_slow(rc < 0)) return -1;
+    --obj->send_remaining;
+    return 0;
 }
 
 static ssize_t mthrottler_mrecv(int s, void *buf, size_t len,
@@ -131,21 +128,18 @@ static ssize_t mthrottler_mrecv(int s, void *buf, size_t len,
     dsock_assert(obj->vfptrs.type == mthrottler_type);
     /* If recv-throttling is off forward the call. */
     if(obj->recv_full == 0) return mrecv(obj->s, buf, len, deadline);
-    while(1) {
-        /* If there's capacity receive the message. */
-        if(obj->recv_remaining) {
-            int rc = mrecv(obj->s, buf, len, deadline);
-            if(dsock_slow(rc < 0)) return -1;
-            --obj->recv_remaining;
-            return 0;
-        }
-        /* Wait till capacity can be renewed. */
+    /* If there's no quota wait till it is renewed. */
+    if(!obj->recv_remaining) {
         int rc = msleep(obj->recv_last + obj->recv_interval);
         if(dsock_slow(rc < 0)) return -1;
-        /* Renew the capacity. */
         obj->recv_remaining = obj->recv_full;
         obj->recv_last = now();
     }
+    /* Receive the message. */
+    int rc = mrecv(obj->s, buf, len, deadline);
+    if(dsock_slow(rc < 0)) return -1;
+    --obj->recv_remaining;
+    return 0;
 } 
 
 static void mthrottler_close(int s) {
