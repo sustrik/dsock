@@ -138,7 +138,7 @@ DSOCK_EXPORT ssize_t mrecv(
     int64_t deadline);
 
 /******************************************************************************/
-/*  TCP library                                                               */
+/*  TCP protocol                                                              */
 /******************************************************************************/
 
 DSOCK_EXPORT int tcplisten(
@@ -160,7 +160,7 @@ DSOCK_EXPORT int tcpdetach(
 #define tcprecv brecv
 
 /******************************************************************************/
-/*  UNIX library                                                              */
+/*  UNIX protocol                                                             */
 /******************************************************************************/
 
 DSOCK_EXPORT int unixlisten(
@@ -190,7 +190,7 @@ DSOCK_EXPORT int unixrecvfd(
 #define unixrecv brecv
 
 /******************************************************************************/
-/*  UDP library                                                               */
+/*  UDP protocol                                                              */
 /******************************************************************************/
 
 DSOCK_EXPORT int udpsocket(
@@ -213,7 +213,8 @@ DSOCK_EXPORT ssize_t udprecv(
     int64_t deadline);
 
 /******************************************************************************/
-/*  PFX library                                                              */
+/*  PFX protocol                                                              */
+/*  Messages are prefixed by 8-byte size in network byte order.               */
 /******************************************************************************/
 
 DSOCK_EXPORT int pfxattach(
@@ -226,6 +227,7 @@ DSOCK_EXPORT int pfxdetach(
 
 /******************************************************************************/
 /*  CRLF library                                                              */
+/*  Messages are delimited by CRLF (0x0d 0x0a) sequences.                     */
 /******************************************************************************/
 
 DSOCK_EXPORT int crlfattach(
@@ -238,6 +240,10 @@ DSOCK_EXPORT int crlfdetach(
 
 /******************************************************************************/
 /*  Bytestream throttler                                                      */
+/*  Throttles the outbound bytestream to send_throughput bytes per second.    */
+/*  Sending quota is recomputed every send_interval milliseconds.             */
+/*  Throttles the inbound bytestream to recv_throughput bytes per second.     */
+/*  Receiving quota is recomputed every recv_interval milliseconds.           */
 /******************************************************************************/
 
 DSOCK_EXPORT int bthrottlerattach(
@@ -254,6 +260,10 @@ DSOCK_EXPORT int bthrottlerdetach(
 
 /******************************************************************************/
 /*  Message throttler                                                         */
+/*  Throttles send operations to send_throughput messages per second.         */
+/*  Sending quota is recomputed every send_interval milliseconds.             */
+/*  Throttles receive operations to recv_throughput messages per second.      */
+/*  Receiving quota is recomputed every recv_interval milliseconds.           */
 /******************************************************************************/
 
 DSOCK_EXPORT int mthrottlerattach(
