@@ -130,11 +130,13 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
       uint8_t *buf, int sendch, int ackch) {
     /* Amount of data in the buffer. */
     size_t len = 0;
+    /* Last time at least one byte was sent. */
+    int64_t last = now();
     while(1) {
         /* Get data to send from the user coroutine. */
         struct naglevec vec;
         int rc = chrecv(sendch, &vec, sizeof(vec),
-            interval >= 0 && len ? now() + interval : -1);
+            interval >= 0 && len ? last + interval : -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         /* Timeout expired. Flush the data in the buffer. */
         if(dsock_slow(rc < 0 && errno == ETIMEDOUT)) {
@@ -142,6 +144,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
             if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
             dsock_assert(rc == 0);
             len = 0;
+            last = now();
             continue;
         }
         dsock_assert(rc == 0);
@@ -160,6 +163,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
             if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
             dsock_assert(rc == 0);
             len = 0;
+            last = now();
         }
         /* Once again: If data fit into buffer store them there. */
         if(vec.len < batch) {
@@ -175,6 +179,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         rc = bsend(s, vec.buf, vec.len, -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         dsock_assert(rc == 0);
+        last = now();
         rc = chsend(ackch, NULL, 0, -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         dsock_assert(rc == 0);
