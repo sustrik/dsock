@@ -6,6 +6,10 @@ Martin Sustrik <sustrik@250bpm.com>
 
 * Future patches by this author are submitted under MIT/X11 license
 
-Coprights for DNS resolution library in dns subdurectory are held by:
+Copyrights for DNS resolution library in dns subdirectory are owned by:
 
 William Ahern <william@25thandClement.com>
+
+Copyrights for LZ4 compression library in lz4 subdirectory are owned by:
+
+Yann Collet <cyan@fb.com> 

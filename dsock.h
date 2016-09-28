@@ -278,5 +278,17 @@ DSOCK_EXPORT int mthrottlerdetach(
 #define mthrottlersend msend
 #define mthrottlerrecv mrecv
 
+/******************************************************************************/
+/*  Bytestream compressor                                                     */
+/******************************************************************************/
+
+DSOCK_EXPORT int bcompressorattach(
+    int s);
+DSOCK_EXPORT int bcompressordetach(
+    int s);
+
+#define bcompressorsend bsend
+#define bcompressorrecv brecv
+
 #endif
 

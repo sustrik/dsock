@@ -32,6 +32,7 @@ dsockinclude_HEADERS = dsock.h
 lib_LTLIBRARIES = libdsock.la
 
 libdsock_la_SOURCES = \
+    bcompressor.c \
     bsock.h \
     bsock.c \
     bthrottler.c \
@@ -49,7 +50,16 @@ libdsock_la_SOURCES = \
     utils.h \
     utils.c \
     dns/dns.h \
-    dns/dns.c
+    dns/dns.c \
+    lz4/lz4.h \
+    lz4/lz4.c \
+    lz4/lz4frame.h \
+    lz4/lz4frame.c \
+    lz4/lz4frame_static.h \
+    lz4/lz4hc.h \
+    lz4/lz4hc.c \
+    lz4/xxhash.h \
+    lz4/xxhash.c
 
 libdsock_la_LDFLAGS = -no-undefined -version-info \
     @DSOCK_LIBTOOL_VERSION@
