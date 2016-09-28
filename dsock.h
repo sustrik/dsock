@@ -213,6 +213,20 @@ DSOCK_EXPORT ssize_t udprecv(
     int64_t deadline);
 
 /******************************************************************************/
+/*  Nagle's algorithm for bytestreams                                         */
+/******************************************************************************/
+
+DSOCK_EXPORT int nagleattach(
+    int s,
+    size_t batch,
+    int64_t interval);
+DSOCK_EXPORT int nagledetach(
+    int s);
+
+#define naglesend bsend
+#define naglerecv brecv
+
+/******************************************************************************/
 /*  PFX protocol                                                              */
 /*  Messages are prefixed by 8-byte size in network byte order.               */
 /******************************************************************************/
