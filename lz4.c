@@ -32,29 +32,29 @@
 #include "dsock.h"
 #include "utils.h"
 
-static const int bcompressor_type_placeholder = 0;
-static const void *bcompressor_type = &bcompressor_type_placeholder;
-static void bcompressor_close(int s);
-static int bcompressor_bsend(int s, const void *buf, size_t len,
+static const int lz4_type_placeholder = 0;
+static const void *lz4_type = &lz4_type_placeholder;
+static void lz4_close(int s);
+static int lz4_bsend(int s, const void *buf, size_t len,
     int64_t deadline);
-static int bcompressor_brecv(int s, void *buf, size_t len,
+static int lz4_brecv(int s, void *buf, size_t len,
     int64_t deadline);
 
-struct bcompressorsock {
+struct lz4sock {
     struct bsockvfptrs vfptrs;
     int s;
 };
 
-int bcompressorattach(int s) {
+int lz4attach(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) return -1;
     /* Create the object. */
-    struct bcompressorsock *obj = malloc(sizeof(struct bcompressorsock));
+    struct lz4sock *obj = malloc(sizeof(struct lz4sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
-    obj->vfptrs.hvfptrs.close = bcompressor_close;
-    obj->vfptrs.type = bcompressor_type;
-    obj->vfptrs.bsend = bcompressor_bsend;
-    obj->vfptrs.brecv = bcompressor_brecv;
+    obj->vfptrs.hvfptrs.close = lz4_close;
+    obj->vfptrs.type = lz4_type;
+    obj->vfptrs.bsend = lz4_bsend;
+    obj->vfptrs.brecv = lz4_brecv;
     obj->s = s;
     /* Create the handle. */
     int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);
@@ -67,32 +67,32 @@ int bcompressorattach(int s) {
     return h;
 }
 
-int bcompressordetach(int s) {
-    struct bcompressorsock *obj = hdata(s, bsock_type);
-    if(dsock_slow(obj && obj->vfptrs.type != bcompressor_type)) {
+int lz4detach(int s) {
+    struct lz4sock *obj = hdata(s, bsock_type);
+    if(dsock_slow(obj && obj->vfptrs.type != lz4_type)) {
         errno = ENOTSUP; return -1;}
     int u = obj->s;
     free(obj);
     return u;
 }
 
-static int bcompressor_bsend(int s, const void *buf, size_t len,
+static int lz4_bsend(int s, const void *buf, size_t len,
       int64_t deadline) {
-    struct bcompressorsock *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == bcompressor_type);
+    struct lz4sock *obj = hdata(s, bsock_type);
+    dsock_assert(obj->vfptrs.type == lz4_type);
     dsock_assert(0);
 }
 
-static int bcompressor_brecv(int s, void *buf, size_t len,
+static int lz4_brecv(int s, void *buf, size_t len,
       int64_t deadline) {
-    struct bcompressorsock *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == bcompressor_type);
+    struct lz4sock *obj = hdata(s, bsock_type);
+    dsock_assert(obj->vfptrs.type == lz4_type);
     dsock_assert(0);
 } 
 
-static void bcompressor_close(int s) {
-    struct bcompressorsock *obj = hdata(s, bsock_type);
-    dsock_assert(obj && obj->vfptrs.type == bcompressor_type);
+static void lz4_close(int s) {
+    struct lz4sock *obj = hdata(s, bsock_type);
+    dsock_assert(obj && obj->vfptrs.type == lz4_type);
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);
     free(obj);

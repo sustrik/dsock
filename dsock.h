@@ -296,13 +296,13 @@ DSOCK_EXPORT int mthrottlerdetach(
 /*  Bytestream compressor                                                     */
 /******************************************************************************/
 
-DSOCK_EXPORT int bcompressorattach(
+DSOCK_EXPORT int lz4attach(
     int s);
-DSOCK_EXPORT int bcompressordetach(
+DSOCK_EXPORT int lz4detach(
     int s);
 
-#define bcompressorsend bsend
-#define bcompressorrecv brecv
+#define lz4send bsend
+#define lz4recv brecv
 
 #endif
 
