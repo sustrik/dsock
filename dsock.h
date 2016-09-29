@@ -213,29 +213,6 @@ DSOCK_EXPORT ssize_t udp_recv(
     int64_t deadline);
 
 /******************************************************************************/
-/*  Bytestream logging.                                                       */
-/*  Logs both inbound and outbound data into stderr.                          */
-/******************************************************************************/
-
-DSOCK_EXPORT int blog_start(
-    int s);
-DSOCK_EXPORT int blog_stop(
-    int s);
-
-/******************************************************************************/
-/*  Nagle's algorithm for bytestreams.                                        */
-/*  Delays small sends until buffer of size 'batch' is full or timeout        */
-/*  'interval' expires.                                                       */
-/******************************************************************************/
-
-DSOCK_EXPORT int nagle_start(
-    int s,
-    size_t batch,
-    int64_t interval);
-DSOCK_EXPORT int nagle_stop(
-    int s);
-
-/******************************************************************************/
 /*  PFX protocol.                                                             */
 /*  Messages are prefixed by 8-byte size in network byte order.               */
 /******************************************************************************/
@@ -260,6 +237,42 @@ DSOCK_EXPORT int crlf_stop(
 
 #define crlf_send msend
 #define crlf_recv mrecv
+
+/******************************************************************************/
+/*  LZ4 bytestream compression protocol.                                      */
+/*  Compresses data using LZ4 compression algorithm.                          */
+/******************************************************************************/
+
+DSOCK_EXPORT int lz4_start(
+    int s);
+DSOCK_EXPORT int lz4_stop(
+    int s);
+
+#define lz4_send bsend
+#define lz4_recv brecv
+
+/******************************************************************************/
+/*  Bytestream logging.                                                       */
+/*  Logs both inbound and outbound data into stderr.                          */
+/******************************************************************************/
+
+DSOCK_EXPORT int blog_start(
+    int s);
+DSOCK_EXPORT int blog_stop(
+    int s);
+
+/******************************************************************************/
+/*  Nagle's algorithm for bytestreams.                                        */
+/*  Delays small sends until buffer of size 'batch' is full or timeout        */
+/*  'interval' expires.                                                       */
+/******************************************************************************/
+
+DSOCK_EXPORT int nagle_start(
+    int s,
+    size_t batch,
+    int64_t interval);
+DSOCK_EXPORT int nagle_stop(
+    int s);
 
 /******************************************************************************/
 /*  Bytestream throttler.                                                     */
@@ -294,19 +307,6 @@ DSOCK_EXPORT int mthrottler_start(
     int64_t recv_interval);
 DSOCK_EXPORT int mthrottler_stop(
     int s);
-
-/******************************************************************************/
-/*  LZ4 bytestream compressor.                                                */
-/*  Compresses data using LZ4 compression algorithm.                          */
-/******************************************************************************/
-
-DSOCK_EXPORT int lz4_start(
-    int s);
-DSOCK_EXPORT int lz4_stop(
-    int s);
-
-#define lz4_send bsend
-#define lz4_recv brecv
 
 #endif
 
