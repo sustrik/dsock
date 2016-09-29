@@ -222,9 +222,6 @@ DSOCK_EXPORT int blog_start(
 DSOCK_EXPORT int blog_stop(
     int s);
 
-#define blog_send bsend
-#define blog_recv brecv
-
 /******************************************************************************/
 /*  Nagle's algorithm for bytestreams                                         */
 /*  Delays small sends until buffer of size 'batch' is full or timeout        */
@@ -237,9 +234,6 @@ DSOCK_EXPORT int nagle_start(
     int64_t interval);
 DSOCK_EXPORT int nagle_stop(
     int s);
-
-#define nagle_send bsend
-#define nagle_recv brecv
 
 /******************************************************************************/
 /*  PFX protocol                                                              */
@@ -284,9 +278,6 @@ DSOCK_EXPORT int bthrottler_start(
 DSOCK_EXPORT int bthrottler_stop(
     int s);
 
-#define bthrottler_send bsend
-#define bthrottler_recv brecv
-
 /******************************************************************************/
 /*  Message throttler                                                         */
 /*  Throttles send operations to send_throughput messages per second.         */
@@ -303,9 +294,6 @@ DSOCK_EXPORT int mthrottler_start(
     int64_t recv_interval);
 DSOCK_EXPORT int mthrottler_stop(
     int s);
-
-#define mthrottler_send msend
-#define mthrottler_recv mrecv
 
 /******************************************************************************/
 /*  LZ4 bytestream compressor                                                 */
