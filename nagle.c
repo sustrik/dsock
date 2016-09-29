@@ -53,7 +53,7 @@ struct naglesock {
     int sender;
 };
 
-int nagleattach(int s, size_t batch, int64_t interval) {
+int nagle_attach(int s, size_t batch, int64_t interval) {
     int rc;
     int err;
     /* Check whether underlying socket is a bytestream. */

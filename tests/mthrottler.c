@@ -30,13 +30,13 @@ int main() {
     int s[2];
 
     /* Send-throttling. */
-    int rc = unixpair(s);
+    int rc = unix_pair(s);
     assert(rc == 0);
-    int pfx0 = pfxattach(s[0]);
+    int pfx0 = pfx_attach(s[0]);
     assert(pfx0 >= 0);
-    int pfx1 = pfxattach(s[1]);
+    int pfx1 = pfx_attach(s[1]);
     assert(pfx1 >= 0);
-    int thr = mthrottlerattach(pfx0, 1000, 10, 0, 0);
+    int thr = mthrottler_attach(pfx0, 1000, 10, 0, 0);
     assert(thr >= 0);
     int64_t start = now();
     int i;
@@ -55,13 +55,13 @@ int main() {
     hclose(pfx1);
 
     /* Recv-throttling. */
-    rc = unixpair(s);
+    rc = unix_pair(s);
     assert(rc == 0);
-    int crlf0 = crlfattach(s[0]);
+    int crlf0 = crlf_attach(s[0]);
     assert(pfx0 >= 0);
-    int crlf1 = crlfattach(s[1]);
+    int crlf1 = crlf_attach(s[1]);
     assert(pfx1 >= 0);
-    thr = mthrottlerattach(crlf0, 0, 0, 1000, 10);
+    thr = mthrottler_attach(crlf0, 0, 0, 1000, 10);
     assert(thr >= 0);
     for(i = 0; i != 95; ++i) {
         rc = msend(crlf1, "ABC", 3, -1);

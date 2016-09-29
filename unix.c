@@ -51,7 +51,7 @@ struct unixconn {
     int fd;
 };
 
-int unixconnect(const char *addr, int64_t deadline) {
+int unix_connect(const char *addr, int64_t deadline) {
     int err;
     /* Create a UNIX address out of the address string. */
     struct sockaddr_un su;
@@ -78,7 +78,7 @@ error1:
     return -1;
 }
 
-int unixattach(int fd) {
+int unix_attach(int fd) {
     if(dsock_slow(fd < 0)) {errno = EINVAL; return -1;}
     /* Set the socket to non-blocking mode. */
     int rc = dsunblock(fd);
@@ -89,7 +89,7 @@ int unixattach(int fd) {
     return h;
 }
 
-int unixdetach(int s) {
+int unix_detach(int s) {
     struct unixconn *obj = hdata(s, bsock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != unixconn_type)) {
@@ -114,7 +114,7 @@ static int unixconn_recv(int s, void *buf, size_t len, int64_t deadline) {
     return dsrecv(obj->fd, buf, len, deadline);
 }
 
-int unixsendfd(int s, int fd, int64_t deadline) {
+int unix_sendfd(int s, int fd, int64_t deadline) {
     struct unixconn *obj = hdata(s, bsock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != unixconn_type)) {
@@ -150,7 +150,7 @@ int unixsendfd(int s, int fd, int64_t deadline) {
     }
 }
 
-int unixrecvfd(int s, int64_t deadline) {
+int unix_recvfd(int s, int64_t deadline) {
     struct unixconn *obj = hdata(s, bsock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != unixconn_type)) {
@@ -212,7 +212,7 @@ struct unixlistener {
     int fd;
 };
 
-int unixlisten(const char *addr, int backlog) {
+int unix_listen(const char *addr, int backlog) {
     int err;
     /* Create a UNIX address out of the address string. */
     struct sockaddr_un su;
@@ -246,7 +246,7 @@ error1:
     return -1;
 }
 
-int unixaccept(int s, int64_t deadline) {
+int unix_accept(int s, int64_t deadline) {
     int err;
     /* Retrieve the listener object. */
     struct unixlistener *lst = hdata(s, unixlistener_type);
@@ -281,7 +281,7 @@ static void unixlistener_close(int s) {
 /*  UNIX pair                                                                 */
 /******************************************************************************/
 
-int unixpair(int s[2]) {
+int unix_pair(int s[2]) {
     int err;
     /* Create the pair. */
     int fds[2];

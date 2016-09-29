@@ -31,34 +31,34 @@
 #define TESTADDR "unix.test"
 
 coroutine void client(void) {
-    int cs = unixconnect(TESTADDR, -1);
+    int cs = unix_connect(TESTADDR, -1);
     assert(cs >= 0);
 
     int rc = msleep(now() + 100);
     assert(rc == 0);
 
-    int fd = unixdetach(cs);
+    int fd = unix_detach(cs);
     assert(fd >= 0);
-    cs = unixattach(fd);
+    cs = unix_attach(fd);
     assert(cs >= 0);
 
     char buf[16];
-    rc = unixrecv(cs, buf, 3, -1);
+    rc = unix_recv(cs, buf, 3, -1);
     assert(rc == 0);
     assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
 
-    rc = unixsend(cs, "456", 3, -1);
+    rc = unix_send(cs, "456", 3, -1);
     assert(rc == 0);
 
     int p[2];
-    rc = unixpair(p);
+    rc = unix_pair(p);
     assert(rc == 0);
-    fd = unixdetach(p[0]);
-    rc = unixsendfd(cs, fd, -1);
+    fd = unix_detach(p[0]);
+    rc = unix_sendfd(cs, fd, -1);
     assert(rc == 0);
     close(fd);
 
-    rc = unixsend(p[1], "X", 1, -1);
+    rc = unix_send(p[1], "X", 1, -1);
     assert(rc == 0);
 
     rc = hclose(p[1]);
@@ -83,33 +83,33 @@ int main() {
         assert(unlink(TESTADDR) == 0);
     }
 
-    int ls = unixlisten(TESTADDR, 10);
+    int ls = unix_listen(TESTADDR, 10);
     assert(ls >= 0);
 
     go(client());
 
-    int as = unixaccept(ls, -1);
+    int as = unix_accept(ls, -1);
 
     /* Test deadline. */
     int64_t deadline = now() + 30;
-    int rc = unixrecv(as, buf, sizeof(buf), deadline);
+    int rc = unix_recv(as, buf, sizeof(buf), deadline);
     assert(rc == -1 && errno == ETIMEDOUT);
     int64_t diff = now() - deadline;
     assert(diff > -20 && diff < 20);
 
-    rc = unixsend(as, "ABC", 3, -1);
+    rc = unix_send(as, "ABC", 3, -1);
     assert(rc == 0);
 
-    rc = unixrecv(as, buf, 3, -1);
+    rc = unix_recv(as, buf, 3, -1);
     assert(rc == 0);
     assert(buf[0] == '4' && buf[1] == '5' && buf[2] == '6');
 
-    int fd = unixrecvfd(as, -1);
+    int fd = unix_recvfd(as, -1);
     assert(fd >= 0);
-    int rs = unixattach(fd);
+    int rs = unix_attach(fd);
     assert(rc >= 0);
 
-    rc = unixrecv(rs, buf, 1, -1);
+    rc = unix_recv(rs, buf, 1, -1);
     assert(rc == 0);
     assert(buf[0] == 'X');
 
@@ -125,12 +125,12 @@ int main() {
 
     /* Test whether we perform correctly when faced with TCP pushback. */
     int hndls[2];
-    rc = unixpair(hndls);
+    rc = unix_pair(hndls);
     go(client2(hndls[1]));
     assert(rc == 0);
     char buffer[2048];
     while(1) {
-        rc = unixsend(hndls[0], buffer, 2048, -1);
+        rc = unix_send(hndls[0], buffer, 2048, -1);
         if(rc == -1 && errno == ECONNRESET)
             break;
         assert(rc == 0);

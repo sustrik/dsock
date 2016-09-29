@@ -51,7 +51,7 @@ struct mthrottlersock {
     int64_t recv_last;
 };
 
-int mthrottlerattach(int s,
+int mthrottler_attach(int s,
       uint64_t send_throughput, int64_t send_interval,
       uint64_t recv_throughput, int64_t recv_interval) {
     if(dsock_slow(send_throughput != 0 && send_interval <= 0 )) {
@@ -93,7 +93,7 @@ int mthrottlerattach(int s,
     return h;
 }
 
-int mthrottlerdetach(int s) {
+int mthrottler_detach(int s) {
     struct mthrottlersock *obj = hdata(s, msock_type);
     if(dsock_slow(obj && obj->vfptrs.type != mthrottler_type)) {
         errno = ENOTSUP; return -1;}

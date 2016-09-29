@@ -30,18 +30,18 @@ coroutine void client(void) {
     ipaddr addr;
     int rc = ipremote(&addr, "127.0.0.1", 5555, 0, -1);
     assert(rc == 0);
-    int s = tcpconnect(&addr, -1);
+    int s = tcp_connect(&addr, -1);
     assert(s >= 0);
 
-    int cs = pfxattach(s);
+    int cs = pfx_attach(s);
     assert(cs >= 0);
-    rc = pfxsend(cs, "ABC", 3, -1);
+    rc = pfx_send(cs, "ABC", 3, -1);
     assert(rc == 0);
     char buf[3];
-    ssize_t sz = pfxrecv(cs, buf, 3, -1);
+    ssize_t sz = pfx_recv(cs, buf, 3, -1);
     assert(sz == 3);
     assert(buf[0] == 'G' && buf[1] == 'H' && buf[2] == 'I');
-    rc = pfxsend(cs, "DEF", 3, -1);
+    rc = pfx_send(cs, "DEF", 3, -1);
     assert(rc == 0);
     rc = hclose(cs);
     assert(rc == 0);
@@ -51,15 +51,15 @@ int main() {
     ipaddr addr;
     int rc = iplocal(&addr, NULL, 5555, 0);
     assert(rc == 0);
-    int ls = tcplisten(&addr, 10);
+    int ls = tcp_listen(&addr, 10);
     assert(ls >= 0);
     go(client());
-    int as = tcpaccept(ls, NULL, -1);
+    int as = tcp_accept(ls, NULL, -1);
 
-    int cs = pfxattach(as);
+    int cs = pfx_attach(as);
     assert(cs >= 0);
     char buf[3];
-    ssize_t sz = pfxrecv(cs, buf, 3, -1);
+    ssize_t sz = pfx_recv(cs, buf, 3, -1);
     assert(sz == 3);
     assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
     rc = msend(cs, "GHI", 3, -1);
@@ -67,7 +67,7 @@ int main() {
     sz = mrecv(cs, buf, 3, -1);
     assert(sz == 3);
     assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
-    int ts = pfxdetach(cs);
+    int ts = pfx_detach(cs);
     assert(ts >= 0);
     rc = hclose(ts);
     assert(rc == 0);

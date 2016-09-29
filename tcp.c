@@ -48,7 +48,7 @@ struct tcpconn {
     int fd;
 };
 
-int tcpconnect(const ipaddr *addr, int64_t deadline) {
+int tcp_connect(const ipaddr *addr, int64_t deadline) {
     int err;
     /* Open a socket. */
     int s = socket(ipfamily(addr), SOCK_STREAM, 0);
@@ -71,7 +71,7 @@ error1:
     return -1;
 }
 
-int tcpattach(int fd) {
+int tcp_attach(int fd) {
     if(dsock_slow(fd < 0)) {errno = EINVAL; return -1;}
     /* Set the socket to non-blocking mode. */
     int rc = dsunblock(fd);
@@ -82,7 +82,7 @@ int tcpattach(int fd) {
     return h;
 }
 
-int tcpdetach(int s) {
+int tcp_detach(int s) {
     struct tcpconn *obj = hdata(s, bsock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != tcpconn_type)) {
@@ -130,7 +130,7 @@ struct tcplistener {
     ipaddr addr;
 };
 
-int tcplisten(ipaddr *addr, int backlog) {
+int tcp_listen(ipaddr *addr, int backlog) {
     int err;
     /* Open the listening socket. */
     int s = socket(ipfamily(addr), SOCK_STREAM, 0);
@@ -169,7 +169,7 @@ error1:
     return -1;
 }
 
-int tcpaccept(int s, ipaddr *addr, int64_t deadline) {
+int tcp_accept(int s, ipaddr *addr, int64_t deadline) {
     int err;
     /* Retrieve the listener object. */
     struct tcplistener *lst = hdata(s, tcplistener_type);

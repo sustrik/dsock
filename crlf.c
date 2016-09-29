@@ -42,7 +42,7 @@ struct crlfsock {
     int s;
 };
 
-int crlfattach(int s) {
+int crlf_attach(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) return -1;
     /* Create the object. */
@@ -64,7 +64,7 @@ int crlfattach(int s) {
     return h;
 }
 
-int crlfdetach(int s) {
+int crlf_detach(int s) {
     struct crlfsock *obj = hdata(s, msock_type);
     if(dsock_slow(obj && obj->vfptrs.type != crlf_type)) {
         errno = ENOTSUP; return -1;}

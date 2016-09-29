@@ -31,11 +31,11 @@ int main() {
 
     /* Test whether big chunk gets through. */
     int s[2];
-    int rc = unixpair(s);
+    int rc = unix_pair(s);
     assert(rc == 0);
-    int l0 = lz4attach(s[0]);
+    int l0 = lz4_attach(s[0]);
     assert(l0 >= 0);
-    int l1 = lz4attach(s[1]);
+    int l1 = lz4_attach(s[1]);
     assert(l1 >= 0);
     rc = bsend(l0, "123456789012345678901234567890", 30, -1);
     assert(rc == 0);

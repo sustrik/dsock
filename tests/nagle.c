@@ -30,9 +30,9 @@ int main() {
 
     /* Test whether big chunk gets through. */
     int s[2];
-    int rc = unixpair(s);
+    int rc = unix_pair(s);
     assert(rc == 0);
-    int n = nagleattach(s[0], 5, -1);
+    int n = nagle_attach(s[0], 5, -1);
     assert(n >= 0);
     rc = bsend(n, "123456789", 9, -1);
     assert(rc == 0);
@@ -45,9 +45,9 @@ int main() {
     assert(rc == 0);
 
     /* Test whether several small chunks get through. */
-    rc = unixpair(s);
+    rc = unix_pair(s);
     assert(rc == 0);
-    n = nagleattach(s[0], 5, -1);
+    n = nagle_attach(s[0], 5, -1);
     assert(n >= 0);
     rc = bsend(n, "12", 2, -1);
     assert(rc == 0);
@@ -61,9 +61,9 @@ int main() {
     assert(rc == 0);
 
     /* Infinite interval: Test that single small chunk doesn't get through. */
-    rc = unixpair(s);
+    rc = unix_pair(s);
     assert(rc == 0);
-    n = nagleattach(s[0], 5, -1);
+    n = nagle_attach(s[0], 5, -1);
     assert(n >= 0);
     rc = bsend(n, "12", 2, -1);
     assert(rc == 0);
@@ -75,9 +75,9 @@ int main() {
     assert(rc == 0);
 
     /* Finite interval: Test that single small chunk does get through. */
-    rc = unixpair(s);
+    rc = unix_pair(s);
     assert(rc == 0);
-    n = nagleattach(s[0], 5, 50);
+    n = nagle_attach(s[0], 5, 50);
     assert(n >= 0);
     rc = bsend(n, "12", 2, -1);
     assert(rc == 0);

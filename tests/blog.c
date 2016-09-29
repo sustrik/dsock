@@ -29,21 +29,21 @@
 int main() {
     int s[2];
 
-    int rc = unixpair(s);
+    int rc = unix_pair(s);
     assert(rc == 0);
-    int b0 = blogattach(s[0]);
+    int b0 = blog_attach(s[0]);
     assert(b0 >= 0);
-    int b1 = blogattach(s[1]);
+    int b1 = blog_attach(s[1]);
     assert(b1 >= 0);
-
     rc = bsend(b0, "\x03" "BC", 3, -1);
     assert(rc == 0);
     char buf[3];
     rc = brecv(b1, buf, 3, -1);
     assert(rc == 0);
-
-    hclose(b1);
-    hclose(b0);
+    rc = hclose(b1);
+    assert(rc == 0);
+    rc = hclose(b0);
+    assert(rc == 0);
 
     return 0;
 }

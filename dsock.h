@@ -141,71 +141,71 @@ DSOCK_EXPORT ssize_t mrecv(
 /*  TCP protocol                                                              */
 /******************************************************************************/
 
-DSOCK_EXPORT int tcplisten(
+DSOCK_EXPORT int tcp_listen(
     ipaddr *addr,
     int backlog);
-DSOCK_EXPORT int tcpaccept(
+DSOCK_EXPORT int tcp_accept(
     int s,
     ipaddr *addr,
     int64_t deadline);
-DSOCK_EXPORT int tcpconnect(
+DSOCK_EXPORT int tcp_connect(
     const ipaddr *addr,
     int64_t deadline);
-DSOCK_EXPORT int tcpattach(
+DSOCK_EXPORT int tcp_attach(
     int fd);
-DSOCK_EXPORT int tcpdetach(
+DSOCK_EXPORT int tcp_detach(
     int s);
 
-#define tcpsend bsend
-#define tcprecv brecv
+#define tcp_send bsend
+#define tcp_recv brecv
 
 /******************************************************************************/
 /*  UNIX protocol                                                             */
 /******************************************************************************/
 
-DSOCK_EXPORT int unixlisten(
+DSOCK_EXPORT int unix_listen(
     const char *addr,
     int backlog);
-DSOCK_EXPORT int unixaccept(
+DSOCK_EXPORT int unix_accept(
     int s,
     int64_t deadline);
-DSOCK_EXPORT int unixconnect(
+DSOCK_EXPORT int unix_connect(
     const char *addr,
     int64_t deadline);
-DSOCK_EXPORT int unixattach(
+DSOCK_EXPORT int unix_attach(
     int fd);
-DSOCK_EXPORT int unixdetach(
+DSOCK_EXPORT int unix_detach(
     int s);
-DSOCK_EXPORT int unixpair(
+DSOCK_EXPORT int unix_pair(
     int s[2]);
-DSOCK_EXPORT int unixsendfd(
+DSOCK_EXPORT int unix_sendfd(
     int s,
     int fd,
     int64_t deadline);
-DSOCK_EXPORT int unixrecvfd(
+DSOCK_EXPORT int unix_recvfd(
     int s,
     int64_t deadline);
 
-#define unixsend bsend
-#define unixrecv brecv
+#define unix_send bsend
+#define unix_recv brecv
 
 /******************************************************************************/
 /*  UDP protocol                                                              */
 /******************************************************************************/
 
-DSOCK_EXPORT int udpsocket(
+DSOCK_EXPORT int udp_socket(
     ipaddr *local,
     const ipaddr *remote);
-DSOCK_EXPORT int udpattach(
+DSOCK_EXPORT int udp_attach(
     int fd);
-DSOCK_EXPORT int udpdetach(
+DSOCK_EXPORT int udp_detach(
     int s);
-DSOCK_EXPORT int udpsend(
+DSOCK_EXPORT int udp_send(
     int s,
     const ipaddr *addr,
     const void *buf,
     size_t len);
-DSOCK_EXPORT ssize_t udprecv(
+DSOCK_EXPORT ssize_t udp_recv(
     int s,
     ipaddr *addr,
     void *buf,
@@ -217,13 +217,13 @@ DSOCK_EXPORT ssize_t udprecv(
 /*  Logs both inbound and outbound data into stderr.                          */
 /******************************************************************************/
 
-DSOCK_EXPORT int blogattach(
+DSOCK_EXPORT int blog_attach(
     int s);
-DSOCK_EXPORT int blogdetach(
+DSOCK_EXPORT int blog_detach(
     int s);
 
-#define blogsend bsend
-#define blogrecv brecv
+#define blog_send bsend
+#define blog_recv brecv
 
 /******************************************************************************/
 /*  Nagle's algorithm for bytestreams                                         */
@@ -231,41 +231,41 @@ DSOCK_EXPORT int blogdetach(
 /*  'interval' expires.                                                       */
 /******************************************************************************/
 
-DSOCK_EXPORT int nagleattach(
+DSOCK_EXPORT int nagle_attach(
     int s,
     size_t batch,
     int64_t interval);
-DSOCK_EXPORT int nagledetach(
+DSOCK_EXPORT int nagle_detach(
     int s);
 
-#define naglesend bsend
-#define naglerecv brecv
+#define nagle_send bsend
+#define nagle_recv brecv
 
 /******************************************************************************/
 /*  PFX protocol                                                              */
 /*  Messages are prefixed by 8-byte size in network byte order.               */
 /******************************************************************************/
 
-DSOCK_EXPORT int pfxattach(
+DSOCK_EXPORT int pfx_attach(
     int s);
-DSOCK_EXPORT int pfxdetach(
+DSOCK_EXPORT int pfx_detach(
     int s);
 
-#define pfxsend msend
-#define pfxrecv mrecv
+#define pfx_send msend
+#define pfx_recv mrecv
 
 /******************************************************************************/
 /*  CRLF library                                                              */
 /*  Messages are delimited by CRLF (0x0d 0x0a) sequences.                     */
 /******************************************************************************/
 
-DSOCK_EXPORT int crlfattach(
+DSOCK_EXPORT int crlf_attach(
     int s);
-DSOCK_EXPORT int crlfdetach(
+DSOCK_EXPORT int crlf_detach(
     int s);
 
-#define crlfsend msend
-#define crlfrecv mrecv
+#define crlf_send msend
+#define crlf_recv mrecv
 
 /******************************************************************************/
 /*  Bytestream throttler                                                      */
@@ -275,17 +275,17 @@ DSOCK_EXPORT int crlfdetach(
 /*  Receiving quota is recomputed every recv_interval milliseconds.           */
 /******************************************************************************/
 
-DSOCK_EXPORT int bthrottlerattach(
+DSOCK_EXPORT int bthrottler_attach(
     int s,
     uint64_t send_throughput, 
     int64_t send_interval,
     uint64_t recv_throughput,
     int64_t recv_interval);
-DSOCK_EXPORT int bthrottlerdetach(
+DSOCK_EXPORT int bthrottler_detach(
     int s);
 
-#define bthrottlersend bsend
-#define bthrottlerrecv brecv
+#define bthrottler_send bsend
+#define bthrottler_recv brecv
 
 /******************************************************************************/
 /*  Message throttler                                                         */
@@ -295,30 +295,30 @@ DSOCK_EXPORT int bthrottlerdetach(
 /*  Receiving quota is recomputed every recv_interval milliseconds.           */
 /******************************************************************************/
 
-DSOCK_EXPORT int mthrottlerattach(
+DSOCK_EXPORT int mthrottler_attach(
     int s,
     uint64_t send_throughput, 
     int64_t send_interval,
     uint64_t recv_throughput,
     int64_t recv_interval);
-DSOCK_EXPORT int mthrottlerdetach(
+DSOCK_EXPORT int mthrottler_detach(
     int s);
 
-#define mthrottlersend msend
-#define mthrottlerrecv mrecv
+#define mthrottler_send msend
+#define mthrottler_recv mrecv
 
 /******************************************************************************/
 /*  LZ4 bytestream compressor                                                 */
 /*  Compresses data usin LZ4 compression algorithm.                           */
 /******************************************************************************/
 
-DSOCK_EXPORT int lz4attach(
+DSOCK_EXPORT int lz4_attach(
     int s);
-DSOCK_EXPORT int lz4detach(
+DSOCK_EXPORT int lz4_detach(
     int s);
 
-#define lz4send bsend
-#define lz4recv brecv
+#define lz4_send bsend
+#define lz4_recv brecv
 
 #endif
 

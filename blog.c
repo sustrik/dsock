@@ -42,7 +42,7 @@ struct blogsock {
     int s;
 };
 
-int blogattach(int s) {
+int blog_attach(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) return -1;
     /* Create the object. */
@@ -64,7 +64,7 @@ int blogattach(int s) {
     return h;
 }
 
-int blogdetach(int s) {
+int blog_detach(int s) {
     struct blogsock *obj = hdata(s, bsock_type);
     if(dsock_slow(obj && obj->vfptrs.type != blog_type)) {
         errno = ENOTSUP; return -1;}

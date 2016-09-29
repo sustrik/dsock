@@ -30,16 +30,16 @@ int main() {
     ipaddr addr1;
     int rc = iplocal(&addr1, NULL, 5555, 0);
     assert(rc == 0);
-    int s1 = udpsocket(&addr1, NULL);
+    int s1 = udp_socket(&addr1, NULL);
     assert(s1 >= 0);
     ipaddr addr2;
     rc = iplocal(&addr2, NULL, 5556, 0);
     assert(rc == 0);
-    int s2 = udpsocket(&addr2, &addr1);
+    int s2 = udp_socket(&addr2, &addr1);
     assert(s2 >= 0);
 
     while(1) {
-        rc = udpsend(s1, &addr2, "ABC", 3);
+        rc = udp_send(s1, &addr2, "ABC", 3);
         assert(rc == 0);
         char buf[3];
         ssize_t sz = mrecv(s2, buf, sizeof(buf), now() + 100);
@@ -54,7 +54,7 @@ int main() {
         assert(rc == 0);
         char buf[3];
         ipaddr addr;
-        ssize_t sz = udprecv(s1, &addr, buf, sizeof(buf), now() + 100);
+        ssize_t sz = udp_recv(s1, &addr, buf, sizeof(buf), now() + 100);
         if(sz < 0 && errno == ETIMEDOUT)
             continue;
         assert(sz == 3);

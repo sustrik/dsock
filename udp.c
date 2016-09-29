@@ -44,7 +44,7 @@ struct udpsock {
     ipaddr remote;
 };
 
-int udpsocket(ipaddr *local, const ipaddr *remote) {
+int udp_socket(ipaddr *local, const ipaddr *remote) {
     int err;
     /* Sanity checking. */
     if(dsock_slow(local && remote && ipfamily(local) != ipfamily(remote))) {
@@ -95,13 +95,13 @@ error1:
     return -1;
 }
 
-int udpattach(int fd) {
+int udp_attach(int fd) {
     /* TODO: Figure out how to do this. Remote address should be probably
        set to the underlying fd using connect(2). */
     dsock_assert(0);
 }
 
-int udpdetach(int s) {
+int udp_detach(int s) {
     struct udpsock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != udp_type)) {
@@ -111,7 +111,7 @@ int udpdetach(int s) {
     return fd;
 }
 
-int udpsend(int s, const ipaddr *addr, const void *buf, size_t len) {
+int udp_send(int s, const ipaddr *addr, const void *buf, size_t len) {
     struct udpsock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != udp_type)) {
@@ -131,7 +131,7 @@ int udpsend(int s, const ipaddr *addr, const void *buf, size_t len) {
     return -1;
 }
 
-ssize_t udprecv(int s, ipaddr *addr, void *buf, size_t len, int64_t deadline) {
+ssize_t udp_recv(int s, ipaddr *addr, void *buf, size_t len, int64_t deadline) {
     struct udpsock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != udp_type)) {
@@ -149,11 +149,11 @@ ssize_t udprecv(int s, ipaddr *addr, void *buf, size_t len, int64_t deadline) {
 }
 
 static int udp_msend(int s, const void *buf, size_t len, int64_t deadline) {
-    return udpsend(s, NULL, buf, len);
+    return udp_send(s, NULL, buf, len);
 }
 
 static ssize_t udp_mrecv(int s, void *buf, size_t len, int64_t deadline) {
-    return udprecv(s, NULL, buf, len, deadline);
+    return udp_recv(s, NULL, buf, len, deadline);
 }
 
 static void udp_close(int s) {
