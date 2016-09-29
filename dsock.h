@@ -309,7 +309,7 @@ DSOCK_EXPORT int mthrottlerdetach(
 
 /******************************************************************************/
 /*  LZ4 bytestream compressor                                                 */
-/*  Compresses data usin LZ4 compression laorithm.                            */
+/*  Compresses data usin LZ4 compression algorithm.                           */
 /******************************************************************************/
 
 DSOCK_EXPORT int lz4attach(
