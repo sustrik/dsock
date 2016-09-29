@@ -41,7 +41,7 @@ int main() {
     while(1) {
         rc = udp_send(s1, &addr2, "ABC", 3);
         assert(rc == 0);
-        char buf[3];
+        char buf[16];
         ssize_t sz = mrecv(s2, buf, sizeof(buf), now() + 100);
         if(sz < 0 && errno == ETIMEDOUT)
             continue;
@@ -52,7 +52,7 @@ int main() {
     while(1) {
         rc = msend(s2, "DEF", 3, -1);
         assert(rc == 0);
-        char buf[3];
+        char buf[16];
         ipaddr addr;
         ssize_t sz = udp_recv(s1, &addr, buf, sizeof(buf), now() + 100);
         if(sz < 0 && errno == ETIMEDOUT)
