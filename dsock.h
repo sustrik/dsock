@@ -213,6 +213,18 @@ DSOCK_EXPORT ssize_t udprecv(
     int64_t deadline);
 
 /******************************************************************************/
+/*  Bytestream log                                                            */
+/******************************************************************************/
+
+DSOCK_EXPORT int blogattach(
+    int s);
+DSOCK_EXPORT int blogdetach(
+    int s);
+
+#define blogsend bsend
+#define blogrecv brecv
+
+/******************************************************************************/
 /*  Nagle's algorithm for bytestreams                                         */
 /******************************************************************************/
 

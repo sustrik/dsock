@@ -32,6 +32,7 @@ dsockinclude_HEADERS = dsock.h
 lib_LTLIBRARIES = libdsock.la
 
 libdsock_la_SOURCES = \
+    blog.c \
     bsock.h \
     bsock.c \
     bthrottler.c \
@@ -85,7 +86,8 @@ check_PROGRAMS = \
     tests/bthrottler \
     tests/mthrottler \
     tests/nagle \
-    tests/lz4
+    tests/lz4 \
+    tests/blog
 
 LDADD = libdsock.la
 
