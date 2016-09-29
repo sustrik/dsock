@@ -84,7 +84,8 @@ check_PROGRAMS = \
     tests/crlf \
     tests/bthrottler \
     tests/mthrottler \
-    tests/nagle
+    tests/nagle \
+    tests/lz4
 
 LDADD = libdsock.la
 

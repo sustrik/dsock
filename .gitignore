@@ -36,3 +36,4 @@ tests/crlf
 tests/bthrottler
 tests/mthrottler
 tests/nagle
+tests/lz4
