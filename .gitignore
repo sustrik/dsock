@@ -38,3 +38,4 @@ tests/mthrottler
 tests/nagle
 tests/lz4
 tests/blog
+tests/mlog

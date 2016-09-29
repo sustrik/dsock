@@ -262,6 +262,16 @@ DSOCK_EXPORT int blog_stop(
     int s);
 
 /******************************************************************************/
+/*  Message logging.                                                          */
+/*  Logs both inbound and outbound messages into stderr.                      */
+/******************************************************************************/
+
+DSOCK_EXPORT int mlog_start(
+    int s);
+DSOCK_EXPORT int mlog_stop(
+    int s);
+
+/******************************************************************************/
 /*  Nagle's algorithm for bytestreams.                                        */
 /*  Delays small sends until buffer of size 'batch' is full or timeout        */
 /*  'interval' expires.                                                       */

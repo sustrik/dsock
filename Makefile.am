@@ -39,6 +39,7 @@ libdsock_la_SOURCES = \
     crlf.c \
     ip.c \
     lz4.c \
+    mlog.c \
     msock.h \
     msock.c \
     mthrottler.c \
@@ -87,7 +88,8 @@ check_PROGRAMS = \
     tests/mthrottler \
     tests/nagle \
     tests/lz4 \
-    tests/blog
+    tests/blog \
+    tests/mlog
 
 LDADD = libdsock.la
 
