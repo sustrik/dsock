@@ -214,6 +214,7 @@ DSOCK_EXPORT ssize_t udprecv(
 
 /******************************************************************************/
 /*  Bytestream log                                                            */
+/*  Logs both inbound and outbound data into stderr.                          */
 /******************************************************************************/
 
 DSOCK_EXPORT int blogattach(
@@ -226,6 +227,8 @@ DSOCK_EXPORT int blogdetach(
 
 /******************************************************************************/
 /*  Nagle's algorithm for bytestreams                                         */
+/*  Delays small sends until buffer of size 'batch' is full or timeout        */
+/*  'interval' expires.                                                       */
 /******************************************************************************/
 
 DSOCK_EXPORT int nagleattach(
@@ -305,7 +308,8 @@ DSOCK_EXPORT int mthrottlerdetach(
 #define mthrottlerrecv mrecv
 
 /******************************************************************************/
-/*  Bytestream compressor                                                     */
+/*  LZ4 bytestream compressor                                                 */
+/*  Compresses data usin LZ4 compression laorithm.                            */
 /******************************************************************************/
 
 DSOCK_EXPORT int lz4attach(
