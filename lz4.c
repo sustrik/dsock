@@ -52,7 +52,7 @@ struct lz4sock {
     LZ4F_decompressionContext_t dctx;
 };
 
-int lz4_attach(int s) {
+int lz4_start(int s) {
     int err;
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) {err = errno; goto error1;}
@@ -92,7 +92,7 @@ error1:
     return -1;
 }
 
-int lz4_detach(int s) {
+int lz4_stop(int s) {
     struct lz4sock *obj = hdata(s, bsock_type);
     if(dsock_slow(obj && obj->vfptrs.type != lz4_type)) {
         errno = ENOTSUP; return -1;}

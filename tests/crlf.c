@@ -33,7 +33,7 @@ coroutine void client(void) {
     int s = tcp_connect(&addr, -1);
     assert(s >= 0);
 
-    int cs = crlf_attach(s);
+    int cs = crlf_start(s);
     assert(cs >= 0);
     rc = crlf_send(cs, "ABC", 3, -1);
     assert(rc == 0);
@@ -56,7 +56,7 @@ int main() {
     go(client());
     int as = tcp_accept(ls, NULL, -1);
 
-    int cs = crlf_attach(as);
+    int cs = crlf_start(as);
     assert(cs >= 0);
     char buf[3];
     ssize_t sz = crlf_recv(cs, buf, 3, -1);
@@ -67,7 +67,7 @@ int main() {
     sz = mrecv(cs, buf, 3, -1);
     assert(sz == 3);
     assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
-    int ts = crlf_detach(cs);
+    int ts = crlf_stop(cs);
     assert(ts >= 0);
     rc = hclose(ts);
     assert(rc == 0);

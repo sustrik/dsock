@@ -217,9 +217,9 @@ DSOCK_EXPORT ssize_t udp_recv(
 /*  Logs both inbound and outbound data into stderr.                          */
 /******************************************************************************/
 
-DSOCK_EXPORT int blog_attach(
+DSOCK_EXPORT int blog_start(
     int s);
-DSOCK_EXPORT int blog_detach(
+DSOCK_EXPORT int blog_stop(
     int s);
 
 #define blog_send bsend
@@ -231,11 +231,11 @@ DSOCK_EXPORT int blog_detach(
 /*  'interval' expires.                                                       */
 /******************************************************************************/
 
-DSOCK_EXPORT int nagle_attach(
+DSOCK_EXPORT int nagle_start(
     int s,
     size_t batch,
     int64_t interval);
-DSOCK_EXPORT int nagle_detach(
+DSOCK_EXPORT int nagle_stop(
     int s);
 
 #define nagle_send bsend
@@ -246,9 +246,9 @@ DSOCK_EXPORT int nagle_detach(
 /*  Messages are prefixed by 8-byte size in network byte order.               */
 /******************************************************************************/
 
-DSOCK_EXPORT int pfx_attach(
+DSOCK_EXPORT int pfx_start(
     int s);
-DSOCK_EXPORT int pfx_detach(
+DSOCK_EXPORT int pfx_stop(
     int s);
 
 #define pfx_send msend
@@ -259,9 +259,9 @@ DSOCK_EXPORT int pfx_detach(
 /*  Messages are delimited by CRLF (0x0d 0x0a) sequences.                     */
 /******************************************************************************/
 
-DSOCK_EXPORT int crlf_attach(
+DSOCK_EXPORT int crlf_start(
     int s);
-DSOCK_EXPORT int crlf_detach(
+DSOCK_EXPORT int crlf_stop(
     int s);
 
 #define crlf_send msend
@@ -275,13 +275,13 @@ DSOCK_EXPORT int crlf_detach(
 /*  Receiving quota is recomputed every recv_interval milliseconds.           */
 /******************************************************************************/
 
-DSOCK_EXPORT int bthrottler_attach(
+DSOCK_EXPORT int bthrottler_start(
     int s,
     uint64_t send_throughput, 
     int64_t send_interval,
     uint64_t recv_throughput,
     int64_t recv_interval);
-DSOCK_EXPORT int bthrottler_detach(
+DSOCK_EXPORT int bthrottler_stop(
     int s);
 
 #define bthrottler_send bsend
@@ -295,13 +295,13 @@ DSOCK_EXPORT int bthrottler_detach(
 /*  Receiving quota is recomputed every recv_interval milliseconds.           */
 /******************************************************************************/
 
-DSOCK_EXPORT int mthrottler_attach(
+DSOCK_EXPORT int mthrottler_start(
     int s,
     uint64_t send_throughput, 
     int64_t send_interval,
     uint64_t recv_throughput,
     int64_t recv_interval);
-DSOCK_EXPORT int mthrottler_detach(
+DSOCK_EXPORT int mthrottler_stop(
     int s);
 
 #define mthrottler_send msend
@@ -312,9 +312,9 @@ DSOCK_EXPORT int mthrottler_detach(
 /*  Compresses data usin LZ4 compression algorithm.                           */
 /******************************************************************************/
 
-DSOCK_EXPORT int lz4_attach(
+DSOCK_EXPORT int lz4_start(
     int s);
-DSOCK_EXPORT int lz4_detach(
+DSOCK_EXPORT int lz4_stop(
     int s);
 
 #define lz4_send bsend

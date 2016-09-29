@@ -51,7 +51,7 @@ struct bthrottlersock {
     int64_t recv_last;
 };
 
-int bthrottler_attach(int s,
+int bthrottler_start(int s,
       uint64_t send_throughput, int64_t send_interval,
       uint64_t recv_throughput, int64_t recv_interval) {
     if(dsock_slow(send_throughput != 0 && send_interval <= 0 )) {
@@ -93,7 +93,7 @@ int bthrottler_attach(int s,
     return h;
 }
 
-int bthrottler_detach(int s) {
+int bthrottler_stop(int s) {
     struct bthrottlersock *obj = hdata(s, bsock_type);
     if(dsock_slow(obj && obj->vfptrs.type != bthrottler_type)) {
         errno = ENOTSUP; return -1;}

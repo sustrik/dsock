@@ -31,9 +31,9 @@ int main() {
 
     int rc = unix_pair(s);
     assert(rc == 0);
-    int b0 = blog_attach(s[0]);
+    int b0 = blog_start(s[0]);
     assert(b0 >= 0);
-    int b1 = blog_attach(s[1]);
+    int b1 = blog_start(s[1]);
     assert(b1 >= 0);
     rc = bsend(b0, "\x03" "BC", 3, -1);
     assert(rc == 0);

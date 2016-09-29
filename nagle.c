@@ -53,7 +53,7 @@ struct naglesock {
     int sender;
 };
 
-int nagle_attach(int s, size_t batch, int64_t interval) {
+int nagle_start(int s, size_t batch, int64_t interval) {
     int rc;
     int err;
     /* Check whether underlying socket is a bytestream. */
@@ -97,7 +97,7 @@ error1:
     return -1;
 }
 
-int nagledetach(int s) {
+int nagle_stop(int s) {
     struct naglesock *obj = hdata(s, bsock_type);
     if(dsock_slow(obj && obj->vfptrs.type != nagle_type)) {
         errno = ENOTSUP; return -1;}

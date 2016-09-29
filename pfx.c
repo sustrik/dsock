@@ -42,7 +42,7 @@ struct pfxsock {
     int s;
 };
 
-int pfx_attach(int s) {
+int pfx_start(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) return -1;
     /* Create the object. */
@@ -64,7 +64,7 @@ int pfx_attach(int s) {
     return h;
 }
 
-int pfx_detach(int s) {
+int pfx_stop(int s) {
     struct pfxsock *obj = hdata(s, msock_type);
     if(dsock_slow(obj && obj->vfptrs.type != pfx_type)) {
         errno = ENOTSUP; return -1;}

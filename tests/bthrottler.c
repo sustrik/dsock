@@ -32,7 +32,7 @@ int main() {
     /* send-throttling: One big batch split into multiple bursts. */
     int rc = unix_pair(s);
     assert(rc == 0);
-    int thr = bthrottler_attach(s[0], 1000, 10, 0, 0);
+    int thr = bthrottler_start(s[0], 1000, 10, 0, 0);
     assert(thr >= 0);
     char buf[200];
     int64_t start = now();
@@ -48,7 +48,7 @@ int main() {
     /* send-throttling: Multiple small batches in two bursts. */
     rc = unix_pair(s);
     assert(rc == 0);
-    thr = bthrottler_attach(s[0], 1000, 10, 0, 0);
+    thr = bthrottler_start(s[0], 1000, 10, 0, 0);
     assert(thr >= 0);
     start = now();
     int i;
@@ -66,7 +66,7 @@ int main() {
     /* recv-throttling: One big batch split into multiple bursts. */
     rc = unix_pair(s);
     assert(rc == 0);
-    thr = bthrottler_attach(s[0], 0, 0, 1000, 10);
+    thr = bthrottler_start(s[0], 0, 0, 1000, 10);
     assert(thr >= 0);
     rc = bsend(s[1], buf, 95, -1);
     assert(rc == 0);
@@ -81,7 +81,7 @@ int main() {
     /* recv-throttling: Multiple small batches in two bursts. */
     rc = unix_pair(s);
     assert(rc == 0);
-    thr = bthrottler_attach(s[0], 0, 0, 1000, 10);
+    thr = bthrottler_start(s[0], 0, 0, 1000, 10);
     assert(thr >= 0);
     rc = bsend(s[1], buf, 150, -1);
     assert(rc == 0);
