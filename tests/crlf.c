@@ -58,13 +58,13 @@ int main() {
 
     int cs = crlf_start(as);
     assert(cs >= 0);
-    char buf[3];
-    ssize_t sz = crlf_recv(cs, buf, 3, -1);
+    char buf[16];
+    ssize_t sz = crlf_recv(cs, buf, sizeof(buf), -1);
     assert(sz == 3);
     assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
     rc = msend(cs, "GHI", 3, -1);
     assert(rc == 0);
-    sz = mrecv(cs, buf, 3, -1);
+    sz = mrecv(cs, buf, sizeof(buf), -1);
     assert(sz == 3);
     assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
     int ts = crlf_stop(cs);
