@@ -32,7 +32,7 @@
 #include <sys/types.h>
 
 /******************************************************************************/
-/*  ABI versioning support                                                    */
+/*  ABI versioning support.                                                   */
 /******************************************************************************/
 
 /*  Don't change this unless you know exactly what you're doing and have      */
@@ -50,7 +50,7 @@
 #define DSOCK_VERSION_AGE 0
 
 /******************************************************************************/
-/*  Symbol visibility                                                         */
+/*  Symbol visibility.                                                        */
 /******************************************************************************/
 
 #if !defined __GNUC__ && !defined __clang__
@@ -70,7 +70,7 @@
 #endif
 
 /******************************************************************************/
-/*  IP address resolution                                                     */
+/*  IP address resolution.                                                    */
 /******************************************************************************/
 
 #define IPADDR_IPV4 1
@@ -108,7 +108,7 @@ DSOCK_EXPORT void ipsetport(
     int port);
 
 /******************************************************************************/
-/*  Bytestream sockets                                                        */
+/*  Bytestream sockets.                                                       */
 /******************************************************************************/
 
 DSOCK_EXPORT int bsend(
@@ -123,7 +123,7 @@ DSOCK_EXPORT int brecv(
     int64_t deadline);
 
 /******************************************************************************/
-/*  Message sockets                                                           */
+/*  Message sockets.                                                          */
 /******************************************************************************/
 
 DSOCK_EXPORT int msend(
@@ -138,7 +138,7 @@ DSOCK_EXPORT ssize_t mrecv(
     int64_t deadline);
 
 /******************************************************************************/
-/*  TCP protocol                                                              */
+/*  TCP protocol.                                                             */
 /******************************************************************************/
 
 DSOCK_EXPORT int tcp_listen(
@@ -160,7 +160,7 @@ DSOCK_EXPORT int tcp_detach(
 #define tcp_recv brecv
 
 /******************************************************************************/
-/*  UNIX protocol                                                             */
+/*  UNIX protocol.                                                            */
 /******************************************************************************/
 
 DSOCK_EXPORT int unix_listen(
@@ -190,7 +190,7 @@ DSOCK_EXPORT int unix_recvfd(
 #define unix_recv brecv
 
 /******************************************************************************/
-/*  UDP protocol                                                              */
+/*  UDP protocol.                                                             */
 /******************************************************************************/
 
 DSOCK_EXPORT int udp_socket(
@@ -213,7 +213,7 @@ DSOCK_EXPORT ssize_t udp_recv(
     int64_t deadline);
 
 /******************************************************************************/
-/*  Bytestream log                                                            */
+/*  Bytestream logging.                                                       */
 /*  Logs both inbound and outbound data into stderr.                          */
 /******************************************************************************/
 
@@ -223,7 +223,7 @@ DSOCK_EXPORT int blog_stop(
     int s);
 
 /******************************************************************************/
-/*  Nagle's algorithm for bytestreams                                         */
+/*  Nagle's algorithm for bytestreams.                                        */
 /*  Delays small sends until buffer of size 'batch' is full or timeout        */
 /*  'interval' expires.                                                       */
 /******************************************************************************/
@@ -236,7 +236,7 @@ DSOCK_EXPORT int nagle_stop(
     int s);
 
 /******************************************************************************/
-/*  PFX protocol                                                              */
+/*  PFX protocol.                                                             */
 /*  Messages are prefixed by 8-byte size in network byte order.               */
 /******************************************************************************/
 
@@ -249,7 +249,7 @@ DSOCK_EXPORT int pfx_stop(
 #define pfx_recv mrecv
 
 /******************************************************************************/
-/*  CRLF library                                                              */
+/*  CRLF protocol.                                                            */
 /*  Messages are delimited by CRLF (0x0d 0x0a) sequences.                     */
 /******************************************************************************/
 
@@ -262,7 +262,7 @@ DSOCK_EXPORT int crlf_stop(
 #define crlf_recv mrecv
 
 /******************************************************************************/
-/*  Bytestream throttler                                                      */
+/*  Bytestream throttler.                                                     */
 /*  Throttles the outbound bytestream to send_throughput bytes per second.    */
 /*  Sending quota is recomputed every send_interval milliseconds.             */
 /*  Throttles the inbound bytestream to recv_throughput bytes per second.     */
@@ -279,7 +279,7 @@ DSOCK_EXPORT int bthrottler_stop(
     int s);
 
 /******************************************************************************/
-/*  Message throttler                                                         */
+/*  Message throttler.                                                        */
 /*  Throttles send operations to send_throughput messages per second.         */
 /*  Sending quota is recomputed every send_interval milliseconds.             */
 /*  Throttles receive operations to recv_throughput messages per second.      */
@@ -296,8 +296,8 @@ DSOCK_EXPORT int mthrottler_stop(
     int s);
 
 /******************************************************************************/
-/*  LZ4 bytestream compressor                                                 */
-/*  Compresses data usin LZ4 compression algorithm.                           */
+/*  LZ4 bytestream compressor.                                                */
+/*  Compresses data using LZ4 compression algorithm.                          */
 /******************************************************************************/
 
 DSOCK_EXPORT int lz4_start(
