@@ -38,25 +38,16 @@ coroutine void client(void) {
     assert(rc == 0);
 
     char buf[16];
+    char buffer[2048];
     rc = unix_recv(cs, buf, 3, -1);
     assert(rc == 0);
     assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
     rc = unix_recv(cs, buf, 3, -1);
     assert(rc == 0);
     assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
+    rc = unix_recv(cs, buffer, sizeof(buffer), -1);
+    assert(rc == 0);
     rc = unix_send(cs, "456", 3, -1);
-    assert(rc == 0);
-
-    int p[2];
-    rc = pipe(p);
-    assert(rc == 0);
-    rc = unix_sendfd(cs, p[0], -1);
-    assert(rc == 0);
-    ssize_t sz = write(p[1], "X", 1);
-    assert(sz == 1);
-    rc = close(p[0]);
-    assert(rc == 0);
-    rc = close(p[1]);
     assert(rc == 0);
 
     rc = hclose(cs);
@@ -72,6 +63,7 @@ coroutine void client2(int s) {
 
 int main() {
     char buf[16];
+    char buffer[2048];
 
     struct stat st;
     if (stat(TESTADDR, &st) == 0) {
@@ -97,18 +89,11 @@ int main() {
     assert(rc == 0);
     rc = unix_send(as, "DEF", 3, -1);
     assert(rc == 0);
+    rc = unix_send(as, buffer, sizeof(buffer), -1);
+    assert(rc == 0);
     rc = unix_recv(as, buf, 3, -1);
     assert(rc == 0);
     assert(buf[0] == '4' && buf[1] == '5' && buf[2] == '6');
-
-    /* Test passing a file descriptor. */
-    int fd = unix_recvfd(as, -1);
-    assert(fd >= 0);
-    ssize_t sz = read(fd, buf, 1);
-    assert(sz == 1);
-    assert(buf[0] == 'X');
-    rc = close(fd);
-    assert(rc == 0);
 
     rc = hclose(as);
     assert(rc == 0);
@@ -123,7 +108,6 @@ int main() {
     rc = unix_pair(hndls);
     go(client2(hndls[1]));
     assert(rc == 0);
-    char buffer[2048];
     while(1) {
         rc = unix_send(hndls[0], buffer, 2048, -1);
         if(rc == -1 && errno == ECONNRESET)

@@ -24,10 +24,17 @@
 
 #include <fcntl.h>
 #include <libdill.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "fdhelpers.h"
 #include "utils.h"
+
+void dsinitrxbuf(struct dsrxbuf *rxbuf) {
+    dsock_assert(rxbuf);
+    rxbuf->len = 0;
+    rxbuf->pos = 0;
+}
 
 int dsunblock(int s) {
     /* Switch to non-blocking mode. */
@@ -102,25 +109,50 @@ int dssend(int s, const void *buf, size_t len, int64_t deadline) {
     return 0;
 }
 
-int dsrecv(int s, void *buf, size_t len, int64_t deadline) {
-    if(dsock_slow(len > 0 && !buf)) {errno = EINVAL; return -1;}
-    ssize_t received = 0;
+static ssize_t dsget(int s, void *buf, size_t len, int block,
+      int64_t deadline) {
     while(1) {
-        ssize_t sz = recv(s, ((char*)buf) + received, len - received, 0);
-        if(dsock_slow(sz == 0)) {
-            errno = ECONNRESET;
+        ssize_t sz = recv(s, buf, len, 0);
+        if(dsock_fast(sz == len)) return len;
+        if(dsock_slow(sz == 0)) {errno = ECONNRESET; return -1;}
+        if(dsock_slow(sz < 0 && errno != EWOULDBLOCK && errno != EAGAIN))
             return -1;
-        }
-        if(sz < 0) {
-            if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN))
-                return -1;
-        }
-        else {
-            received += sz;
-            if(received >= len) return 0;
+        if(dsock_fast(sz > 0)) {
+            if(!block) return sz;
+            buf = (char*)buf + sz;
+            len -= sz;
         }
         int rc = fdin(s, deadline);
         if(dsock_slow(rc < 0)) return -1;
+    }
+}
+
+int dsrecv(int s, struct dsrxbuf *rxbuf, void *buf, size_t len,
+      int64_t deadline) {
+    dsock_assert(rxbuf);
+    if(dsock_slow(len > 0 && !buf)) {errno = EINVAL; return -1;}
+    while(1) {
+        /* Use data from rxbuf. */
+        size_t remaining = rxbuf->len - rxbuf->pos;
+        size_t tocopy = remaining < len ? remaining : len;
+        memcpy(buf, (char*)(rxbuf->data) + rxbuf->pos, tocopy);
+        rxbuf->pos += tocopy;
+        buf = (char*)buf + tocopy;
+        len -= tocopy;
+        if(!len) return 0;
+        /* If requested amount of data is large avoid the copy
+           and read it directly into user's buffer. */
+        if(len >= sizeof(rxbuf->data)) {
+            ssize_t sz = dsget(s, buf, len, 1, deadline);
+            if(dsock_slow(sz < 0)) return -1;
+            return 0;
+        }
+        /* Read as much data as possible into rxbuf. */
+        dsock_assert(rxbuf->len == rxbuf->pos);
+        ssize_t sz = dsget(s, rxbuf->data, sizeof(rxbuf->data), 0, deadline);
+        if(dsock_slow(sz < 0)) return -1;
+        rxbuf->len = sz;
+        rxbuf->pos = 0;
     }
 }
 

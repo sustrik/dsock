@@ -46,6 +46,7 @@ static int tcpconn_brecv(int s, void *buf, size_t len, int64_t deadline);
 struct tcpconn {
     struct bsockvfptrs vfptrs;
     int fd;
+    struct dsrxbuf rxbuf;
 };
 
 int tcp_connect(const ipaddr *addr, int64_t deadline) {
@@ -83,7 +84,7 @@ static int tcpconn_bsend(int s, const void *buf, size_t len, int64_t deadline) {
 static int tcpconn_brecv(int s, void *buf, size_t len, int64_t deadline) {
     struct tcpconn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == tcpconn_type);
-    return dsrecv(obj->fd, buf, len, deadline);
+    return dsrecv(obj->fd, &obj->rxbuf, buf, len, deadline);
 }
 
 static void tcpconn_close(int s) {
@@ -194,6 +195,7 @@ static int tcpmakeconn(int fd) {
     obj->vfptrs.bsend = tcpconn_bsend;
     obj->vfptrs.brecv = tcpconn_brecv;
     obj->fd = fd;
+    dsinitrxbuf(&obj->rxbuf);
     /* Create the handle. */
     int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}

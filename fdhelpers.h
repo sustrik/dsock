@@ -35,6 +35,14 @@
 #define DSOCK_NOSIGNAL 0
 #endif
 
+struct dsrxbuf {
+    size_t len;
+    size_t pos;
+    uint8_t data[2000];
+};
+
+void dsinitrxbuf(
+    struct dsrxbuf *rxbuf);
 int dsunblock(
     int s);
 int dsconnect(
@@ -54,6 +62,7 @@ int dssend(
     int64_t deadline);
 int dsrecv(
     int s,
+    struct dsrxbuf *rxbuf,
     void *buf,
     size_t len,
     int64_t deadline);
