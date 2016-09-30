@@ -93,19 +93,19 @@ pet shop to do system programmer's work it contributed to proliferation of
 buggy, hard-to-debug and barely maintainable code.
 
 To address this problem, dsock assumes that there already exists an efficient
-concurrency implementation (i.e. forking a new lightweight process should
-take hundreds of nanoseconds and a context switch tens of nanoseconds).
+concurrency implementation, that forking a new lightweight process takes
+hundreds of nanoseconds and that context switch takes tens of nanoseconds.
 In such environment network programming can be done in the old
 one-process-per-connection way. There's no need for polling, thread pools
-and such.
+callbacks, state machines and so on.
 
-(Dsock even makes sure that users aspiring to use "modern"
-schedule-by-hand-style of network programming, won't be able to do so.
-For example it lacks an equivalent of poll or kqueue which is a prerequiite
-for a hand written network scheduler.)
+Note that dsock even makes sure that users aspiring to use "modern"
+schedule-by-hand-style of network programming won't be able to do so.
+For example, it lacks an equivalent of poll or kqueue function which is
+a prerequiite for a hand written network scheduler.
 
-Technically, current implementation of dsock is based on
-[libdill](http://libdill.org). However, same or similar API can be implemented
+Technically, current implementation of dsock uses [libdill](http://libdill.org)
+for concurrency. However, same or similar API can be implemented
 on top of any concurrency system with similar performance characteristics
 (e.g. Golang's goroutines).
 
@@ -121,8 +121,8 @@ by dsock, whether actual ones or fake ones, "handles".
 
 ### 3.3 Deadlines
 
-All blocking functions in dsock have a deadline parameter. Unlike with BSD
-sockets deadline is a point in time rather than interval. This allows for
+All blocking functions in dsock SHOULD have a deadline parameter. Unlike with
+BSD sockets deadline is a point in time rather than interval. This allows for
 using same deadline in multiple calls without need for recomputation:
 
 ```
@@ -173,6 +173,61 @@ int h4 = baz_start(h3, arg4, arg5);
 
 ### 3.6 Normal operation
 
+Normal operation is everything that happens between protocol initialization
+and protocol termination.
+
+#### 3.6.1 Application protocols
+
+Application protocols don't send or receive data. Instead, they perform
+protocol-specific actions (e.g. "dns_resolve"). Therefore, they have no
+standardized API for normal operation. Still, keep in mind that all the comments
+about protocol initialization and protocol termination apply even to application
+protocols.
+
+#### 3.6.2 Transport protocols
+
+Transport protocols SHOULD have a "send" and a "recv" function. If the protocol
+is unidirectional though each endpoint has only one of those functions.
+
+First parameter of the either function SHOULD be the protocol handle, last
+one SHOULD be deadline. Arbitrary parameters MAY exist between the two.
+Typically, there's a pointer to a buffer and size of the buffer.
+
+Both send and recv MUST be blocking. They also MUST be atomic, i.e. either
+all data requested are sent/received or none of them. Atomicity SHOULD be
+implemented by treating a half-sent/received message as a fatal error and
+marking the protocol as broken. That way there can be no subsequent
+send/receive operations that would get confused by partial data already
+in the pipe.
+
+To support vertical composability the protocols SHOULD also support virtualized
+API for sending/receiving. The API comes in two flavours: bytestream and message
+based.
+
+##### 3.6.2.1 Bytestream protocols
+
+TODO
+
+```
+int bsend(int h, const void *buf, size_t len, int64_t deadline);
+int brecv(int h, void *buf, size_t len, int64_t deadline);
+```
+
+##### 3.6.2.2 Message protocols
+
+TODO
+
+```
+int msend(int s, const void *buf, size_t len, int64_t deadline);
+ssize_t mrecv(int h, void *buf, size_t len, int64_t deadline);
+```
+
+#### 3.6.3 Mapping send/recv
+
+TODO
+
+#### 3.6.4 Ancillary (control) data
+
 TODO
 
 ### 3.7 Protocol shutdown
@@ -221,4 +276,8 @@ function SHOULD simply close the underlying protocol and return 0.
 
 In case of error shut down function SHOULD close the underying protocol,
 return -1 and set errno to appropriate value.
+
+### 3.8 Adapters
+
+TODO
 
