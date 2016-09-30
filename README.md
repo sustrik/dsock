@@ -65,7 +65,7 @@ adapter, bandwidth throttling adapter and so on.
 
 ## 3. API
 
-### 3.1 Introduction
+## 3.1 Introduction
 
 Unlike BSD sockets, dsock API doesn't try to virtualize all possible protocols
 and provide a single set of functions to deal with all of them. Instead, it
@@ -76,7 +76,7 @@ implement protocol composability. It also provides some non-binding suggestions
 for protocol API designers. Following these suggestions leads to uniform feel
 of the API and flat learning curve for protocol users.
 
-### 3.2 Scheduling or rather lack of it
+## 3.2 Scheduling or rather lack of it
 
 During the decades since BSD sockets were introduced the way they are used
 have significantly changed. While in the beginning the user was supposed to fork
@@ -109,7 +109,7 @@ for concurrency. However, same or similar API can be implemented
 on top of any concurrency system with similar performance characteristics
 (e.g. Golang's goroutines).
 
-### 3.2 Handles
+## 3.2 Handles
 
 Protocol instances should be referred to by file descriptors, same way as they
 are in BSD sockets. In kernel space implementations there's no problem with
@@ -119,7 +119,7 @@ descriptors that won't play well with standard POSIX functions (close, fcntl
 and such). To avoid confusion this document will call file descriptors used
 by dsock, whether actual ones or fake ones, "handles".
 
-### 3.3 Deadlines
+## 3.3 Deadlines
 
 All blocking functions in dsock SHOULD have a deadline parameter. Unlike with
 BSD sockets deadline is a point in time rather than interval. This allows for
@@ -138,13 +138,13 @@ operations. If deadline was a non-fatal error there would have to be a way
 to push the data already received back to the socket or retract the data already
 sent from the socket.
 
-### 3.4 Function naming
+## 3.4 Function naming
 
 For consistency's sake the function names SHOULD be in lowercase and SHOULD be
 composed of short protocol name (e.g. "tcp") and action name (e.g. "connect").
 The two parts of the name SHOULD be separated by underscore ("tcp_connect").
 
-### 3.5 Protocol initialization
+## 3.5 Protocol initialization
 
 A protocol SHOULD be initialized using a "start" function (e.g. "smtp_start").
 If protocol runs on top of another protocol the handle of the underlying
@@ -171,12 +171,12 @@ int h3 = bar_start(h2);
 int h4 = baz_start(h3, arg4, arg5);
 ```
 
-### 3.6 Normal operation
+## 3.6 Normal operation
 
 Normal operation is everything that happens between protocol initialization
 and protocol termination.
 
-#### 3.6.1 Application protocols
+## 3.6.1 Application protocols
 
 Application protocols don't send or receive data. Instead, they perform
 protocol-specific actions (e.g. "dns_resolve"). Therefore, they have no
@@ -184,7 +184,7 @@ standardized API for normal operation. Still, keep in mind that all the comments
 about protocol initialization and protocol termination apply even to application
 protocols.
 
-#### 3.6.2 Transport protocols
+## 3.6.2 Transport protocols
 
 Transport protocols SHOULD have a "send" and a "recv" function. If the protocol
 is unidirectional though each endpoint has only one of those functions.
@@ -204,7 +204,7 @@ To support vertical composability the protocols SHOULD also support virtualized
 API for sending/receiving. The API comes in two flavours: bytestream and message
 based.
 
-##### 3.6.2.1 Bytestream protocols
+## 3.6.2.1 Bytestream protocols
 
 TODO
 
@@ -213,7 +213,7 @@ int bsend(int h, const void *buf, size_t len, int64_t deadline);
 int brecv(int h, void *buf, size_t len, int64_t deadline);
 ```
 
-##### 3.6.2.2 Message protocols
+## 3.6.2.2 Message protocols
 
 TODO
 
@@ -222,15 +222,15 @@ int msend(int s, const void *buf, size_t len, int64_t deadline);
 ssize_t mrecv(int h, void *buf, size_t len, int64_t deadline);
 ```
 
-#### 3.6.3 Mapping send/recv
+## 3.6.3 Mapping send/recv
 
 TODO
 
-#### 3.6.4 Ancillary (control) data
+## 3.6.4 Ancillary (control) data
 
 TODO
 
-### 3.7 Protocol shutdown
+## 3.7 Protocol shutdown
 
 When handle is closed (close function in POSIX, hclose function in this
 implementation) the protocol MUST shut down immediately without even trying
@@ -277,7 +277,7 @@ function SHOULD simply close the underlying protocol and return 0.
 In case of error shut down function SHOULD close the underying protocol,
 return -1 and set errno to appropriate value.
 
-### 3.8 Adapters
+## 3.8 Adapters
 
 TODO
 
