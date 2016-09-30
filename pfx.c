@@ -37,9 +37,12 @@ static void pfx_close(int s);
 static int pfx_msend(int s, const void *buf, size_t len, int64_t deadline);
 static ssize_t pfx_mrecv(int s, void *buf, size_t len, int64_t deadline);
 
+#define PFXSOCK_PEERDONE 1
+
 struct pfxsock {
     struct msockvfptrs vfptrs;
     int s;
+    int flags;
 };
 
 int pfx_start(int s) {
@@ -53,6 +56,7 @@ int pfx_start(int s) {
     obj->vfptrs.msend = pfx_msend;
     obj->vfptrs.mrecv = pfx_mrecv;
     obj->s = s;
+    obj->flags = 0;
     /* Create the handle. */
     int h = handle(msock_type, obj, &obj->vfptrs.hvfptrs);
     if(dsock_slow(h < 0)) {
@@ -65,12 +69,28 @@ int pfx_start(int s) {
 }
 
 int pfx_stop(int s, int64_t deadline) {
+    int err;
     struct pfxsock *obj = hdata(s, msock_type);
     if(dsock_slow(obj && obj->vfptrs.type != pfx_type)) {
         errno = ENOTSUP; return -1;}
+    /* Send termination message. */
+    uint64_t sz = 0xffffffffffffffff;
+    int rc = bsend(obj->s, &sz, 8, deadline);
+    if(dsock_slow(rc < 0)) {err = errno; goto error;}
+    while(!obj->flags & PFXSOCK_PEERDONE) {
+        int rc = pfx_mrecv(s, NULL, 0, deadline);
+        if(rc < 0 && errno == EPIPE) break;
+        if(dsock_slow(rc < 0)) {err = errno; goto error;}
+    }
     int u = obj->s;
     free(obj);
     return u;
+error:
+    rc = hclose(obj->s);
+    dsock_assert(rc == 0);
+    free(obj);
+    errno = err;
+    return -1;
 }
 
 static int pfx_msend(int s, const void *buf, size_t len, int64_t deadline) {
@@ -88,10 +108,17 @@ static int pfx_msend(int s, const void *buf, size_t len, int64_t deadline) {
 static ssize_t pfx_mrecv(int s, void *buf, size_t len, int64_t deadline) {
     struct pfxsock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == pfx_type);
+    if(dsock_slow(obj->flags & PFXSOCK_PEERDONE)) {errno = EPIPE; return -1;}
     uint8_t szbuf[8];
     int rc = brecv(obj->s, szbuf, 8, deadline);
     if(dsock_slow(rc < 0)) return -1;
     uint64_t sz = dsock_getll(szbuf);
+    if(dsock_slow(sz == 0xffffffffffffffff)) {
+        /* Peer is terminating. */
+        obj->flags |= PFXSOCK_PEERDONE;
+        errno = EPIPE;
+        return -1;
+    }
     size_t torecv = (size_t)(len < sz ? len : sz);
     rc = brecv(obj->s, buf, torecv, deadline);
     if(dsock_slow(rc < 0)) return -1;

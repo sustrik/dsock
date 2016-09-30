@@ -43,7 +43,9 @@ coroutine void client(void) {
     assert(buf[0] == 'G' && buf[1] == 'H' && buf[2] == 'I');
     rc = pfx_send(cs, "DEF", 3, -1);
     assert(rc == 0);
-    rc = hclose(cs);
+    int ts = pfx_stop(cs, -1);
+    assert(ts >= 0);
+    rc = hclose(ts);
     assert(rc == 0);
 }
 
