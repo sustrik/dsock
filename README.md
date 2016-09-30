@@ -1,4 +1,4 @@
-# RFC: dsock - An alternative to BSD socket API
+# RFC: dsock - A revamp BSD socket API
 
 ## 1. Introduction
 
@@ -206,25 +206,56 @@ based.
 
 ## 3.6.2.1 Bytestream protocols
 
-TODO
+Bytestream protocols MUST support following two functions:
 
 ```
 int bsend(int h, const void *buf, size_t len, int64_t deadline);
 int brecv(int h, void *buf, size_t len, int64_t deadline);
 ```
 
+The buffer pointer in brecv can be NULL in which case the specified number
+of bytes is simply skipped.
+
+Both functions return 0 in case of success or -1 in case of error. In the
+latter case errno is set to appropriate error.
+
+If deadline expires protocol is marked as broken and doesn't allow for 
+subsequent sending or receiving.
+
 ## 3.6.2.2 Message protocols
 
-TODO
+Message protocols MUST support following two functions:
 
 ```
 int msend(int s, const void *buf, size_t len, int64_t deadline);
 ssize_t mrecv(int h, void *buf, size_t len, int64_t deadline);
 ```
 
+In mrecv the buffer size can be smaller than the size of incoming message.
+In such case the message is truncated. If len is 0 buf can be NULL.
+
+msend returns 0 in case of success or -1 in case of error. In the
+latter case errno is set to appropriate error.
+
+mrecv returns size of the received message in case of success or -1 in case of
+error. In the latter case errno is set to appropriate error.
+
+Messages of size zero are valid from APIs point of view but individual
+protocols may not support them.
+
+If deadline expires protocol is marked as broken and doesn't allow for 
+subsequent sending or receiving.
+
 ## 3.6.3 Mapping send/recv
 
-TODO
+Protocol-specific send/recv function can have more arguments than generic
+send/receive functions. For example, udp_send function may allow to specify
+the destination address. Yet, there is no destination address in generic
+msend function.
+
+It's up to the protocol implementation to deduce the missing arguments when
+generic functions are used. It can do so, for example, by allowing to specify
+defaults for the parameters.
 
 ## 3.6.4 Ancillary (control) data
 
