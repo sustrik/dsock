@@ -97,10 +97,11 @@ error1:
     return -1;
 }
 
-int nagle_stop(int s) {
+int nagle_stop(int s, int64_t deadline) {
     struct naglesock *obj = hdata(s, bsock_type);
     if(dsock_slow(obj && obj->vfptrs.type != nagle_type)) {
         errno = ENOTSUP; return -1;}
+    /* TODO: Flush the data from the buffer! */
     int rc = hclose(obj->sender);
     dsock_assert(rc == 0);
     rc = hclose(obj->ackch);

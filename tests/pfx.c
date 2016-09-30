@@ -67,7 +67,7 @@ int main() {
     sz = mrecv(cs, buf, sizeof(buf), -1);
     assert(sz == 3);
     assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
-    int ts = pfx_stop(cs);
+    int ts = pfx_stop(cs, -1);
     assert(ts >= 0);
     rc = hclose(ts);
     assert(rc == 0);

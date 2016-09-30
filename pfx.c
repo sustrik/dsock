@@ -64,7 +64,7 @@ int pfx_start(int s) {
     return h;
 }
 
-int pfx_stop(int s) {
+int pfx_stop(int s, int64_t deadline) {
     struct pfxsock *obj = hdata(s, msock_type);
     if(dsock_slow(obj && obj->vfptrs.type != pfx_type)) {
         errno = ENOTSUP; return -1;}

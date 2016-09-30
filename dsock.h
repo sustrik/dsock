@@ -201,7 +201,8 @@ DSOCK_EXPORT ssize_t udp_recv(
 DSOCK_EXPORT int pfx_start(
     int s);
 DSOCK_EXPORT int pfx_stop(
-    int s);
+    int s,
+    int64_t deadline);
 
 #define pfx_send msend
 #define pfx_recv mrecv
@@ -214,7 +215,8 @@ DSOCK_EXPORT int pfx_stop(
 DSOCK_EXPORT int crlf_start(
     int s);
 DSOCK_EXPORT int crlf_stop(
-    int s);
+    int s,
+    int64_t deadline);
 
 #define crlf_send msend
 #define crlf_recv mrecv
@@ -227,10 +229,8 @@ DSOCK_EXPORT int crlf_stop(
 DSOCK_EXPORT int lz4_start(
     int s);
 DSOCK_EXPORT int lz4_stop(
-    int s);
-
-#define lz4_send bsend
-#define lz4_recv brecv
+    int s,
+    int64_t deadline);
 
 /******************************************************************************/
 /*  Bytestream logging.                                                       */
@@ -263,7 +263,7 @@ DSOCK_EXPORT int nagle_start(
     size_t batch,
     int64_t interval);
 DSOCK_EXPORT int nagle_stop(
-    int s);
+    int s, int64_t deadline);
 
 /******************************************************************************/
 /*  Bytestream throttler.                                                     */

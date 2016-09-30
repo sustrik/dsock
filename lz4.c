@@ -92,7 +92,7 @@ error1:
     return -1;
 }
 
-int lz4_stop(int s) {
+int lz4_stop(int s, int64_t deadline) {
     struct lz4sock *obj = hdata(s, bsock_type);
     if(dsock_slow(obj && obj->vfptrs.type != lz4_type)) {
         errno = ENOTSUP; return -1;}

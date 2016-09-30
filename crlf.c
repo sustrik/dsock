@@ -64,7 +64,7 @@ int crlf_start(int s) {
     return h;
 }
 
-int crlf_stop(int s) {
+int crlf_stop(int s, int64_t deadline) {
     struct crlfsock *obj = hdata(s, msock_type);
     if(dsock_slow(obj && obj->vfptrs.type != crlf_type)) {
         errno = ENOTSUP; return -1;}
