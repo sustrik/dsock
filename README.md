@@ -58,6 +58,6 @@ protocol has no access to the features of the underlying IP protocol) there's
 a specifc subset of lightweight protocols where encapsulation is not desirable.
 These are protocols that are adding a single feature to the underlying protocol
 rather than defining a fully new behaviour. In dsock world these protocols
-are called adapters. The examples are: compression protocol, encryption
-protocol, bandwidth throttling protocol and so on.
+are called adapters. The examples are: compression adapter, encryption
+adapter, bandwidth throttling adapter and so on.
 
