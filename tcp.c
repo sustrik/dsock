@@ -37,14 +37,14 @@ static int tcpmakeconn(int fd);
 /*  TCP connection socket                                                     */
 /******************************************************************************/
 
-static const int tcpconn_type_placeholder = 0;
-static const void *tcpconn_type = &tcpconn_type_placeholder;
-static void tcpconn_close(int s);
-static int tcpconn_bsend(int s, const void *buf, size_t len, int64_t deadline);
-static int tcpconn_brecv(int s, void *buf, size_t len, int64_t deadline);
+static const int tcp_conn_type_placeholder = 0;
+static const void *tcp_conn_type = &tcp_conn_type_placeholder;
+static void tcp_conn_close(int s);
+static int tcp_conn_bsend(int s, const void *buf, size_t len, int64_t deadline);
+static int tcp_conn_brecv(int s, void *buf, size_t len, int64_t deadline);
 
-struct tcpconn {
-    struct bsockvfptrs vfptrs;
+struct tcp_conn {
+    struct bsock_vfptrs vfptrs;
     int fd;
     struct dsrxbuf rxbuf;
 };
@@ -72,23 +72,24 @@ error1:
     return -1;
 }
 
-static int tcpconn_bsend(int s, const void *buf, size_t len, int64_t deadline) {
-    struct tcpconn *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == tcpconn_type);
+static int tcp_conn_bsend(int s, const void *buf, size_t len,
+      int64_t deadline) {
+    struct tcp_conn *obj = hdata(s, bsock_type);
+    dsock_assert(obj->vfptrs.type == tcp_conn_type);
     ssize_t sz = dssend(obj->fd, buf, len, deadline);
     if(dsock_fast(sz >= 0)) return sz;
     if(errno == EPIPE) errno = ECONNRESET;
     return -1;
 }
 
-static int tcpconn_brecv(int s, void *buf, size_t len, int64_t deadline) {
-    struct tcpconn *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == tcpconn_type);
+static int tcp_conn_brecv(int s, void *buf, size_t len, int64_t deadline) {
+    struct tcp_conn *obj = hdata(s, bsock_type);
+    dsock_assert(obj->vfptrs.type == tcp_conn_type);
     return dsrecv(obj->fd, &obj->rxbuf, buf, len, deadline);
 }
 
-static void tcpconn_close(int s) {
-    struct tcpconn *obj = hdata(s, bsock_type);
+static void tcp_conn_close(int s) {
+    struct tcp_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj);
     int rc = dsclose(obj->fd);
     dsock_assert(rc == 0);
@@ -99,12 +100,12 @@ static void tcpconn_close(int s) {
 /*  TCP listener socket                                                       */
 /******************************************************************************/
 
-static const int tcplistener_type_placeholder = 0;
-static const void *tcplistener_type = &tcplistener_type_placeholder;
-static void tcplistener_close(int s);
-static const struct hvfptrs tcplistener_vfptrs = {tcplistener_close};
+static const int tcp_listener_type_placeholder = 0;
+static const void *tcp_listener_type = &tcp_listener_type_placeholder;
+static void tcp_listener_close(int s);
+static const struct hvfptrs tcp_listener_vfptrs = {tcp_listener_close};
 
-struct tcplistener {
+struct tcp_listener {
     struct hvfptrs vfptrs;
     int fd;
     ipaddr addr;
@@ -133,11 +134,11 @@ int tcp_listen(ipaddr *addr, int backlog) {
         ipaddr_setport(addr, ipaddr_port(&baddr));
     }
     /* Create the object. */
-    struct tcplistener *obj = malloc(sizeof(struct tcplistener));
+    struct tcp_listener *obj = malloc(sizeof(struct tcp_listener));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error2;}
     obj->fd = s;
     /* Create handle. */
-    int h = handle(tcplistener_type, obj, &tcplistener_vfptrs);
+    int h = handle(tcp_listener_type, obj, &tcp_listener_vfptrs);
     if(dsock_slow(h < 0)) {err = errno; goto error3;}
     return h;
 error3:
@@ -152,7 +153,7 @@ error1:
 int tcp_accept(int s, ipaddr *addr, int64_t deadline) {
     int err;
     /* Retrieve the listener object. */
-    struct tcplistener *lst = hdata(s, tcplistener_type);
+    struct tcp_listener *lst = hdata(s, tcp_listener_type);
     if(dsock_slow(!lst)) {err = errno; goto error1;}
     /* Try to get new connection in a non-blocking way. */
     socklen_t addrlen = sizeof(ipaddr);
@@ -173,8 +174,8 @@ error1:
     return -1;
 }
 
-static void tcplistener_close(int s) {
-    struct tcplistener *obj = hdata(s, tcplistener_type);
+static void tcp_listener_close(int s) {
+    struct tcp_listener *obj = hdata(s, tcp_listener_type);
     dsock_assert(obj);
     int rc = dsclose(obj->fd);
     dsock_assert(rc == 0);
@@ -188,12 +189,12 @@ static void tcplistener_close(int s) {
 static int tcpmakeconn(int fd) {
     int err;
     /* Create the object. */
-    struct tcpconn *obj = malloc(sizeof(struct tcpconn));
+    struct tcp_conn *obj = malloc(sizeof(struct tcp_conn));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
-    obj->vfptrs.hvfptrs.close = tcpconn_close;
-    obj->vfptrs.type = tcpconn_type;
-    obj->vfptrs.bsend = tcpconn_bsend;
-    obj->vfptrs.brecv = tcpconn_brecv;
+    obj->vfptrs.hvfptrs.close = tcp_conn_close;
+    obj->vfptrs.type = tcp_conn_type;
+    obj->vfptrs.bsend = tcp_conn_bsend;
+    obj->vfptrs.brecv = tcp_conn_brecv;
     obj->fd = fd;
     dsinitrxbuf(&obj->rxbuf);
     /* Create the handle. */

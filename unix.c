@@ -40,14 +40,15 @@ static int unixmakeconn(int fd);
 /*  UNIX connection socket                                                    */
 /******************************************************************************/
 
-static const int unixconn_type_placeholder = 0;
-static const void *unixconn_type = &unixconn_type_placeholder;
-static void unixconn_close(int s);
-static int unixconn_bsend(int s, const void *buf, size_t len, int64_t deadline);
-static int unixconn_brecv(int s, void *buf, size_t len, int64_t deadline);
+static const int unix_conn_type_placeholder = 0;
+static const void *unix_conn_type = &unix_conn_type_placeholder;
+static void unix_conn_close(int s);
+static int unix_conn_bsend(int s, const void *buf, size_t len,
+    int64_t deadline);
+static int unix_conn_brecv(int s, void *buf, size_t len, int64_t deadline);
 
-struct unixconn {
-    struct bsockvfptrs vfptrs;
+struct unix_conn {
+    struct bsock_vfptrs vfptrs;
     int fd;
     struct dsrxbuf rxbuf;
 };
@@ -79,24 +80,24 @@ error1:
     return -1;
 }
 
-static int unixconn_bsend(int s, const void *buf, size_t len,
+static int unix_conn_bsend(int s, const void *buf, size_t len,
       int64_t deadline) {
-    struct unixconn *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == unixconn_type);
+    struct unix_conn *obj = hdata(s, bsock_type);
+    dsock_assert(obj->vfptrs.type == unix_conn_type);
     ssize_t sz = dssend(obj->fd, buf, len, deadline);
     if(dsock_fast(sz >= 0)) return sz;
     if(errno == EPIPE) errno = ECONNRESET;
     return -1;
 }
 
-static int unixconn_brecv(int s, void *buf, size_t len, int64_t deadline) {
-    struct unixconn *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == unixconn_type);
+static int unix_conn_brecv(int s, void *buf, size_t len, int64_t deadline) {
+    struct unix_conn *obj = hdata(s, bsock_type);
+    dsock_assert(obj->vfptrs.type == unix_conn_type);
     return dsrecv(obj->fd, &obj->rxbuf, buf, len, deadline);
 }
 
-static void unixconn_close(int s) {
-    struct unixconn *obj = hdata(s, bsock_type);
+static void unix_conn_close(int s) {
+    struct unix_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj);
     int rc = dsclose(obj->fd);
     dsock_assert(rc == 0);
@@ -107,12 +108,12 @@ static void unixconn_close(int s) {
 /*  UNIX listener socket                                                      */
 /******************************************************************************/
 
-static const int unixlistener_type_placeholder = 0;
-static const void *unixlistener_type = &unixlistener_type_placeholder;
-static void unixlistener_close(int s);
-static const struct hvfptrs unixlistener_vfptrs = {unixlistener_close};
+static const int unix_listener_type_placeholder = 0;
+static const void *unix_listener_type = &unix_listener_type_placeholder;
+static void unix_listener_close(int s);
+static const struct hvfptrs unix_listener_vfptrs = {unix_listener_close};
 
-struct unixlistener {
+struct unix_listener {
     struct hvfptrs vfptrs;
     int fd;
 };
@@ -135,11 +136,11 @@ int unix_listen(const char *addr, int backlog) {
     rc = listen(s, backlog);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Create the object. */
-    struct unixlistener *obj = malloc(sizeof(struct unixlistener));
+    struct unix_listener *obj = malloc(sizeof(struct unix_listener));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error2;}
     obj->fd = s;
     /* Create handle. */
-    int h = handle(unixlistener_type, obj, &unixlistener_vfptrs);
+    int h = handle(unix_listener_type, obj, &unix_listener_vfptrs);
     if(dsock_slow(h < 0)) {err = errno; goto error3;}
     return h;
 error3:
@@ -154,7 +155,7 @@ error1:
 int unix_accept(int s, int64_t deadline) {
     int err;
     /* Retrieve the listener object. */
-    struct unixlistener *lst = hdata(s, unixlistener_type);
+    struct unix_listener *lst = hdata(s, unix_listener_type);
     if(dsock_slow(!lst)) {err = errno; goto error1;}
     /* Try to get new connection in a non-blocking way. */
     int as = dsaccept(lst->fd, NULL, NULL, deadline);
@@ -174,8 +175,8 @@ error1:
     return -1;
 }
 
-static void unixlistener_close(int s) {
-    struct unixlistener *obj = hdata(s, unixlistener_type);
+static void unix_listener_close(int s) {
+    struct unix_listener *obj = hdata(s, unix_listener_type);
     dsock_assert(obj);
     int rc = dsclose(obj->fd);
     dsock_assert(rc == 0);
@@ -232,12 +233,12 @@ static int unixresolve(const char *addr, struct sockaddr_un *su) {
 static int unixmakeconn(int fd) {
     int err;
     /* Create the object. */
-    struct unixconn *obj = malloc(sizeof(struct unixconn));
+    struct unix_conn *obj = malloc(sizeof(struct unix_conn));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
-    obj->vfptrs.hvfptrs.close = unixconn_close;
-    obj->vfptrs.type = unixconn_type;
-    obj->vfptrs.bsend = unixconn_bsend;
-    obj->vfptrs.brecv = unixconn_brecv;
+    obj->vfptrs.hvfptrs.close = unix_conn_close;
+    obj->vfptrs.type = unix_conn_type;
+    obj->vfptrs.bsend = unix_conn_bsend;
+    obj->vfptrs.brecv = unix_conn_brecv;
     obj->fd = fd;
     dsinitrxbuf(&obj->rxbuf);
     /* Create the handle. */

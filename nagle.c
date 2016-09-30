@@ -44,8 +44,8 @@ struct naglevec {
     size_t len;
 };
 
-struct naglesock {
-    struct bsockvfptrs vfptrs;
+struct nagle_sock {
+    struct bsock_vfptrs vfptrs;
     int s;
     uint8_t *buf;
     int sendch;
@@ -59,7 +59,7 @@ int nagle_start(int s, size_t batch, int64_t interval) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) {err = errno; goto error1;}
     /* Create the object. */
-    struct naglesock *obj = malloc(sizeof(struct naglesock));
+    struct nagle_sock *obj = malloc(sizeof(struct nagle_sock));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->vfptrs.hvfptrs.close = nagle_close;
     obj->vfptrs.type = nagle_type;
@@ -98,7 +98,7 @@ error1:
 }
 
 int nagle_stop(int s, int64_t deadline) {
-    struct naglesock *obj = hdata(s, bsock_type);
+    struct nagle_sock *obj = hdata(s, bsock_type);
     if(dsock_slow(obj && obj->vfptrs.type != nagle_type)) {
         errno = ENOTSUP; return -1;}
     /* TODO: Flush the data from the buffer! */
@@ -115,7 +115,7 @@ int nagle_stop(int s, int64_t deadline) {
 }
 
 static int nagle_bsend(int s, const void *buf, size_t len, int64_t deadline) {
-    struct naglesock *obj = hdata(s, bsock_type);
+    struct nagle_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == nagle_type);
     /* Send is done in a worker coroutine. */
     struct naglevec vec = {buf, len};
@@ -188,13 +188,13 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
 }
 
 static int nagle_brecv(int s, void *buf, size_t len, int64_t deadline) {
-    struct naglesock *obj = hdata(s, bsock_type);
+    struct nagle_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == nagle_type);
     return brecv(obj->s, buf, len, deadline);
 } 
 
 static void nagle_close(int s) {
-    struct naglesock *obj = hdata(s, bsock_type);
+    struct nagle_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj && obj->vfptrs.type == nagle_type);
     int rc = hclose(obj->sender);
     dsock_assert(rc == 0);

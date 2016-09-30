@@ -38,8 +38,8 @@ static int bthrottler_bsend(int s, const void *buf, size_t len,
 static int bthrottler_brecv(int s, void *buf, size_t len,
     int64_t deadline);
 
-struct bthrottlersock {
-    struct bsockvfptrs vfptrs;
+struct bthrottler_sock {
+    struct bsock_vfptrs vfptrs;
     int s;
     size_t send_full;
     size_t send_remaining;
@@ -61,7 +61,7 @@ int bthrottler_start(int s,
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) return -1;
     /* Create the object. */
-    struct bthrottlersock *obj = malloc(sizeof(struct bthrottlersock));
+    struct bthrottler_sock *obj = malloc(sizeof(struct bthrottler_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = bthrottler_close;
     obj->vfptrs.type = bthrottler_type;
@@ -94,7 +94,7 @@ int bthrottler_start(int s,
 }
 
 int bthrottler_stop(int s) {
-    struct bthrottlersock *obj = hdata(s, bsock_type);
+    struct bthrottler_sock *obj = hdata(s, bsock_type);
     if(dsock_slow(obj && obj->vfptrs.type != bthrottler_type)) {
         errno = ENOTSUP; return -1;}
     int u = obj->s;
@@ -104,7 +104,7 @@ int bthrottler_stop(int s) {
 
 static int bthrottler_bsend(int s, const void *buf, size_t len,
       int64_t deadline) {
-    struct bthrottlersock *obj = hdata(s, bsock_type);
+    struct bthrottler_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == bthrottler_type);
     /* If send-throttling is off forward the call. */
     if(obj->send_full == 0) return bsend(obj->s, buf, len, deadline);
@@ -133,7 +133,7 @@ static int bthrottler_bsend(int s, const void *buf, size_t len,
 
 static int bthrottler_brecv(int s, void *buf, size_t len,
       int64_t deadline) {
-    struct bthrottlersock *obj = hdata(s, bsock_type);
+    struct bthrottler_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == bthrottler_type);
     /* If recv-throttling is off forward the call. */
     if(obj->recv_full == 0) return brecv(obj->s, buf, len, deadline);
@@ -161,7 +161,7 @@ static int bthrottler_brecv(int s, void *buf, size_t len,
 } 
 
 static void bthrottler_close(int s) {
-    struct bthrottlersock *obj = hdata(s, bsock_type);
+    struct bthrottler_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj && obj->vfptrs.type == bthrottler_type);
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);

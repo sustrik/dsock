@@ -40,8 +40,8 @@ static void lz4_close(int s);
 static int lz4_bsend(int s, const void *buf, size_t len, int64_t deadline);
 static int lz4_brecv(int s, void *buf, size_t len, int64_t deadline);
 
-struct lz4sock {
-    struct bsockvfptrs vfptrs;
+struct lz4_sock {
+    struct bsock_vfptrs vfptrs;
     int s;
     size_t buflen;
     uint8_t *outbuf;
@@ -57,7 +57,7 @@ int lz4_start(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) {err = errno; goto error1;}
     /* Create the object. */
-    struct lz4sock *obj = malloc(sizeof(struct lz4sock));
+    struct lz4_sock *obj = malloc(sizeof(struct lz4_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; goto error1;}
     obj->vfptrs.hvfptrs.close = lz4_close;
     obj->vfptrs.type = lz4_type;
@@ -93,7 +93,7 @@ error1:
 }
 
 int lz4_stop(int s, int64_t deadline) {
-    struct lz4sock *obj = hdata(s, bsock_type);
+    struct lz4_sock *obj = hdata(s, bsock_type);
     if(dsock_slow(obj && obj->vfptrs.type != lz4_type)) {
         errno = ENOTSUP; return -1;}
     size_t ec = LZ4F_freeDecompressionContext(obj->dctx);
@@ -106,7 +106,7 @@ int lz4_stop(int s, int64_t deadline) {
 }
 
 static int lz4_bsend(int s, const void *buf, size_t len, int64_t deadline) {
-    struct lz4sock *obj = hdata(s, bsock_type);
+    struct lz4_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == lz4_type);
     if(dsock_slow(!buf && len > 0)) {errno = EINVAL; return -1;}
     /* Each 8kB of the data will go into separate LZ4 frame. */
@@ -130,7 +130,7 @@ static int lz4_bsend(int s, const void *buf, size_t len, int64_t deadline) {
 }
 
 static int lz4_brecv(int s, void *buf, size_t len, int64_t deadline) {
-    struct lz4sock *obj = hdata(s, bsock_type);
+    struct lz4_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == lz4_type);
     if(dsock_slow(!buf && len > 0)) {errno = EINVAL; return -1;}
     while(len) {
@@ -163,7 +163,7 @@ static int lz4_brecv(int s, void *buf, size_t len, int64_t deadline) {
 } 
 
 static void lz4_close(int s) {
-    struct lz4sock *obj = hdata(s, bsock_type);
+    struct lz4_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj && obj->vfptrs.type == lz4_type);
     size_t ec = LZ4F_freeDecompressionContext(obj->dctx);
     dsock_assert(!LZ4F_isError(ec));

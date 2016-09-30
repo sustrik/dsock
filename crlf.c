@@ -37,8 +37,8 @@ static void crlf_close(int s);
 static int crlf_msend(int s, const void *buf, size_t len, int64_t deadline);
 static ssize_t crlf_mrecv(int s, void *buf, size_t len, int64_t deadline);
 
-struct crlfsock {
-    struct msockvfptrs vfptrs;
+struct crlf_sock {
+    struct msock_vfptrs vfptrs;
     int s;
 };
 
@@ -46,7 +46,7 @@ int crlf_start(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) return -1;
     /* Create the object. */
-    struct crlfsock *obj = malloc(sizeof(struct crlfsock));
+    struct crlf_sock *obj = malloc(sizeof(struct crlf_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = crlf_close;
     obj->vfptrs.type = crlf_type;
@@ -65,7 +65,7 @@ int crlf_start(int s) {
 }
 
 int crlf_stop(int s, int64_t deadline) {
-    struct crlfsock *obj = hdata(s, msock_type);
+    struct crlf_sock *obj = hdata(s, msock_type);
     if(dsock_slow(obj && obj->vfptrs.type != crlf_type)) {
         errno = ENOTSUP; return -1;}
     int u = obj->s;
@@ -74,7 +74,7 @@ int crlf_stop(int s, int64_t deadline) {
 }
 
 static int crlf_msend(int s, const void *buf, size_t len, int64_t deadline) {
-    struct crlfsock *obj = hdata(s, msock_type);
+    struct crlf_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == crlf_type);
     int rc = bsend(obj->s, buf, len, deadline);
     if(dsock_slow(rc < 0)) return -1;
@@ -84,7 +84,7 @@ static int crlf_msend(int s, const void *buf, size_t len, int64_t deadline) {
 }
 
 static ssize_t crlf_mrecv(int s, void *buf, size_t len, int64_t deadline) {
-    struct crlfsock *obj = hdata(s, msock_type);
+    struct crlf_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == crlf_type);
     size_t pos = 0;
     char c = 0;
@@ -100,7 +100,7 @@ static ssize_t crlf_mrecv(int s, void *buf, size_t len, int64_t deadline) {
 }
 
 static void crlf_close(int s) {
-    struct crlfsock *obj = hdata(s, msock_type);
+    struct crlf_sock *obj = hdata(s, msock_type);
     dsock_assert(obj && obj->vfptrs.type == crlf_type);
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);

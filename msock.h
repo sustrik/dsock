@@ -26,7 +26,7 @@
 
 const void *msock_type;
 
-struct msockvfptrs {
+struct msock_vfptrs {
     struct hvfptrs hvfptrs; /* type should be set to msock_type */
     const void *type;
     int (*msend)(int s, const void *buf, size_t len, int64_t deadline);

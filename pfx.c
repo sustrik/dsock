@@ -37,10 +37,10 @@ static void pfx_close(int s);
 static int pfx_msend(int s, const void *buf, size_t len, int64_t deadline);
 static ssize_t pfx_mrecv(int s, void *buf, size_t len, int64_t deadline);
 
-#define PFXSOCK_PEERDONE 1
+#define pfx_sock_PEERDONE 1
 
-struct pfxsock {
-    struct msockvfptrs vfptrs;
+struct pfx_sock {
+    struct msock_vfptrs vfptrs;
     int s;
     int flags;
 };
@@ -49,7 +49,7 @@ int pfx_start(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) return -1;
     /* Create the object. */
-    struct pfxsock *obj = malloc(sizeof(struct pfxsock));
+    struct pfx_sock *obj = malloc(sizeof(struct pfx_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = pfx_close;
     obj->vfptrs.type = pfx_type;
@@ -70,14 +70,14 @@ int pfx_start(int s) {
 
 int pfx_stop(int s, int64_t deadline) {
     int err;
-    struct pfxsock *obj = hdata(s, msock_type);
+    struct pfx_sock *obj = hdata(s, msock_type);
     if(dsock_slow(obj && obj->vfptrs.type != pfx_type)) {
         errno = ENOTSUP; return -1;}
     /* Send termination message. */
     uint64_t sz = 0xffffffffffffffff;
     int rc = bsend(obj->s, &sz, 8, deadline);
     if(dsock_slow(rc < 0)) {err = errno; goto error;}
-    while(!obj->flags & PFXSOCK_PEERDONE) {
+    while(!obj->flags & pfx_sock_PEERDONE) {
         int rc = pfx_mrecv(s, NULL, 0, deadline);
         if(rc < 0 && errno == EPIPE) break;
         if(dsock_slow(rc < 0)) {err = errno; goto error;}
@@ -94,7 +94,7 @@ error:
 }
 
 static int pfx_msend(int s, const void *buf, size_t len, int64_t deadline) {
-    struct pfxsock *obj = hdata(s, msock_type);
+    struct pfx_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == pfx_type);
     uint8_t szbuf[8];
     dsock_putll(szbuf, (uint64_t)len);
@@ -106,16 +106,16 @@ static int pfx_msend(int s, const void *buf, size_t len, int64_t deadline) {
 }
 
 static ssize_t pfx_mrecv(int s, void *buf, size_t len, int64_t deadline) {
-    struct pfxsock *obj = hdata(s, msock_type);
+    struct pfx_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == pfx_type);
-    if(dsock_slow(obj->flags & PFXSOCK_PEERDONE)) {errno = EPIPE; return -1;}
+    if(dsock_slow(obj->flags & pfx_sock_PEERDONE)) {errno = EPIPE; return -1;}
     uint8_t szbuf[8];
     int rc = brecv(obj->s, szbuf, 8, deadline);
     if(dsock_slow(rc < 0)) return -1;
     uint64_t sz = dsock_getll(szbuf);
     if(dsock_slow(sz == 0xffffffffffffffff)) {
         /* Peer is terminating. */
-        obj->flags |= PFXSOCK_PEERDONE;
+        obj->flags |= pfx_sock_PEERDONE;
         errno = EPIPE;
         return -1;
     }
@@ -130,7 +130,7 @@ static ssize_t pfx_mrecv(int s, void *buf, size_t len, int64_t deadline) {
 }
 
 static void pfx_close(int s) {
-    struct pfxsock *obj = hdata(s, msock_type);
+    struct pfx_sock *obj = hdata(s, msock_type);
     dsock_assert(obj && obj->vfptrs.type == pfx_type);
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);

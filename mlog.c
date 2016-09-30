@@ -37,8 +37,8 @@ static void mlog_close(int s);
 static int mlog_msend(int s, const void *buf, size_t len, int64_t deadline);
 static ssize_t mlog_mrecv(int s, void *buf, size_t len, int64_t deadline);
 
-struct mlogsock {
-    struct msockvfptrs vfptrs;
+struct mlog_sock {
+    struct msock_vfptrs vfptrs;
     int s;
 };
 
@@ -46,7 +46,7 @@ int mlog_start(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, msock_type))) return -1;
     /* Create the object. */
-    struct mlogsock *obj = malloc(sizeof(struct mlogsock));
+    struct mlog_sock *obj = malloc(sizeof(struct mlog_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = mlog_close;
     obj->vfptrs.type = mlog_type;
@@ -65,7 +65,7 @@ int mlog_start(int s) {
 }
 
 int mlog_stop(int s) {
-    struct mlogsock *obj = hdata(s, msock_type);
+    struct mlog_sock *obj = hdata(s, msock_type);
     if(dsock_slow(obj && obj->vfptrs.type != mlog_type)) {
         errno = ENOTSUP; return -1;}
     int u = obj->s;
@@ -75,7 +75,7 @@ int mlog_stop(int s) {
 
 static int mlog_msend(int s, const void *buf, size_t len,
       int64_t deadline) {
-    struct mlogsock *obj = hdata(s, msock_type);
+    struct mlog_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == mlog_type);
     fprintf(stderr, "send %8zuB: 0x", len);
     size_t i;
@@ -87,7 +87,7 @@ static int mlog_msend(int s, const void *buf, size_t len,
 
 static ssize_t mlog_mrecv(int s, void *buf, size_t len,
       int64_t deadline) {
-    struct mlogsock *obj = hdata(s, msock_type);
+    struct mlog_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == mlog_type);
     ssize_t sz = mrecv(obj->s, buf, len, deadline);
     if(dsock_slow(sz < 0)) return -1;
@@ -100,7 +100,7 @@ static ssize_t mlog_mrecv(int s, void *buf, size_t len,
 } 
 
 static void mlog_close(int s) {
-    struct mlogsock *obj = hdata(s, msock_type);
+    struct mlog_sock *obj = hdata(s, msock_type);
     dsock_assert(obj && obj->vfptrs.type == mlog_type);
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);

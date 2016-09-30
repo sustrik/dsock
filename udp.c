@@ -37,8 +37,8 @@ static void udp_close(int s);
 static int udp_msend(int s, const void *buf, size_t len, int64_t deadline);
 static ssize_t udp_mrecv(int s, void *buf, size_t len, int64_t deadline);
 
-struct udpsock {
-    struct msockvfptrs vfptrs;
+struct udp_sock {
+    struct msock_vfptrs vfptrs;
     int fd;
     int hasremote;
     ipaddr remote;
@@ -73,7 +73,7 @@ int udp_socket(ipaddr *local, const ipaddr *remote) {
         }
     }
     /* Create the object. */
-    struct udpsock *obj = malloc(sizeof(struct udpsock));
+    struct udp_sock *obj = malloc(sizeof(struct udp_sock));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error2;}
     obj->vfptrs.hvfptrs.close = udp_close;
     obj->vfptrs.type = udp_type;
@@ -97,7 +97,7 @@ error1:
 }
 
 int udp_send(int s, const ipaddr *addr, const void *buf, size_t len) {
-    struct udpsock *obj = hdata(s, msock_type);
+    struct udp_sock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != udp_type)) {
         errno = ENOTSUP; return -1;}
@@ -117,7 +117,7 @@ int udp_send(int s, const ipaddr *addr, const void *buf, size_t len) {
 }
 
 ssize_t udp_recv(int s, ipaddr *addr, void *buf, size_t len, int64_t deadline) {
-    struct udpsock *obj = hdata(s, msock_type);
+    struct udp_sock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != udp_type)) {
         errno = ENOTSUP; return -1;}
@@ -149,7 +149,7 @@ static ssize_t udp_mrecv(int s, void *buf, size_t len, int64_t deadline) {
 }
 
 static void udp_close(int s) {
-    struct udpsock *obj = hdata(s, msock_type);
+    struct udp_sock *obj = hdata(s, msock_type);
     dsock_assert(obj && obj->vfptrs.type == udp_type);
     int rc = dsclose(obj->fd);
     dsock_assert(rc == 0);

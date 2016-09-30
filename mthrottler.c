@@ -38,8 +38,8 @@ static int mthrottler_msend(int s, const void *buf, size_t len,
 static ssize_t mthrottler_mrecv(int s, void *buf, size_t len,
     int64_t deadline);
 
-struct mthrottlersock {
-    struct msockvfptrs vfptrs;
+struct mthrottler_sock {
+    struct msock_vfptrs vfptrs;
     int s;
     size_t send_full;
     size_t send_remaining;
@@ -61,7 +61,7 @@ int mthrottler_start(int s,
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, msock_type))) return -1;
     /* Create the object. */
-    struct mthrottlersock *obj = malloc(sizeof(struct mthrottlersock));
+    struct mthrottler_sock *obj = malloc(sizeof(struct mthrottler_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = mthrottler_close;
     obj->vfptrs.type = mthrottler_type;
@@ -94,7 +94,7 @@ int mthrottler_start(int s,
 }
 
 int mthrottler_stop(int s) {
-    struct mthrottlersock *obj = hdata(s, msock_type);
+    struct mthrottler_sock *obj = hdata(s, msock_type);
     if(dsock_slow(obj && obj->vfptrs.type != mthrottler_type)) {
         errno = ENOTSUP; return -1;}
     int u = obj->s;
@@ -104,7 +104,7 @@ int mthrottler_stop(int s) {
 
 static int mthrottler_msend(int s, const void *buf, size_t len,
       int64_t deadline) {
-    struct mthrottlersock *obj = hdata(s, msock_type);
+    struct mthrottler_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == mthrottler_type);
     /* If send-throttling is off forward the call. */
     if(obj->send_full == 0) return msend(obj->s, buf, len, deadline);
@@ -124,7 +124,7 @@ static int mthrottler_msend(int s, const void *buf, size_t len,
 
 static ssize_t mthrottler_mrecv(int s, void *buf, size_t len,
       int64_t deadline) {
-    struct mthrottlersock *obj = hdata(s, msock_type);
+    struct mthrottler_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == mthrottler_type);
     /* If recv-throttling is off forward the call. */
     if(obj->recv_full == 0) return mrecv(obj->s, buf, len, deadline);
@@ -143,7 +143,7 @@ static ssize_t mthrottler_mrecv(int s, void *buf, size_t len,
 } 
 
 static void mthrottler_close(int s) {
-    struct mthrottlersock *obj = hdata(s, msock_type);
+    struct mthrottler_sock *obj = hdata(s, msock_type);
     dsock_assert(obj && obj->vfptrs.type == mthrottler_type);
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);

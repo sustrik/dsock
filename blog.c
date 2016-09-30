@@ -37,8 +37,8 @@ static void blog_close(int s);
 static int blog_bsend(int s, const void *buf, size_t len, int64_t deadline);
 static int blog_brecv(int s, void *buf, size_t len, int64_t deadline);
 
-struct blogsock {
-    struct bsockvfptrs vfptrs;
+struct blog_sock {
+    struct bsock_vfptrs vfptrs;
     int s;
 };
 
@@ -46,7 +46,7 @@ int blog_start(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hdata(s, bsock_type))) return -1;
     /* Create the object. */
-    struct blogsock *obj = malloc(sizeof(struct blogsock));
+    struct blog_sock *obj = malloc(sizeof(struct blog_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = blog_close;
     obj->vfptrs.type = blog_type;
@@ -65,7 +65,7 @@ int blog_start(int s) {
 }
 
 int blog_stop(int s) {
-    struct blogsock *obj = hdata(s, bsock_type);
+    struct blog_sock *obj = hdata(s, bsock_type);
     if(dsock_slow(obj && obj->vfptrs.type != blog_type)) {
         errno = ENOTSUP; return -1;}
     int u = obj->s;
@@ -75,7 +75,7 @@ int blog_stop(int s) {
 
 static int blog_bsend(int s, const void *buf, size_t len,
       int64_t deadline) {
-    struct blogsock *obj = hdata(s, bsock_type);
+    struct blog_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == blog_type);
     fprintf(stderr, "send %8zuB: 0x", len);
     size_t i;
@@ -87,7 +87,7 @@ static int blog_bsend(int s, const void *buf, size_t len,
 
 static int blog_brecv(int s, void *buf, size_t len,
       int64_t deadline) {
-    struct blogsock *obj = hdata(s, bsock_type);
+    struct blog_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == blog_type);
     int rc = brecv(obj->s, buf, len, deadline);
     if(dsock_slow(rc < 0)) return -1;
@@ -100,7 +100,7 @@ static int blog_brecv(int s, void *buf, size_t len,
 } 
 
 static void blog_close(int s) {
-    struct blogsock *obj = hdata(s, bsock_type);
+    struct blog_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj && obj->vfptrs.type == blog_type);
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);
