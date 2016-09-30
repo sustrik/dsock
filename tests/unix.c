@@ -41,6 +41,9 @@ coroutine void client(void) {
     rc = unix_recv(cs, buf, 3, -1);
     assert(rc == 0);
     assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
+    rc = unix_recv(cs, buf, 3, -1);
+    assert(rc == 0);
+    assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
     rc = unix_send(cs, "456", 3, -1);
     assert(rc == 0);
 
@@ -91,6 +94,8 @@ int main() {
 
     /* Test simple passing of data. */
     rc = unix_send(as, "ABC", 3, -1);
+    assert(rc == 0);
+    rc = unix_send(as, "DEF", 3, -1);
     assert(rc == 0);
     rc = unix_recv(as, buf, 3, -1);
     assert(rc == 0);
