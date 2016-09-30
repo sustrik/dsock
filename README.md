@@ -107,7 +107,7 @@ for a hand written network scheduler.)
 Technically, current implementation of dsock is based on
 [libdill](http://libdill.org). However, same or similar API can be implemented
 on top of any concurrency system with similar performance characteristics
-(e.h. Golang's goroutines).
+(e.g. Golang's goroutines).
 
 ### 3.2 Handles
 
@@ -118,5 +118,40 @@ space and therefore user space implementations are forced to use fake file
 descriptors that won't play well with standard POSIX functions (close, fcntl
 and such). To avoid confusion this document will call file descriptors used
 by dsock, whether actual ones or fake ones, "handles".
+
+### 3.3 Function naming
+
+For consistency's sake the function names SHOULD be in lowercase and SHOULD be
+composed of short protocol name (e.g. "tcp") and action name (e.g. "connect").
+The two parts of the name SHOULD be separated by underscore ("tcp_connect").
+
+### 3.4 Protocol initialization
+
+A protocol SHOULD be initialized using a "start" function (e.g. "smtp_start").
+If protocol runs on top of another protocol the handle of the underlying
+protocol SHOULD be the first argument of the function. The function may have
+arbitrary number of additional arguments.
+
+Some protocols require more complex setup. Consider TCP's listen/connect/accept
+system. These protocols should use custom set of functions rather than try
+to shoehorn all the functionality into a "start" function.
+
+If protocol runs on top of an underlying protocol it takes of ownership of
+that protocol's handle. Using the handle of low level protocol while it is
+being owned by a high level protocol will result in undefined behaviour.
+
+Example of creating a stack of four protocols:
+
+```
+int h1 = tcp_connect("192.168.0.111:5555");
+int h2 = foo_start(h1, arg1, arg2, arg3);
+int h3 = bar_start(h2);
+int h4 = baz_start(h3, arg4, arg5);
+```
+
+### 3.5 Normal operation
+
+### 3.6 Protocol shutdown
+
 
 
