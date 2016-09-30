@@ -1,4 +1,4 @@
-# dsock: An alternative to BSD socket API
+# RFC: dsock - An alternative to BSD socket API
 
 ## 1. Introduction
 
