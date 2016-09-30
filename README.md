@@ -119,18 +119,25 @@ descriptors that won't play well with standard POSIX functions (close, fcntl
 and such). To avoid confusion this document will call file descriptors used
 by dsock, whether actual ones or fake ones, "handles".
 
-### 3.3 Function naming
+### 3.3 Deadlines
+
+TODO
+
+### 3.4 Function naming
 
 For consistency's sake the function names SHOULD be in lowercase and SHOULD be
 composed of short protocol name (e.g. "tcp") and action name (e.g. "connect").
 The two parts of the name SHOULD be separated by underscore ("tcp_connect").
 
-### 3.4 Protocol initialization
+### 3.5 Protocol initialization
 
 A protocol SHOULD be initialized using a "start" function (e.g. "smtp_start").
 If protocol runs on top of another protocol the handle of the underlying
 protocol SHOULD be the first argument of the function. The function may have
 arbitrary number of additional arguments.
+
+The function SHOULD return handle of the newly created protocol instance.
+In case of error it SHOULD return -1 and set errno to the appropriate error.
 
 Some protocols require more complex setup. Consider TCP's listen/connect/accept
 system. These protocols should use custom set of functions rather than try
@@ -149,9 +156,54 @@ int h3 = bar_start(h2);
 int h4 = baz_start(h3, arg4, arg5);
 ```
 
-### 3.5 Normal operation
+### 3.6 Normal operation
 
-### 3.6 Protocol shutdown
+TODO
 
+### 3.7 Protocol shutdown
 
+When handle is closed (close function in POSIX, hclose function in this
+implementation) the protocol MUST shut down immediately without even trying
+to do termination handshake or similar. Note that this is different from BSD
+socket behaviour where closing a socket starts decent shutdown sequence.
+
+The protocol should also clean up all resources it owns including
+closing the handle of the underlying protocol. Given that the underlying
+protocol does the same, an entire stack of protocols can be shut down
+by closing the handle of the topmost protocol.
+
+```
+int h1 = foo_start();
+int h2 = bar_start(h1);
+int h3 = baz_start(h2);
+hclose(h3); /* baz, bar and foo are shut down */
+```
+
+For clean shut down there should be a protocol-specific function. The function
+SHOULD be called "stop". The handle to close SHOULD be the first argument of the
+function. The function MAY have arbitrary number of other arguments.
+
+If the shut down functionality is potentially blocking (e.g. requires a response
+from the peer) the last argument SHOULD be a deadline. If deadline expires shut
+down SHOULD fail with ETIMEDOUT error.
+
+If shut down function succeeds it SHOULD NOT close the underlying protocol.
+Instead it should return its handle. This is crucial for horizontal
+composability of protocols.
+
+```
+h1 = foo_start();    /* create stack of two protocols */
+h2 = bar_start(h1);
+h1 = bar_stop(h2);   /* top protocol finishes but bottom one is still alive */
+h3 = baz_start(h1);  /* new top protocol started *.
+h1 = baz_stop(h3);   /* shut down both protocols */
+foo_stop(h1);
+```
+
+However, note that some protocols are by their nature not capable of doing
+this, for example, they may not have a termination sequence. In such cases
+the shut down function SHOULD simply close the underlying protocol and return 0.
+
+In case of error shut down function SHOULD close the underying protocol,
+return -1 and set errno to appropriate value.
 
