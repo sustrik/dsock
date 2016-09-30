@@ -121,7 +121,22 @@ by dsock, whether actual ones or fake ones, "handles".
 
 ### 3.3 Deadlines
 
-TODO
+All blocking functions in dsock have a deadline parameter. Unlike with BSD
+sockets deadline is a point in time rather than interval. This allows for
+using same deadline in multiple calls without need for recomputation:
+
+```
+int64_t deadline = now() + 1000;
+msend(h, "ABC", 3, deadline);
+msend(h, "DEF", 3, deadline);
+```
+
+If deadline is hit the function in question SHOULD fail with ETIMEDOUT error.
+It also SHOULD mark the protocol as broken which prevents further communication.
+The rationale for this bahviour is to preserve atomicity of send/recv
+operations. If deadline was a non-fatal error there would have to be a way
+to push the data already received back to the socket or retract the data already
+sent from the socket.
 
 ### 3.4 Function naming
 
@@ -200,9 +215,9 @@ h1 = baz_stop(h3);   /* shut down both protocols */
 foo_stop(h1);
 ```
 
-However, note that some protocols are by their nature not capable of doing
-this, for example, they may not have a termination sequence. In such cases
-the shut down function SHOULD simply close the underlying protocol and return 0.
+Some protocols are by their nature not capable of doing this. For example,
+they may not have a termination sequence defined. In such cases the shut down
+function SHOULD simply close the underlying protocol and return 0.
 
 In case of error shut down function SHOULD close the underying protocol,
 return -1 and set errno to appropriate value.
