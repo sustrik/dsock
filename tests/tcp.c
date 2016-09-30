@@ -37,11 +37,6 @@ coroutine void client(int port) {
     rc = msleep(now() + 100);
     assert(rc == 0);
 
-    int fd = tcp_detach(cs);
-    assert(fd >= 0);
-    cs = tcp_attach(fd);
-    assert(cs >= 0);
-
     char buf[3];
     rc = tcp_recv(cs, buf, sizeof(buf), -1);
     assert(rc == 0);
@@ -65,7 +60,6 @@ coroutine void client2(int port) {
     rc = hclose(cs);
     assert(rc == 0);
 }
-
 
 int main() {
     char buf[16];

@@ -78,27 +78,6 @@ error1:
     return -1;
 }
 
-int unix_attach(int fd) {
-    if(dsock_slow(fd < 0)) {errno = EINVAL; return -1;}
-    /* Set the socket to non-blocking mode. */
-    int rc = dsunblock(fd);
-    if(dsock_slow(rc < 0)) return -1;
-    /* Create the handle. */
-    int h = unixmakeconn(fd);
-    if(dsock_slow(h < 0)) return -1;
-    return h;
-}
-
-int unix_detach(int s) {
-    struct unixconn *obj = hdata(s, bsock_type);
-    if(dsock_slow(!obj)) return -1;
-    if(dsock_slow(obj->vfptrs.type != unixconn_type)) {
-        errno = ENOTSUP; return -1;}
-    int fd = obj->fd;
-    free(obj);
-    return fd;
-}
-
 static int unixconn_bsend(int s, const void *buf, size_t len,
       int64_t deadline) {
     struct unixconn *obj = hdata(s, bsock_type);

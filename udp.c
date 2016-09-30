@@ -95,22 +95,6 @@ error1:
     return -1;
 }
 
-int udp_attach(int fd) {
-    /* TODO: Figure out how to do this. Remote address should be probably
-       set to the underlying fd using connect(2). */
-    dsock_assert(0);
-}
-
-int udp_detach(int s) {
-    struct udpsock *obj = hdata(s, msock_type);
-    if(dsock_slow(!obj)) return -1;
-    if(dsock_slow(obj->vfptrs.type != udp_type)) {
-        errno = ENOTSUP; return -1;}
-    int fd = obj->fd;
-    free(obj);
-    return fd;
-}
-
 int udp_send(int s, const ipaddr *addr, const void *buf, size_t len) {
     struct udpsock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;

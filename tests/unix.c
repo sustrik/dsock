@@ -37,31 +37,23 @@ coroutine void client(void) {
     int rc = msleep(now() + 100);
     assert(rc == 0);
 
-    int fd = unix_detach(cs);
-    assert(fd >= 0);
-    cs = unix_attach(fd);
-    assert(cs >= 0);
-
     char buf[16];
     rc = unix_recv(cs, buf, 3, -1);
     assert(rc == 0);
     assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
-
     rc = unix_send(cs, "456", 3, -1);
     assert(rc == 0);
 
     int p[2];
-    rc = unix_pair(p);
+    rc = pipe(p);
     assert(rc == 0);
-    fd = unix_detach(p[0]);
-    rc = unix_sendfd(cs, fd, -1);
+    rc = unix_sendfd(cs, p[0], -1);
     assert(rc == 0);
-    close(fd);
-
-    rc = unix_send(p[1], "X", 1, -1);
+    ssize_t sz = write(p[1], "X", 1);
+    assert(sz == 1);
+    rc = close(p[0]);
     assert(rc == 0);
-
-    rc = hclose(p[1]);
+    rc = close(p[1]);
     assert(rc == 0);
 
     rc = hclose(cs);
@@ -97,24 +89,22 @@ int main() {
     int64_t diff = now() - deadline;
     assert(diff > -20 && diff < 20);
 
+    /* Test simple passing of data. */
     rc = unix_send(as, "ABC", 3, -1);
     assert(rc == 0);
-
     rc = unix_recv(as, buf, 3, -1);
     assert(rc == 0);
     assert(buf[0] == '4' && buf[1] == '5' && buf[2] == '6');
 
+    /* Test passing a file descriptor. */
     int fd = unix_recvfd(as, -1);
     assert(fd >= 0);
-    int rs = unix_attach(fd);
-    assert(rc >= 0);
-
-    rc = unix_recv(rs, buf, 1, -1);
-    assert(rc == 0);
+    ssize_t sz = read(fd, buf, 1);
+    assert(sz == 1);
     assert(buf[0] == 'X');
-
-    rc = hclose(rs);
+    rc = close(fd);
     assert(rc == 0);
+
     rc = hclose(as);
     assert(rc == 0);
     rc = hclose(ls);
