@@ -81,29 +81,29 @@
 
 typedef struct {char data[32];} ipaddr;
 
-DSOCK_EXPORT int iplocal(
+DSOCK_EXPORT int ipaddr_local(
     ipaddr *addr,
     const char *name,
     int port,
     int mode);
-DSOCK_EXPORT int ipremote(
+DSOCK_EXPORT int ipaddr_remote(
     ipaddr *addr,
     const char *name,
     int port,
     int mode,
     int64_t deadline);
-DSOCK_EXPORT const char *ipaddrstr(
+DSOCK_EXPORT const char *ipaddr_str(
     const ipaddr *addr,
     char *ipstr);
-DSOCK_EXPORT int ipfamily(
+DSOCK_EXPORT int ipaddr_family(
     const ipaddr *addr);
-DSOCK_EXPORT const struct sockaddr *ipsockaddr(
+DSOCK_EXPORT const struct sockaddr *ipaddr_sockaddr(
     const ipaddr *addr);
-DSOCK_EXPORT int iplen(
+DSOCK_EXPORT int ipaddr_len(
     const ipaddr *addr);
-DSOCK_EXPORT int ipport(
+DSOCK_EXPORT int ipaddr_port(
     const ipaddr *addr);
-DSOCK_EXPORT void ipsetport(
+DSOCK_EXPORT void ipaddr_setport(
     ipaddr *addr,
     int port);
 

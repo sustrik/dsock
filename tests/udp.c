@@ -28,12 +28,12 @@
 
 int main() {
     ipaddr addr1;
-    int rc = iplocal(&addr1, NULL, 5555, 0);
+    int rc = ipaddr_local(&addr1, NULL, 5555, 0);
     assert(rc == 0);
     int s1 = udp_socket(&addr1, NULL);
     assert(s1 >= 0);
     ipaddr addr2;
-    rc = iplocal(&addr2, NULL, 5556, 0);
+    rc = ipaddr_local(&addr2, NULL, 5556, 0);
     assert(rc == 0);
     int s2 = udp_socket(&addr2, &addr1);
     assert(s2 >= 0);

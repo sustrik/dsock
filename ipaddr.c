@@ -54,7 +54,7 @@ static struct dns_resolv_conf *dsock_dns_conf = NULL;
 static struct dns_hosts *dsock_dns_hosts = NULL;
 static struct dns_hints *dsock_dns_hints = NULL;
 
-static int dsock_ipany(ipaddr *addr, int port, int mode)
+static int ipaddr_ipany(ipaddr *addr, int port, int mode)
 {
     if(dsock_slow(port < 0 || port > 0xffff)) {errno = EINVAL; return -1;}
     if (mode == 0 || mode == IPADDR_IPV4 || mode == IPADDR_PREF_IPV4) {
@@ -74,7 +74,7 @@ static int dsock_ipany(ipaddr *addr, int port, int mode)
 }
 
 /* Convert literal IPv4 address to a binary one. */
-static int dsock_ipv4_literal(ipaddr *addr, const char *name, int port) {
+static int ipaddr_ipv4_literal(ipaddr *addr, const char *name, int port) {
     struct sockaddr_in *ipv4 = (struct sockaddr_in*)addr;
     int rc = inet_pton(AF_INET, name, &ipv4->sin_addr);
     dsock_assert(rc >= 0);
@@ -85,7 +85,7 @@ static int dsock_ipv4_literal(ipaddr *addr, const char *name, int port) {
 }
 
 /* Convert literal IPv6 address to a binary one. */
-static int dsock_ipv6_literal(ipaddr *addr, const char *name, int port) {
+static int ipaddr_ipv6_literal(ipaddr *addr, const char *name, int port) {
     struct sockaddr_in6 *ipv6 = (struct sockaddr_in6*)addr;
     int rc = inet_pton(AF_INET6, name, &ipv6->sin6_addr);
     dsock_assert(rc >= 0);
@@ -96,7 +96,7 @@ static int dsock_ipv6_literal(ipaddr *addr, const char *name, int port) {
 }
 
 /* Convert literal IPv4 or IPv6 address to a binary one. */
-static int dsock_ipliteral(ipaddr *addr, const char *name, int port, int mode) {
+static int ipaddr_literal(ipaddr *addr, const char *name, int port, int mode) {
     if(dsock_slow(!addr || port < 0 || port > 0xffff)) {
         errno = EINVAL;
         return -1;
@@ -104,54 +104,54 @@ static int dsock_ipliteral(ipaddr *addr, const char *name, int port, int mode) {
     int rc;
     switch(mode) {
     case IPADDR_IPV4:
-        return dsock_ipv4_literal(addr, name, port);
+        return ipaddr_ipv4_literal(addr, name, port);
     case IPADDR_IPV6:
-        return dsock_ipv6_literal(addr, name, port);
+        return ipaddr_ipv6_literal(addr, name, port);
     case 0:
     case IPADDR_PREF_IPV4:
-        rc = dsock_ipv4_literal(addr, name, port);
+        rc = ipaddr_ipv4_literal(addr, name, port);
         if(rc == 0)
             return 0;
-        return dsock_ipv6_literal(addr, name, port);
+        return ipaddr_ipv6_literal(addr, name, port);
     case IPADDR_PREF_IPV6:
-        rc = dsock_ipv6_literal(addr, name, port);
+        rc = ipaddr_ipv6_literal(addr, name, port);
         if(rc == 0)
             return 0;
-        return dsock_ipv4_literal(addr, name, port);
+        return ipaddr_ipv4_literal(addr, name, port);
     default:
         dsock_assert(0);
     }
 }
 
-int ipfamily(const ipaddr *addr) {
+int ipaddr_family(const ipaddr *addr) {
     return ((struct sockaddr*)addr)->sa_family;
 }
 
-int iplen(const ipaddr *addr) {
-    return ipfamily(addr) == AF_INET ?
+int ipaddr_len(const ipaddr *addr) {
+    return ipaddr_family(addr) == AF_INET ?
         sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
 }
 
-const struct sockaddr *ipsockaddr(const ipaddr *addr) {
+const struct sockaddr *ipaddr_sockaddr(const ipaddr *addr) {
     return (const struct sockaddr*)addr;
 }
 
-int ipport(const ipaddr *addr) {
-    return ntohs(ipfamily(addr) == AF_INET ?
+int ipaddr_port(const ipaddr *addr) {
+    return ntohs(ipaddr_family(addr) == AF_INET ?
         ((struct sockaddr_in*)addr)->sin_port :
         ((struct sockaddr_in6*)addr)->sin6_port);
 }
 
-void ipsetport(ipaddr *addr, int port) {
-    if(ipfamily(addr) == AF_INET)
+void ipaddr_setport(ipaddr *addr, int port) {
+    if(ipaddr_family(addr) == AF_INET)
         ((struct sockaddr_in*)addr)->sin_port = htons(port);
     else
         ((struct sockaddr_in6*)addr)->sin6_port = htons(port);
 }
 
 /* Convert IP address from network format to ASCII dot notation. */
-const char *ipaddrstr(const ipaddr *addr, char *ipstr) {
-    if(ipfamily(addr) == AF_INET) {
+const char *ipaddr_str(const ipaddr *addr, char *ipstr) {
+    if(ipaddr_family(addr) == AF_INET) {
         return inet_ntop(AF_INET, &(((struct sockaddr_in*)addr)->sin_addr),
             ipstr, INET_ADDRSTRLEN);
     }
@@ -161,10 +161,10 @@ const char *ipaddrstr(const ipaddr *addr, char *ipstr) {
     }
 }
 
-int iplocal(ipaddr *addr, const char *name, int port, int mode) {
+int ipaddr_local(ipaddr *addr, const char *name, int port, int mode) {
     if(!name) 
-        return dsock_ipany(addr, port, mode);
-    int rc = dsock_ipliteral(addr, name, port, mode);
+        return ipaddr_ipany(addr, port, mode);
+    int rc = ipaddr_literal(addr, name, port, mode);
 #if defined __sun
     return rc;
 #else
@@ -237,9 +237,9 @@ int iplocal(ipaddr *addr, const char *name, int port, int mode) {
 #endif
 }
 
-int ipremote(ipaddr *addr, const char *name, int port, int mode,
+int ipaddr_remote(ipaddr *addr, const char *name, int port, int mode,
       int64_t deadline) {
-    int rc = dsock_ipliteral(addr, name, port, mode);
+    int rc = ipaddr_literal(addr, name, port, mode);
     if(rc == 0)
        return 0;
     /* Load DNS config files, unless they are already chached. */

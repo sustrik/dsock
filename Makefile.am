@@ -39,7 +39,7 @@ libdsock_la_SOURCES = \
     crlf.c \
     fdhelpers.h \
     fdhelpers.c \
-    ip.c \
+    ipaddr.c \
     lz4.c \
     mlog.c \
     msock.h \

@@ -47,12 +47,13 @@ struct udpsock {
 int udp_socket(ipaddr *local, const ipaddr *remote) {
     int err;
     /* Sanity checking. */
-    if(dsock_slow(local && remote && ipfamily(local) != ipfamily(remote))) {
+    if(dsock_slow(local && remote &&
+          ipaddr_family(local) != ipaddr_family(remote))) {
         err = EINVAL; goto error1;}
     /* Open the listening socket. */
     int family = AF_INET;
-    if(local) family = ipfamily(local);
-    if(remote) family = ipfamily(remote);
+    if(local) family = ipaddr_family(local);
+    if(remote) family = ipaddr_family(remote);
     int s = socket(family, SOCK_DGRAM, 0);
     if(s < 0) {err = errno; goto error1;}
     /* Set it to non-blocking mode. */
@@ -60,15 +61,15 @@ int udp_socket(ipaddr *local, const ipaddr *remote) {
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Start listening. */
     if(local) {
-        rc = bind(s, ipsockaddr(local), iplen(local));
+        rc = bind(s, ipaddr_sockaddr(local), ipaddr_len(local));
         if(s < 0) {err = errno; goto error2;}
         /* Get the ephemeral port number. */
-        if(ipport(local) == 0) {
+        if(ipaddr_port(local) == 0) {
             ipaddr baddr;
             socklen_t len = sizeof(ipaddr);
             rc = getsockname(s, (struct sockaddr*)&baddr, &len);
             if(dsock_slow(rc < 0)) {err = errno; goto error2;}
-            ipsetport(local, ipport(&baddr));
+            ipaddr_setport(local, ipaddr_port(&baddr));
         }
     }
     /* Create the object. */
@@ -108,7 +109,7 @@ int udp_send(int s, const ipaddr *addr, const void *buf, size_t len) {
         dstaddr = &obj->remote;
     }
     ssize_t sz = sendto(obj->fd, buf, len, 0,
-        (struct sockaddr*)ipsockaddr(dstaddr), iplen(dstaddr));
+        (struct sockaddr*)ipaddr_sockaddr(dstaddr), ipaddr_len(dstaddr));
     if(dsock_fast(sz == len)) return 0;
     dsock_assert(sz < 0);
     if(errno == EAGAIN || errno == EWOULDBLOCK) return 0;

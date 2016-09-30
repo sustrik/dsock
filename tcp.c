@@ -52,13 +52,13 @@ struct tcpconn {
 int tcp_connect(const ipaddr *addr, int64_t deadline) {
     int err;
     /* Open a socket. */
-    int s = socket(ipfamily(addr), SOCK_STREAM, 0);
+    int s = socket(ipaddr_family(addr), SOCK_STREAM, 0);
     if(dsock_slow(s < 0)) {err = errno; goto error1;}
     /* Set it to non-blocking mode. */
     int rc = dsunblock(s);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Connect to the remote endpoint. */
-    rc = dsconnect(s, ipsockaddr(addr), iplen(addr), deadline);
+    rc = dsconnect(s, ipaddr_sockaddr(addr), ipaddr_len(addr), deadline);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Create the handle. */
     int h = tcpmakeconn(s);
@@ -113,24 +113,24 @@ struct tcplistener {
 int tcp_listen(ipaddr *addr, int backlog) {
     int err;
     /* Open the listening socket. */
-    int s = socket(ipfamily(addr), SOCK_STREAM, 0);
+    int s = socket(ipaddr_family(addr), SOCK_STREAM, 0);
     if(dsock_slow(s < 0)) {err = errno; goto error1;}
     /* Set it to non-blocking mode. */
     int rc = dsunblock(s);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Start listening for incoming connections. */
-    rc = bind(s, ipsockaddr(addr), iplen(addr));
+    rc = bind(s, ipaddr_sockaddr(addr), ipaddr_len(addr));
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     rc = listen(s, backlog);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* If the user requested an ephemeral port,
        retrieve the port number assigned by the OS. */
-    if(ipport(addr) == 0) {
+    if(ipaddr_port(addr) == 0) {
         ipaddr baddr;
         socklen_t len = sizeof(ipaddr);
         rc = getsockname(s, (struct sockaddr*)&baddr, &len);
         if(rc < 0) {err = errno; goto error2;}
-        ipsetport(addr, ipport(&baddr));
+        ipaddr_setport(addr, ipaddr_port(&baddr));
     }
     /* Create the object. */
     struct tcplistener *obj = malloc(sizeof(struct tcplistener));

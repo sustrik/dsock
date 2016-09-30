@@ -28,7 +28,7 @@
 
 coroutine void client(int port) {
     ipaddr addr;
-    int rc = ipremote(&addr, "127.0.0.1", port, 0, -1);
+    int rc = ipaddr_remote(&addr, "127.0.0.1", port, 0, -1);
     assert(rc == 0);
     int cs = tcp_connect(&addr, -1);
     assert(cs >= 0);
@@ -51,7 +51,7 @@ coroutine void client(int port) {
 
 coroutine void client2(int port) {
     ipaddr addr;
-    int rc = ipremote(&addr, "127.0.0.1", port, 0, -1);
+    int rc = ipaddr_remote(&addr, "127.0.0.1", port, 0, -1);
     assert(rc == 0);
     int cs = tcp_connect(&addr, -1);
     assert(cs >= 0);
@@ -65,7 +65,7 @@ int main() {
     char buf[16];
 
     ipaddr addr;
-    int rc = iplocal(&addr, NULL, 5555, 0);
+    int rc = ipaddr_local(&addr, NULL, 5555, 0);
     assert(rc == 0);
     int ls = tcp_listen(&addr, 10);
     assert(ls >= 0);
