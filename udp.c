@@ -120,7 +120,14 @@ ssize_t udp_recv(int s, ipaddr *addr, void *buf, size_t len, int64_t deadline) {
     if(dsock_slow(!obj)) return -1;
     if(dsock_slow(obj->vfptrs.type != udp_type)) {
         errno = ENOTSUP; return -1;}
-    if(dsock_slow(!len || (len > 0 && !buf))) {errno = EINVAL; return -1;}
+    /* If user doesn't supply buffer we'll read the packet anyway and discard
+       the data. Dummy buffer is used to avoid possible corner cases in UDP
+       socket implementation. */
+    int dummy;
+    if(dsock_slow(!buf)) {
+        buf = &dummy;
+        len = sizeof(dummy);
+    }
     ssize_t sz;
     while(1) {
         socklen_t slen = sizeof(ipaddr);

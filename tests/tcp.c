@@ -84,7 +84,8 @@ int main() {
 
     rc = tcp_send(as, "ABC", 3, -1);
     assert(rc == 0);
-
+    rc = tcp_recv(as, NULL, 2, -1);
+    assert(rc == 0);
     rc = tcp_recv(as, buf, sizeof(buf), -1);
     assert(rc == -1 && errno == ECONNRESET);
 

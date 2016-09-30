@@ -130,19 +130,19 @@ static ssize_t dsget(int s, void *buf, size_t len, int block,
 int dsrecv(int s, struct dsrxbuf *rxbuf, void *buf, size_t len,
       int64_t deadline) {
     dsock_assert(rxbuf);
-    if(dsock_slow(len > 0 && !buf)) {errno = EINVAL; return -1;}
     while(1) {
         /* Use data from rxbuf. */
         size_t remaining = rxbuf->len - rxbuf->pos;
         size_t tocopy = remaining < len ? remaining : len;
-        memcpy(buf, (char*)(rxbuf->data) + rxbuf->pos, tocopy);
+        if(dsock_fast(buf))
+            memcpy(buf, (char*)(rxbuf->data) + rxbuf->pos, tocopy);
         rxbuf->pos += tocopy;
         buf = (char*)buf + tocopy;
         len -= tocopy;
         if(!len) return 0;
         /* If requested amount of data is large avoid the copy
            and read it directly into user's buffer. */
-        if(len >= sizeof(rxbuf->data)) {
+        if(len >= sizeof(rxbuf->data) && buf) {
             ssize_t sz = dsget(s, buf, len, 1, deadline);
             if(dsock_slow(sz < 0)) return -1;
             return 0;
