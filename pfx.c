@@ -95,11 +95,9 @@ static ssize_t pfx_mrecv(int s, void *buf, size_t len, int64_t deadline) {
     size_t torecv = (size_t)(len < sz ? len : sz);
     rc = brecv(obj->s, buf, torecv, deadline);
     if(dsock_slow(rc < 0)) return -1;
-    while(torecv < sz) {
-        uint8_t c;
-        rc = brecv(obj->s, &c, 1, deadline);
+    if(torecv < sz) {
+        rc = brecv(obj->s, NULL, sz - torecv, deadline);
         if(dsock_slow(rc < 0)) return -1;
-        ++torecv;
     }
     return sz;
 }
