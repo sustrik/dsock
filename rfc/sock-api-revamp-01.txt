@@ -129,7 +129,13 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    deliberate design choices to prevent the modern "schedule by hand"
    style of network programming.
 
-5.  Function names
+5.  Socket options
+
+   There's no equivalent to socket options as the are known from BSD
+   socket API.  Any such functionality is supposed to be built by
+   vertical layering of protocols.
+
+6.  Function names
 
    For consistency's sake the function names SHOULD be in lowercase and
    SHOULD be composed of short protocol name and action name separated
@@ -139,7 +145,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    different naming conventions the native convention SHOULD be used
    (e.g.  "TcpConnect" or "Tcp.Connect").
 
-6.  Handles
+7.  Handles
 
    First argument of every function SHOULD be the handle, unless the
    function has not handle argument at all.
@@ -155,12 +161,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    file descriptors that don't work with standard POSIX functionslike
    close() or fcntl().
 
-   To address the problem this proposal is agnostic about whether
-   protocols are implemented in kernel space and referred to by file
-   descriptors or whether they are implemented in user space and
-   referred to by fake file descriptors.  It uses term "handle" to refer
-   to both kinds of descriptors.
-
 
 
 
@@ -170,7 +170,13 @@ Sustrik                   Expires April 4, 2017                 [Page 3]
 Internet-Draft            BSD Socket API Revamp             October 2016
 
 
-7.  Deadlines
+   To address the problem this proposal is agnostic about whether
+   protocols are implemented in kernel space and referred to by file
+   descriptors or whether they are implemented in user space and
+   referred to by fake file descriptors.  It uses term "handle" to refer
+   to both kinds of descriptors.
+
+8.  Deadlines
 
    All blocking functions conformant with this specification SHOULD have
    an explicit deadline parameter.  Unlike with BSD sockets though the
@@ -184,7 +190,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    The deadline argument SHOULD be the last argument in the function.
 
-8.  Protocol initialization
+9.  Protocol initialization
 
    A protocol SHOULD be initialized using "start" function (e.g.
    "smtp_start").  If protocol runs on top of another protocol the
@@ -213,12 +219,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
        int h3 = bar_start(h2);
        int h4 = baz_start(h3, arg4, arg5);
 
-9.  Protocol termination
-
-   When handle is closed (i.e. close() function in POSIX, an equivalent
-   in user space protocol implementation) the protocol SHOULD shut down
-
-
 
 
 Sustrik                   Expires April 4, 2017                 [Page 4]
@@ -226,6 +226,10 @@ Sustrik                   Expires April 4, 2017                 [Page 4]
 Internet-Draft            BSD Socket API Revamp             October 2016
 
 
+10.  Protocol termination
+
+   When handle is closed (i.e. close() function in POSIX, an equivalent
+   in user space protocol implementation) the protocol SHOULD shut down
    immediately without even trying to do termination handshake or
    similar.  Note that this is different from how BSD sockets behave.
 
@@ -270,10 +274,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    Also, if the protocol has no underlying protocol the function SHOULD
    return zero on success.
 
-   In case of error shut down function SHOULD close the underying
-   protocol (and thus recursively all protocols beneath it), return -1
-   and set errno to appropriate value.
-
 
 
 
@@ -282,12 +282,16 @@ Sustrik                   Expires April 4, 2017                 [Page 5]
 Internet-Draft            BSD Socket API Revamp             October 2016
 
 
-10.  Normal operation
+   In case of error shut down function SHOULD close the underying
+   protocol (and thus recursively all protocols beneath it), return -1
+   and set errno to appropriate value.
+
+11.  Normal operation
 
    Everything that happens between protocol initialization and protocol
    termination will be referred to as "normal operation".
 
-10.1.  Application protocols
+11.1.  Application protocols
 
    Application protocols live on top of transport protocols.  Rather
    than passing raw data they are meant to perform a specific service
@@ -300,7 +304,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    From the point of view of this document, application protocol is
    always at the topmost level of the protocol stack.
 
-10.2.  Presentation protocols
+11.2.  Presentation protocols
 
    Presentation protocols add structure to data carried by transport
    protocols (e.g.  ASN.1, JSON, XML).  This proposal doesn't address
@@ -309,14 +313,14 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    transport protocol.  Or the protocol exposes special API to browse
    the structured data in which case it is an application protocol.
 
-10.3.  Transport protocols
+11.3.  Transport protocols
 
    The term "transport protocol" in this memo has broader scope than
    "OSI L4 protocol".  By "reansport protocol" we mean anything capable
    of sending and/or receiving unstructured data, be it TCP, IP or
    Ethernet.
 
-10.3.1.  Bytestream protocols
+11.3.1.  Bytestream protocols
 
    Byte stream protocols are transport protocols that define no message
    boundaries.  One peer can send 10 bytes, then 8 bytes.  The other
@@ -327,16 +331,15 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    Bytestream protocols can be used via following two functions:
 
-       int bsend(int h, const void *buf, size_t len, int64_t deadline);
-       int brecv(int h, void *buf, size_t len, int64_t deadline);
-
-
 
 
 Sustrik                   Expires April 4, 2017                 [Page 6]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
+
+       int bsend(int h, const void *buf, size_t len, int64_t deadline);
+       int brecv(int h, void *buf, size_t len, int64_t deadline);
 
    Function bsend() sends data to the protocol.  The protocol SHOULD
    send them, after whatever manipulation is required, to its underlying
@@ -364,7 +367,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    buffer is unpredictable and using such data will result in undefined
    behaviour.
 
-10.3.2.  Message protocols
+11.3.2.  Message protocols
 
    Message protocols are transport protocols that preserve message
    boundaries.  While message protocols are not necessarily reliable
@@ -383,9 +386,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
            void *ctrl, size_t ctrllen, int64_t deadline);
 
 
-   Function msend() sends message to the protocol.  The protocol SHOULD
-   send it, after whatever manipulation is required, to its underlying
-
 
 
 
@@ -394,6 +394,8 @@ Sustrik                   Expires April 4, 2017                 [Page 7]
 Internet-Draft            BSD Socket API Revamp             October 2016
 
 
+   Function msend() sends message to the protocol.  The protocol SHOULD
+   send it, after whatever manipulation is required, to its underlying
    protocol.  Eventually, the lowermost protocol in the stack sends the
    data to the network.
 
@@ -435,13 +437,11 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    via control data buffer.  Control data are discussed in detail later
    on in this proposal.
 
-10.3.2.1.  Custom sending and receiving
+11.3.2.1.  Custom sending and receiving
 
    In addition to send/recv functions described above, message-based
    protocols MAY implement its own custom send/recv functions.  These
    functions should be called "send" and/or "recv" (e.g.  "udp_send").
-
-
 
 
 
@@ -454,19 +454,19 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    example, UDP protocol may implement custom send function with
    additional "destination IP address" argument.
 
-   Custom functions should try to be as compliant with msend/mrecv
-   specification as possible.
-
    A protocol MAY also implement multiple send or receive functions as
    needed.
 
-10.3.2.2.  Control (ancillary) data
+   Protocol implementors should try to make custom send/recv functions
+   as consistent with msend/mrecv as possible.
 
-11.  IANA Considerations
+11.3.2.2.  Control (ancillary) data
+
+12.  IANA Considerations
 
    This memo includes no request to IANA.
 
-12.  Security Considerations
+13.  Security Considerations
 
    The security implications of the new API don't differ from security
    implications of classic BSD socket API.  Still, it may be worth

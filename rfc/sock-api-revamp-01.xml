@@ -88,6 +88,12 @@
          style of network programming.</t>
     </section>
 
+    <section title="Socket options">
+      <t>There's no equivalent to socket options as the are known from BSD
+         socket API. Any such functionality is supposed to be built by vertical
+         layering of protocols.</t>
+    </section>
+
     <section title="Function names">
       <t>For consistency's sake the function names SHOULD be in lowercase and
          SHOULD be composed of short protocol name and action name separated
@@ -341,10 +347,10 @@
             <t>Custom functions allow for providing additional arguments. For
                example, UDP protocol may implement custom send function with
                additional "destination IP address" argument.</t>
-            <t>Custom functions should try to be as compliant with msend/mrecv
-               specification as possible.</t>
             <t>A protocol MAY also implement multiple send or receive functions
                as needed.</t>
+            <t>Protocol implementors should try to make custom send/recv
+               functions as consistent with msend/mrecv as possible.</t>
           </section>
 
           <section title="Control (ancillary) data">
