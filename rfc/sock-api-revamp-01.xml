@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+
+<rfc category="info" docName="sock-api-revamp-01">
+
+  <front>
+
+    <title abbrev="BSD Socket API Revamp">
+    BSD Socket API Revamp
+    </title>
+
+    <author fullname="Martin Sustrik" initials="M." surname="Sustrik" role="editor">
+      <address>
+        <email>sustrik@250bpm.com</email>
+      </address>
+    </author>
+
+    <date month="October" year="2016" />
+
+    <area>Applications</area>
+    <workgroup>Internet Engineering Task Force</workgroup>
+
+    <keyword>BSD sockets</keyword>
+    <keyword>API</keyword>
+
+    <abstract>
+      <t>This memo describes new API for network sockets. Compared to classic
+         BSD socket API the new API is much more leightweight and flexible.
+         Its primary focus is on easy composability of network protocols.</t>
+    </abstract>
+
+  </front>
+
+  <middle>
+
+    <section title = "Introduction">
+    </section>
+
+    <section title = "Scope">
+      <t>Unlike BSD sockets, proposed API doesn't try to virtualize all possible
+         protocols and provide a single set of functions to deal with all
+         aspects of any of them. Instead, it acknowledges how varied
+         the protocol landscape is and how much the requirements for individual
+         protocols differ. Therefore, it lets each protocol define its
+         own API and asks only for bare minimum of standardised behaviour
+         needed to implement protocol composability.</t>
+      <t>This memo also provides some non-binding suggestions for protocol API
+         designers. Following these suggestions would lead to uniform feel
+         of the API and flat learning curve for protocol users.</t>
+    </section>
+
+    <section title="Scheduling or rather lack of it">
+      <t>During the decades since BSD sockets were fisrt introduced the way they
+         are used have changed significantly. While in the beginning the user
+         was supposed to fork a new process for each connection and do all the
+         work using simple blocking calls nowadays the user is supposed to keep
+         a pool of connections check them via functions like poll() or kqueue()
+         and if there is any work to be done they are supposed to dispatch
+         it to one of the worker threads in a thread pool. In short, user is
+         supposed to do both network and CPU scheduling.</t>
+      <t>This change happened for performance reasons and haven't improved
+         functionality or usability of BSD socket API in any way. On the
+         contrary, by requiring every programmer, however junior or uninterested
+         in system design topics, to do system programmer's work it contributed
+         to proliferation of buggy, hard-to-debug and barely maintainable
+         code.</t>
+      <t>To address this problem, this memo assumes that there already exists
+         an efficient concurrency implementation where forking a new lightweight
+         process takes at most hundreds of nanoseconds and context switch
+         takes tens of nanoseconds. Note that there are already such concurrency
+         systems deployed in the wild. One well-known example are Golang's
+         goroutines but there are others available as well.</t>
+      <t>In such environment network programming can be done in the old
+         "one process per connection" way. There's no need for polling, thread
+         pools, callbacks, explicit state machines and so on.</t>
+      <t>This memo thus adheres to "let system programmers do system
+         programming" motto and doesn't address the problem of scheduling,
+         be it CPU scheduling or network scheduling, at all.</t>
+      <t>As a footnote, it should be said that this proposal makes couple of
+         deliberate design choices to prevent the modern "schedule by hand"
+         style of network programming.</t>
+    </section>
+
+    <section title="Function names">
+      <t>For consistency's sake the function names SHOULD be in lowercase and
+         SHOULD be composed of short protocol name and action name separated
+         by underscore (e.g. "tcp_connect").</t>
+      <t>This proposal is focused on C language. In languages that use different
+         naming conventions the native convention SHOULD be used
+         (e.g. "TcpConnect" or "Tcp.Connect").</t>
+    </section>
+
+    <section title="Handles">
+        <t>First argument of every function SHOULD be the handle, unless the
+           function has not handle argument at all.</t>
+        <t>With BSD socket APIs protocol instances are referred to by file
+           descriptors. This proposal doesn't change that in any way, however,
+           it acknowledges the fact that for multiple reasons (performance,
+           ease of development) there's a need for network protocol
+           implementations in the user space.</t>
+        <t>Given that POSIX provides no way to create custom file descriptor
+           types in user space, protocol implementors are forced to use fake
+           file descriptors that don't work with standard POSIX functionslike
+           close() or fcntl().</t>
+        <t>To address the problem this proposal is agnostic about whether
+           protocols are implemented in kernel space and referred to
+           by file descriptors or whether they are implemented in user space
+           and referred to by fake file descriptors. It uses term "handle"
+           to refer to both kinds of descriptors.</t>
+    </section>
+
+    <section title="Deadlines">
+        <t>All blocking functions conformant with this specification SHOULD have
+           an explicit deadline parameter. Unlike with BSD sockets though
+           the deadline is a point in time rather than interval. This allows to
+           use the same deadline in multiple calls without need for recomputing
+           the remaining interval:</t>
+        <figure>
+          <artwork>
+    int64_t deadline = now() + 1000;
+    bsend(h, "ABC", 3, deadline);
+    bsend(h, "DEF", 3, deadline);
+          </artwork>
+        </figure>
+        <t>The deadline argument SHOULD be the last argument in
+           the function.</t>
+    </section>
+
+    <section title="Protocol initialization">
+      <t>A protocol SHOULD be initialized using "start" function
+         (e.g. "smtp_start"). If protocol runs on top of another protocol the
+         handle of the underlying protocol SHOULD be supplied as the first
+         argument of the function. The function may have arbitrary number of
+         additional arguments.</t>
+      <t>The function SHOULD return the handle of the newly created protocol
+         instance. In case of error it SHOULD return -1 and set errno to the
+         appropriate error.</t>
+      <t>Some protocols require more complex setup. Consider TCP's
+         listen/connect/accept connection setup process. These protocols should
+         use custom set of functions rather than try to shoehorn all the
+         functionality into an all-purpose "start" function.</t>
+      <t>If protocol runs on top of an underlying protocol it takes of ownership
+         of that protocol's handle. Using the handle of low level protocol while
+         it is owned by a higher level protocol will result in undefined
+         behaviour.</t>
+      <t>Example of creating a stack of four protocols:</t>
+      <figure>
+        <artwork>
+    int h1 = tcp_connect("192.168.0.111:5555");
+    int h2 = foo_start(h1, arg1, arg2, arg3);
+    int h3 = bar_start(h2);
+    int h4 = baz_start(h3, arg4, arg5);
+        </artwork>
+      </figure>
+    </section>
+
+    <section title="Protocol termination">
+      <t>When handle is closed (i.e. close() function in POSIX, an equivalent in
+         user space protocol implementation) the protocol SHOULD shut down
+         immediately without even trying to do termination handshake or similar.
+         Note that this is different from how BSD sockets behave.</t>
+      <t>The protocol MUST also clean up all resources it owns including
+         closing the handle of the underlying protocol. Given that the
+         underlying protocol does the same operation, an entire stack of
+         protocols can be shut down by closing the handle of the topmost
+         protocol:</t>
+      <figure>
+        <artwork>
+    int h1 = foo_start();
+    int h2 = bar_start(h1);
+    int h3 = baz_start(h2);
+    hclose(h3); /* baz, bar and foo are shut down */
+        </artwork>
+      </figure>
+      <t>To perform clean shut down there SHOULD be a protocol-specific
+         function called "stop". In addition to the handle to close the function
+         can have arbitrary numer of other arguments.</t>
+      <t>If the shut down functionality is potentially blocking (e.g. if it
+         requires a response from the peer) the last argument SHOULD be a
+         deadline.</t>
+      <t>If shut down function succeeds it SHOULD NOT close the underlying
+         protocol. Instead it should return its handle. This is crucial for
+         horizontal composability of protocols:</t>
+      <figure>
+        <artwork>
+    /* create stack of two protocols */
+    h1 = foo_start();
+    h2 = bar_start(h1);
+    /* top protocol is closed but bottom one is still alive */
+    h1 = bar_stop(h2);
+    /* new top protocol is started */
+    h3 = baz_start(h1);
+    /* shut down both protocols */
+    h1 = baz_stop(h3);
+    foo_stop(h1);
+        </artwork>
+      </figure>
+      <t>Some protocols are not capable of doing this. For example, they may not
+         have a termination sequence defined. In such cases the shut down
+         function SHOULD simply close the underlying protocol and return 0.</t>
+      <t>Also, if the protocol has no underlying protocol the function SHOULD
+         return zero on success.</t>
+      <t>In case of error shut down function SHOULD close the underying protocol
+         (and thus recursively all protocols beneath it), return -1 and set
+         errno to appropriate value.</t>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>This memo includes no request to IANA.</t>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>The security implications of the new API don't differ from security
+         implications of classic BSD socket API. Still, it may be worth
+         passing the design through a security audit.</t>
+    </section>
+
+  </middle>
+
+</rfc>

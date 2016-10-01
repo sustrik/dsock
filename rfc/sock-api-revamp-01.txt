@@ -1,0 +1,336 @@
+
+
+
+
+Internet Engineering Task Force                          M. Sustrik, Ed.
+Internet-Draft                                           October 1, 2016
+Intended status: Informational
+Expires: April 4, 2017
+
+
+                         BSD Socket API Revamp
+                           sock-api-revamp-01
+
+Abstract
+
+   This memo describes new API for network sockets.  Compared to classic
+   BSD socket API the new API is much more leightweight and flexible.
+   Its primary focus is on easy composability of network protocols.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at http://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on April 4, 2017.
+
+Copyright Notice
+
+   Copyright (c) 2016 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Simplified BSD License text as described in Section 4.e of
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
+
+
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 1]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
+1.  Introduction
+
+2.  Scope
+
+   Unlike BSD sockets, proposed API doesn't try to virtualize all
+   possible protocols and provide a single set of functions to deal with
+   all aspects of any of them.  Instead, it acknowledges how varied the
+   protocol landscape is and how much the requirements for individual
+   protocols differ.  Therefore, it lets each protocol define its own
+   API and asks only for bare minimum of standardised behaviour needed
+   to implement protocol composability.
+
+   This memo also provides some non-binding suggestions for protocol API
+   designers.  Following these suggestions would lead to uniform feel of
+   the API and flat learning curve for protocol users.
+
+3.  Scheduling or rather lack of it
+
+   During the decades since BSD sockets were fisrt introduced the way
+   they are used have changed significantly.  While in the beginning the
+   user was supposed to fork a new process for each connection and do
+   all the work using simple blocking calls nowadays the user is
+   supposed to keep a pool of connections check them via functions like
+   poll() or kqueue() and if there is any work to be done they are
+   supposed to dispatch it to one of the worker threads in a thread
+   pool.  In short, user is supposed to do both network and CPU
+   scheduling.
+
+   This change happened for performance reasons and haven't improved
+   functionality or usability of BSD socket API in any way.  On the
+   contrary, by requiring every programmer, however junior or
+   uninterested in system design topics, to do system programmer's work
+   it contributed to proliferation of buggy, hard-to-debug and barely
+   maintainable code.
+
+   To address this problem, this memo assumes that there already exists
+   an efficient concurrency implementation where forking a new
+   lightweight process takes at most hundreds of nanoseconds and context
+   switch takes tens of nanoseconds.  Note that there are already such
+   concurrency systems deployed in the wild.  One well-known example are
+   Golang's goroutines but there are others available as well.
+
+   In such environment network programming can be done in the old "one
+   process per connection" way.  There's no need for polling, thread
+   pools, callbacks, explicit state machines and so on.
+
+
+
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 2]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
+   This memo thus adheres to "let system programmers do system
+   programming" motto and doesn't address the problem of scheduling, be
+   it CPU scheduling or network scheduling, at all.
+
+   As a footnote, it should be said that this proposal makes couple of
+   deliberate design choices to prevent the modern "schedule by hand"
+   style of network programming.
+
+4.  Function names
+
+   For consistency's sake the function names SHOULD be in lowercase and
+   SHOULD be composed of short protocol name and action name separated
+   by underscore (e.g. "tcp_connect").
+
+   This proposal is focused on C language.  In languages that use
+   different naming conventions the native convention SHOULD be used
+   (e.g.  "TcpConnect" or "Tcp.Connect").
+
+5.  Handles
+
+   First argument of every function SHOULD be the handle, unless the
+   function has not handle argument at all.
+
+   With BSD socket APIs protocol instances are referred to by file
+   descriptors.  This proposal doesn't change that in any way, however,
+   it acknowledges the fact that for multiple reasons (performance, ease
+   of development) there's a need for network protocol implementations
+   in the user space.
+
+   Given that POSIX provides no way to create custom file descriptor
+   types in user space, protocol implementors are forced to use fake
+   file descriptors that don't work with standard POSIX functionslike
+   close() or fcntl().
+
+   To address the problem this proposal is agnostic about whether
+   protocols are implemented in kernel space and referred to by file
+   descriptors or whether they are implemented in user space and
+   referred to by fake file descriptors.  It uses term "handle" to refer
+   to both kinds of descriptors.
+
+6.  Deadlines
+
+   All blocking functions conformant with this specification SHOULD have
+   an explicit deadline parameter.  Unlike with BSD sockets though the
+   deadline is a point in time rather than interval.  This allows to use
+   the same deadline in multiple calls without need for recomputing the
+   remaining interval:
+
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 3]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
+       int64_t deadline = now() + 1000;
+       bsend(h, "ABC", 3, deadline);
+       bsend(h, "DEF", 3, deadline);
+
+   The deadline argument SHOULD be the last argument in the function.
+
+7.  Protocol initialization
+
+   A protocol SHOULD be initialized using "start" function (e.g.
+   "smtp_start").  If protocol runs on top of another protocol the
+   handle of the underlying protocol SHOULD be supplied as the first
+   argument of the function.  The function may have arbitrary number of
+   additional arguments.
+
+   The function SHOULD return the handle of the newly created protocol
+   instance.  In case of error it SHOULD return -1 and set errno to the
+   appropriate error.
+
+   Some protocols require more complex setup.  Consider TCP's
+   listen/connect/accept connection setup process.  These protocols
+   should use custom set of functions rather than try to shoehorn all
+   the functionality into an all-purpose "start" function.
+
+   If protocol runs on top of an underlying protocol it takes of
+   ownership of that protocol's handle.  Using the handle of low level
+   protocol while it is owned by a higher level protocol will result in
+   undefined behaviour.
+
+   Example of creating a stack of four protocols:
+
+       int h1 = tcp_connect("192.168.0.111:5555");
+       int h2 = foo_start(h1, arg1, arg2, arg3);
+       int h3 = bar_start(h2);
+       int h4 = baz_start(h3, arg4, arg5);
+
+8.  Protocol termination
+
+   When handle is closed (i.e. close() function in POSIX, an equivalent
+   in user space protocol implementation) the protocol SHOULD shut down
+   immediately without even trying to do termination handshake or
+   similar.  Note that this is different from how BSD sockets behave.
+
+   The protocol MUST also clean up all resources it owns including
+   closing the handle of the underlying protocol.  Given that the
+   underlying protocol does the same operation, an entire stack of
+   protocols can be shut down by closing the handle of the topmost
+   protocol:
+
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 4]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
+       int h1 = foo_start();
+       int h2 = bar_start(h1);
+       int h3 = baz_start(h2);
+       hclose(h3); /* baz, bar and foo are shut down */
+
+   To perform clean shut down there SHOULD be a protocol-specific
+   function called "stop".  In addition to the handle to close the
+   function can have arbitrary numer of other arguments.
+
+   If the shut down functionality is potentially blocking (e.g. if it
+   requires a response from the peer) the last argument SHOULD be a
+   deadline.
+
+   If shut down function succeeds it SHOULD NOT close the underlying
+   protocol.  Instead it should return its handle.  This is crucial for
+   horizontal composability of protocols:
+
+       /* create stack of two protocols */
+       h1 = foo_start();
+       h2 = bar_start(h1);
+       /* top protocol is closed but bottom one is still alive */
+       h1 = bar_stop(h2);
+       /* new top protocol is started */
+       h3 = baz_start(h1);
+       /* shut down both protocols */
+       h1 = baz_stop(h3);
+       foo_stop(h1);
+
+   Some protocols are not capable of doing this.  For example, they may
+   not have a termination sequence defined.  In such cases the shut down
+   function SHOULD simply close the underlying protocol and return 0.
+
+   Also, if the protocol has no underlying protocol the function SHOULD
+   return zero on success.
+
+   In case of error shut down function SHOULD close the underying
+   protocol (and thus recursively all protocols beneath it), return -1
+   and set errno to appropriate value.
+
+9.  IANA Considerations
+
+   This memo includes no request to IANA.
+
+10.  Security Considerations
+
+   The security implications of the new API don't differ from security
+   implications of classic BSD socket API.  Still, it may be worth
+   passing the design through a security audit.
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 5]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
+Author's Address
+
+   Martin Sustrik (editor)
+
+   Email: sustrik@250bpm.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 6]
