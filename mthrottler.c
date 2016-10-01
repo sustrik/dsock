@@ -58,7 +58,7 @@ int mthrottler_start(int s,
         errno = EINVAL; return -1;}
     if(dsock_slow(recv_throughput != 0 && recv_interval <= 0 )) {
         errno = EINVAL; return -1;}
-    /* Check whether underlying socket is a bytestream. */
+    /* Check whether underlying socket is message-based. */
     if(dsock_slow(!hdata(s, msock_type))) return -1;
     /* Create the object. */
     struct mthrottler_sock *obj = malloc(sizeof(struct mthrottler_sock));

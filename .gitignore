@@ -23,6 +23,7 @@ libtool
 *.lo
 dns/.dirstamp
 lz4/.dirstamp
+tweetnacl/.dirstamp
 libdsock.la
 test-suite.log
 tests/.dirstamp

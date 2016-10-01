@@ -45,6 +45,7 @@ libdsock_la_SOURCES = \
     msock.h \
     msock.c \
     mthrottler.c \
+    nacl.c \
     nagle.c \
     pfx.c \
     tcp.c \
@@ -62,7 +63,9 @@ libdsock_la_SOURCES = \
     lz4/lz4hc.h \
     lz4/lz4hc.c \
     lz4/xxhash.h \
-    lz4/xxhash.c
+    lz4/xxhash.c \
+    tweetnacl/tweetnacl.h \
+    tweetnacl/tweetnacl.c
 
 libdsock_la_LDFLAGS = -no-undefined -version-info \
     @DSOCK_LIBTOOL_VERSION@

@@ -222,6 +222,18 @@ DSOCK_EXPORT int crlf_stop(
 #define crlf_recv mrecv
 
 /******************************************************************************/
+/*  NaCl encryption and authentication protocol.                              */
+/*  Uses crypto_secretbox_xsalsa20poly1305 algorithm. Key is 32B long.        */
+/******************************************************************************/
+
+DSOCK_EXPORT int nacl_start(
+    int s,
+    const void *key,
+    size_t keylen);
+DSOCK_EXPORT int nacl_stop(
+    int s);
+
+/******************************************************************************/
 /*  LZ4 bytestream compression protocol.                                      */
 /*  Compresses data using LZ4 compression algorithm.                          */
 /******************************************************************************/
