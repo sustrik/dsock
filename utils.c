@@ -22,6 +22,12 @@
 
 */
 
+#include <libdill.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "utils.h"
 
 uint16_t dsock_gets(const uint8_t *buf) {
@@ -70,4 +76,31 @@ void dsock_putll(uint8_t *buf, uint64_t val) {
     buf[7] = (uint8_t)(val & 0xff);
 }
 
+int dsock_random(uint8_t *buf, size_t len, int64_t deadline) {
+    /* Open /dev/urandom if not already opened. */
+    static int fd = -1;
+    if(dsock_slow(fd == -1)) {
+        /* Should we use /dev/random here? */
+        fd = open("/dev/urandom", O_RDONLY | O_NONBLOCK);
+        if(dsock_slow(fd < 0)) return -1;
+    }
+    /* Read the bytes. */
+    while(len) {
+        /* Do reads in at most 1MB chunks. */
+        size_t toread = len < 1024 * 1024 ? len : 1024 * 1024;
+        ssize_t sz = read(fd, buf, toread);
+        if(dsock_slow(sz < 0)) return -1;
+        /* If there's not enough entropy, wait for 1 second, then try again. */
+        if(sz == 0) {
+            int64_t d = now() + 1000;
+            if(d > deadline) {errno = ETIMEDOUT; return -1;}
+            int rc = msleep(d);
+            if(dsock_slow(rc < 0)) return -1;
+            continue;
+        }
+        buf += sz;
+        len -= sz;
+    }
+    return 0;
+}
 

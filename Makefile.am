@@ -92,7 +92,8 @@ check_PROGRAMS = \
     tests/nagle \
     tests/lz4 \
     tests/blog \
-    tests/mlog
+    tests/mlog \
+    tests/nacl
 
 LDADD = libdsock.la
 

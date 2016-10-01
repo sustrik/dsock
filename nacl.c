@@ -40,6 +40,11 @@ static void nacl_close(int s);
 static int nacl_msend(int s, const void *buf, size_t len, int64_t deadline);
 static ssize_t nacl_mrecv(int s, void *buf, size_t len, int64_t deadline);
 
+#define NACL_MAX(a, b) ((a) > (b) ? (a) : (b))
+
+#define NACL_EXTRABYTES \
+    (crypto_secretbox_ZEROBYTES + crypto_secretbox_NONCEBYTES)
+
 struct nacl_sock {
     struct msock_vfptrs vfptrs;
     int s;
@@ -47,11 +52,14 @@ struct nacl_sock {
     uint8_t *buf1;
     uint8_t *buf2;
     uint8_t key[crypto_secretbox_KEYBYTES];
-    uint8_t nonce[crypto_secretbox_NONCEBYTES];
+    uint8_t send_nonce[crypto_secretbox_NONCEBYTES];
+    uint8_t recv_nonce[crypto_secretbox_NONCEBYTES];
 };
 
-int nacl_start(int s, const void *key, size_t keylen) {
+int nacl_start(int s, const void *key, size_t keylen, int64_t deadline) {
     int err;
+    if(dsock_slow(!key || keylen != crypto_secretbox_KEYBYTES)) {
+        err = EINVAL; goto error2;}
     /* Check whether underlying socket is message-based. */
     if(dsock_slow(!hdata(s, msock_type))) {err = errno; goto error1;}
     /* Create the object. */
@@ -65,16 +73,10 @@ int nacl_start(int s, const void *key, size_t keylen) {
     obj->buflen = 0;
     obj->buf1 = NULL;
     obj->buf2 = NULL;
-    /* Store the key. */
-    if(dsock_slow(!key || keylen != sizeof(obj->key))) {
-        err = EINVAL; goto error2;}
-    memcpy(obj->key, key, keylen);
-    /* Generate random nonce. */
-    FILE *f = fopen("/dev/urandom", "r");
-    if(dsock_slow(!f)) {err = errno; goto error2;}
-    size_t sz = fread(obj->nonce, 1, sizeof(obj->nonce), f);
-    if(dsock_slow(sz < sizeof(obj->nonce))) {err = ENOENT; goto error2;}
-    int rc = fclose(f);
+    memcpy(obj->key, key, crypto_secretbox_KEYBYTES);
+    /* Generate random nonce for sending. */
+    int rc = dsock_random(obj->send_nonce, crypto_secretbox_NONCEBYTES,
+        deadline); 
     if(dsock_slow(rc != 0)) {err = errno; goto error2;}
     /* Create the handle. */
     int h = handle(msock_type, obj, &obj->vfptrs.hvfptrs);
@@ -113,50 +115,54 @@ static int nacl_msend(int s, const void *buf, size_t len, int64_t deadline) {
     struct nacl_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == nacl_type);
     /* If needed, adjust the buffers. */
-    int rc = nacl_resizebufs(obj, crypto_secretbox_NONCEBYTES +
-        crypto_secretbox_ZEROBYTES + len);
+    int rc = nacl_resizebufs(obj, NACL_EXTRABYTES + len);
     if(dsock_slow(rc < 0)) return -1;
     /* Increase nonce. */
     int i;
-    for(i = 0; i != sizeof(obj->nonce); ++i) {
-        obj->nonce[i]++;
-        if(obj->nonce[i]) break;
+    for(i = 0; i != sizeof(obj->send_nonce); ++i) {
+        obj->send_nonce[i]++;
+        if(obj->send_nonce[i]) break;
     }
     /* Encrypt and authenticate the message. */
+    size_t mlen = len + crypto_secretbox_ZEROBYTES;
     memset(obj->buf1, 0, crypto_secretbox_ZEROBYTES);
     memcpy(obj->buf1 + crypto_secretbox_ZEROBYTES, buf, len);
-    crypto_secretbox(obj->buf2 + crypto_secretbox_NONCEBYTES,
-        obj->buf1, crypto_secretbox_ZEROBYTES + len, obj->nonce, obj->key);
-    /* Send the nonce and the encrypted message. */
-    uint8_t *msg = obj->buf2 + crypto_secretbox_ZEROBYTES;
-    memcpy(msg, obj->nonce, crypto_secretbox_NONCEBYTES);
-    return msend(obj->s, msg, sizeof(obj->nonce) + len, deadline);
+    crypto_secretbox(obj->buf2, obj->buf1, mlen, obj->send_nonce, obj->key);
+    /* Prepare the message: nonce + ciphertext */
+    memcpy(obj->buf1, obj->send_nonce, crypto_secretbox_NONCEBYTES);
+    memcpy(obj->buf1 + crypto_secretbox_NONCEBYTES,
+        obj->buf2 + crypto_secretbox_BOXZEROBYTES,
+        mlen - crypto_secretbox_BOXZEROBYTES);
+    /* Send the the encrypted message. */
+    return msend(obj->s, obj->buf1, crypto_secretbox_NONCEBYTES + mlen -
+        crypto_secretbox_BOXZEROBYTES , deadline);
 }
 
 static ssize_t nacl_mrecv(int s, void *buf, size_t len, int64_t deadline) {
     struct nacl_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == nacl_type);
     /* If needed, adjust the buffers. */
-    int rc = nacl_resizebufs(obj, crypto_secretbox_NONCEBYTES +
-        crypto_secretbox_ZEROBYTES + len);
+    int rc = nacl_resizebufs(obj, NACL_EXTRABYTES + len);
     /* Read the encrypted message. */
-    ssize_t sz = mrecv(s, obj->buf1 + crypto_secretbox_ZEROBYTES,
-        crypto_secretbox_NONCEBYTES + len, deadline);
+    ssize_t sz = mrecv(obj->s, obj->buf1, NACL_EXTRABYTES + len, deadline);
     if(dsock_slow(sz < 0)) return -1;
-    if(dsock_slow(sz > crypto_secretbox_NONCEBYTES + len)) {
-        errno = EMSGSIZE; return -1;}
+    if(sz > NACL_EXTRABYTES + len) {errno = EMSGSIZE; return -1;}
+    /* Store the nonce. */
+    memcpy(obj->recv_nonce, obj->buf1, crypto_secretbox_NONCEBYTES);
     /* Decrypt and authenticate the message. */
-    memmove(obj->buf1, obj->buf1 + crypto_secretbox_ZEROBYTES,
-        crypto_secretbox_NONCEBYTES);
-    memset(obj->buf1 + crypto_secretbox_NONCEBYTES, 0,
-        crypto_secretbox_ZEROBYTES);
-    rc = crypto_secretbox_open(obj->buf2, obj->buf1 +
-        crypto_secretbox_NONCEBYTES, sz - crypto_secretbox_NONCEBYTES +
-        crypto_secretbox_ZEROBYTES, obj->buf1, obj->key);
+    size_t clen = crypto_secretbox_BOXZEROBYTES +
+        (sz - crypto_secretbox_NONCEBYTES);
+    memset(obj->buf2, 0, crypto_secretbox_BOXZEROBYTES);
+    memcpy(obj->buf2 + crypto_secretbox_BOXZEROBYTES,
+        obj->buf1 + crypto_secretbox_NONCEBYTES,
+        clen - crypto_secretbox_BOXZEROBYTES);
+    rc = crypto_secretbox_open(obj->buf1, obj->buf2, clen,
+        obj->recv_nonce, obj->key);
     if(dsock_slow(rc < 0)) {errno = EACCES; return -1;}
     /* Copy the message into user's buffer. */
-    memcpy(buf, obj->buf2 + crypto_secretbox_ZEROBYTES, sz);
-    return 0;
+    memcpy(buf, obj->buf1 + crypto_secretbox_ZEROBYTES,
+        clen - crypto_secretbox_ZEROBYTES);
+    return clen - crypto_secretbox_ZEROBYTES;
 } 
 
 static void nacl_close(int s) {
@@ -164,6 +170,8 @@ static void nacl_close(int s) {
     dsock_assert(obj && obj->vfptrs.type == nacl_type);
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);
+    free(obj->buf1);
+    free(obj->buf2);
     free(obj);
 }
 

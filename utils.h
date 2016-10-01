@@ -27,6 +27,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 
 /*  Takes a pointer to a member variable and computes pointer to the structure
@@ -68,6 +69,8 @@ uint32_t dsock_getl(const uint8_t *buf);
 void dsock_putl(uint8_t *buf, uint32_t val);
 uint64_t dsock_getll(const uint8_t *buf);
 void dsock_putll(uint8_t *buf, uint64_t val);
+
+int dsock_random(uint8_t *buf, size_t len, int64_t deadline);
 
 #endif
 

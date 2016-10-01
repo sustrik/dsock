@@ -229,7 +229,8 @@ DSOCK_EXPORT int crlf_stop(
 DSOCK_EXPORT int nacl_start(
     int s,
     const void *key,
-    size_t keylen);
+    size_t keylen,
+    int64_t deadline);
 DSOCK_EXPORT int nacl_stop(
     int s);
 
