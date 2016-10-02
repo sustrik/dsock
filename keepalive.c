@@ -76,6 +76,7 @@ int keepalive_start(int s, int64_t send_interval,
     obj->buf = malloc(len);
     if(dsock_slow(!obj->buf)) {errno = ENOMEM; goto error2;}
     memcpy(obj->buf, buf, len);
+    obj->len = len;
     obj->sendch = -1;
     obj->ackch = -1;
     obj->sender = -1;
@@ -182,6 +183,7 @@ static ssize_t keepalive_mrecv(int s, void *buf, size_t len, int64_t deadline) {
     /* If receive mode is off, just forward the call. */
     if(obj->recv_interval < 0) return mrecv(obj->s, buf, len, deadline);
     /* Compute the deadline. Take keepalive interval into consideration. */
+retry:;
     int64_t keepalive_deadline = obj->last_recv + obj->recv_interval;
     int fail_on_deadline = 0;
     if(keepalive_deadline < deadline) {
@@ -195,8 +197,9 @@ static ssize_t keepalive_mrecv(int s, void *buf, size_t len, int64_t deadline) {
         int err = errno;
         obj->last_recv = now();
         errno = err;
+        /* Filter out keep alive messages. */
+        if(sz == obj->len && memcmp(buf, obj->buf, obj->len) == 0) goto retry;
     }
-    /* TODO: Filter out keep alive messages. */
     return sz;
 } 
 

@@ -41,4 +41,5 @@ tests/lz4
 tests/blog
 tests/mlog
 tests/nacl
+tests/keepalive
 tests/fullstack

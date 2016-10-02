@@ -91,7 +91,7 @@ static ssize_t mlog_mrecv(int s, void *buf, size_t len,
     dsock_assert(obj->vfptrs.type == mlog_type);
     ssize_t sz = mrecv(obj->s, buf, len, deadline);
     if(dsock_slow(sz < 0)) return -1;
-    fprintf(stderr, "recv %8zuB: 0x", len);
+    fprintf(stderr, "recv %8zuB: 0x", sz);
     size_t i;
     for(i = 0; i != sz && i != len; ++i)
         fprintf(stderr, "%02x", (int)((uint8_t*)buf)[i]);

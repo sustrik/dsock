@@ -95,6 +95,7 @@ check_PROGRAMS = \
     tests/blog \
     tests/mlog \
     tests/nacl \
+    tests/keepalive \
     tests/fullstack
 
 LDADD = libdsock.la
