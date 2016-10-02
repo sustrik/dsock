@@ -60,7 +60,59 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 1.  Introduction
 
-   TODO
+   The progress in the area of network protocols is distinctively
+   lagging behind.  While every hobbyist new to the art of programming
+   writes and publishes their small JavaScript libraries, there's no
+   such thing going on with network protocols.  Indeed, it looks like
+   the field of network protocols is dominated by big companies and
+   academia, just like programming as a whole used to be before the
+   advent of personal computers.
+
+   While social and political reasons may be partly to blame (adoption,
+   interoperability etc.) the technology itself creates a huge barrier
+   to popular participation.  For example, the fact that huge part of
+   the networking stack typically lives in the kernel space will prevent
+   most people from even trying.  More importantly though there's
+   basically no reusability.  While in JavaScript you can get other
+   people's libraries, quickly glue them together, add a bit code of
+   your own and publish a shiny new library, you can't do the same thing
+   with network protocols.  You can't take framing from WebSockets, add
+   multihoming from SCTP, keep-alives from TCP and congestion control
+   from DCCP and have a new working network protocol.  You have to write
+   most of the code yourself which requires a lot of time, often more
+   than a single hobbyist programmer can realistically afford.
+
+   This memo proposes to fix the reusability problem by revamping the
+   old BSD socket API and while doing so focusing on composability
+   rather than on completeness.
+
+   In short, the API proposed in this document doesn't try to virtualize
+   all possible aspects of all possible protocols and provide a single
+   set of functions to deal with all of them.  Instead, it acknowledges
+   how varied the protocol landscape is and how much the requirements
+   for individual protocols differ.  Therefore, it lets each protocol
+   define its own API and asks only for bare minimum of standardised
+   behaviour needed to implement protocol composability.
+
+   As a consequence, the new API is much more leightweight and flexible
+   than BSD socket API and allows to decompose the monolithic protocol
+   monsters of today into small single-purpose microprotocols that can
+   be easily combined together to achieve desired functionality.
+
+   The document also provides some non-binding suggestions for protocol
+   API designers.  Following these suggestions would lead to uniform
+   feel of the APIs and flat learning curve for protocol users.
+
+
+
+
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 2]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
 
 2.  Terminology
 
@@ -68,19 +120,70 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
    document are to be interpreted as described in RFC 2119.
 
-3.  Scope
+3.  Composability
 
-   Unlike BSD sockets, proposed API doesn't try to virtualize all
-   possible protocols and provide a single set of functions to deal with
-   all aspects of any of them.  Instead, it acknowledges how varied the
-   protocol landscape is and how much the requirements for individual
-   protocols differ.  Therefore, it lets each protocol define its own
-   API and asks only for bare minimum of standardised behaviour needed
-   to implement protocol composability.
+   To cover all the use cases the API has to support two distinct kinds
+   of composabilty.
 
-   This memo also provides some non-binding suggestions for protocol API
-   designers.  Following these suggestions would lead to uniform feel of
-   the API and flat learning curve for protocol users.
+3.1.  Vertical composability
+
+   Vertical composability is an ability to stack protocols one on the
+   top of another.  From the network point of view the protocol on the
+   top is a payload of the protocol on the bottom.  From the API point
+   of view the top protocol encapsulates the bottom protocol, very much
+   like calling function encapsulates the function being called.
+
+   Example of vertical stack of protocols:
+
+                               +----------+
+                               |   HTTP   |
+                               +----------+
+                               |    TCP   |
+                               +----------+
+                               |    IP    |
+                               +----------+
+                               | Ethernet |
+                               +----------+
+
+3.2.  Horizontal composability
+
+   Horizontal composability is an ability to execute protocols in
+   sequential manner.  From the network point of view one type of
+   communication ends and is replaced by another type of communication.
+   From API point of view one protocol is terminated and another one is
+   started, reusing the same underlying protocol.
+
+   An example of horizontal composability is how WebSockets protocol
+   starts with the classic text-based HTTP protocol and then, at some
+   point, switches to a completely different binary protocol:
+
+                  +-----------------------------------+
+                  |   HTTP   |       WebSockets       |
+                  +----------+------------------------+
+                  |                TCP                |
+                  +-----------------------------------+
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 3]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
+   Another example is how STARTTLS switches non-encrypted protocol into
+   encrypted version of the same protocol.
+
+   While these are very visible cases of composing protocols
+   horizontally, the technique is in fact ubiquitous.  For example, most
+   protocols are composed from three distinct mini-protocols: protocol
+   header (initial handshake), protocol body (sending data back and
+   forth) and protocol footer (terminal handshake):
+
+                  +-----------------------------------+
+                  | Header |       Body      | Footer |
+                  +--------+-----------------+--------+
+                  |                TCP                |
+                  +-----------------------------------+
 
 4.  Scheduling or rather lack of it
 
@@ -89,10 +192,9 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    user was supposed to fork a new process for each connection and do
    all the work using simple blocking calls nowadays the user is
    supposed to keep a pool of connections check them via functions like
-   poll() or kqueue() and if there is any work to be done they are
-   supposed to dispatch it to one of the worker threads in a thread
-   pool.  In short, user is supposed to do both network and CPU
-   scheduling.
+   poll() or kqueue() and dispatch any work to be done to one of the
+   worker threads in a thread pool.  In short, user is supposed to do
+   both network and CPU scheduling.
 
    This change happened for performance reasons and haven't improved
    functionality or usability of BSD socket API in any way.  On the
@@ -105,15 +207,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    an efficient concurrency implementation where forking a new
    lightweight process takes at most hundreds of nanoseconds and context
    switch takes tens of nanoseconds.  Note that there are already such
-
-
-
-
-Sustrik                   Expires April 4, 2017                 [Page 2]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
    concurrency systems deployed in the wild.  One well-known example are
    Golang's goroutines but there are others available as well.
 
@@ -125,9 +218,17 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    programming" motto and doesn't address the problem of scheduling, be
    it CPU scheduling or network scheduling, at all.
 
-   As a footnote, it should be said that this proposal makes couple of
-   deliberate design choices to prevent the modern "schedule by hand"
-   style of network programming.
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 4]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
+   As a footnote, it should be metioned that this proposal makes couple
+   of deliberate design choices that prevent the modern "schedule by
+   hand" style of network programming.
 
 5.  Socket options
 
@@ -161,15 +262,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    file descriptors that don't work with standard POSIX functionslike
    close() or fcntl().
 
-
-
-
-
-Sustrik                   Expires April 4, 2017                 [Page 3]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
    To address the problem this proposal is agnostic about whether
    protocols are implemented in kernel space and referred to by file
    descriptors or whether they are implemented in user space and
@@ -181,6 +273,15 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    All blocking functions conformant with this specification SHOULD have
    an explicit deadline parameter.  Unlike with BSD sockets though the
    deadline is a point in time rather than interval.  This allows to use
+
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 5]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
    the same deadline in multiple calls without need for recomputing the
    remaining interval:
 
@@ -219,13 +320,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
        int h3 = bar_start(h2);
        int h4 = baz_start(h3, arg4, arg5);
 
-
-
-Sustrik                   Expires April 4, 2017                 [Page 4]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
 10.  Protocol termination
 
    When handle is closed (i.e. close() function in POSIX, an equivalent
@@ -236,6 +330,14 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    The protocol MUST also clean up all resources it owns including
    closing the handle of the underlying protocol.  Given that the
    underlying protocol does the same operation, an entire stack of
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 6]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
    protocols can be shut down by closing the handle of the topmost
    protocol:
 
@@ -274,14 +376,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    Also, if the protocol has no underlying protocol the function SHOULD
    return zero on success.
 
-
-
-
-Sustrik                   Expires April 4, 2017                 [Page 5]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
    In case of error shut down function SHOULD close the underying
    protocol (and thus recursively all protocols beneath it), return -1
    and set errno to appropriate value.
@@ -290,6 +384,15 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    Everything that happens between protocol initialization and protocol
    termination will be referred to as "normal operation".
+
+
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 7]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
 
 11.1.  Application protocols
 
@@ -331,13 +434,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    Bytestream protocols can be used via following two functions:
 
-
-
-Sustrik                   Expires April 4, 2017                 [Page 6]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
        int bsend(int h, const void *buf, size_t len, int64_t deadline);
        int brecv(int h, void *buf, size_t len, int64_t deadline);
 
@@ -345,6 +441,14 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    send them, after whatever manipulation is required, to its underlying
    protocol.  Eventually, the lowermost protocol in the stack sends the
    data to the network.
+
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 8]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
 
    Function brecv() reads data from the protocol.  The protocol SHOULD
    read them from the underlying socket and after whetever manipulation
@@ -386,14 +490,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
            void *ctrl, size_t ctrllen, int64_t deadline);
 
 
-
-
-
-Sustrik                   Expires April 4, 2017                 [Page 7]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
    Function msend() sends message to the protocol.  The protocol SHOULD
    send it, after whatever manipulation is required, to its underlying
    protocol.  Eventually, the lowermost protocol in the stack sends the
@@ -401,6 +497,15 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    Function mrecv() reads message from the protocol.  The protocol
    SHOULD read it from its underlying protocol and after whetever
+
+
+
+
+Sustrik                   Expires April 4, 2017                 [Page 9]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
    manipulation is needed return it to the caller.  The lowermost
    protocol in the stack reads the data from the network.
 
@@ -443,19 +548,19 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    protocols MAY implement its own custom send/recv functions.  These
    functions should be called "send" and/or "recv" (e.g.  "udp_send").
 
-
-
-Sustrik                   Expires April 4, 2017                 [Page 8]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
    Custom functions allow for providing additional arguments.  For
    example, UDP protocol may implement custom send function with
    additional "destination IP address" argument.
 
    A protocol MAY also implement multiple send or receive functions as
    needed.
+
+
+
+Sustrik                   Expires April 4, 2017                [Page 10]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
 
    Protocol implementors should try to make custom send/recv functions
    as consistent with msend/mrecv as possible.
@@ -501,4 +606,11 @@ Author's Address
 
 
 
-Sustrik                   Expires April 4, 2017                 [Page 9]
+
+
+
+
+
+
+
+Sustrik                   Expires April 4, 2017                [Page 11]

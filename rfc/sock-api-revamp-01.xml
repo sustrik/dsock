@@ -34,26 +34,113 @@
   <middle>
 
     <section title = "Introduction">
-      <t>TODO</t>
+      <t>The progress in the area of network protocols is distinctively
+         lagging behind. While every hobbyist new to the art of programming
+         writes and publishes their small JavaScript libraries, there's no
+         such thing going on with network protocols. Indeed, it looks like
+         the field of network protocols is dominated by big companies and
+         academia, just like programming as a whole used to be before the advent
+         of personal computers.</t>
+      <t>While social and political reasons may be partly to blame (adoption,
+         interoperability etc.) the technology itself creates a huge barrier
+         to popular participation. For example, the fact that huge part of the
+         networking stack typically lives in the kernel space will prevent most
+         people from even trying. More importantly though there's basically
+         no reusability. While in JavaScript you can get other people's
+         libraries, quickly glue them together, add a bit code of your own
+         and publish a shiny new library, you can't do the same thing with
+         network protocols. You can't take framing from WebSockets, add
+         multihoming from SCTP, keep-alives from TCP and congestion control from
+         DCCP and have a new working network protocol. You have to write most
+         of the code yourself which requires a lot of time, often more than a
+         single hobbyist programmer can realistically afford.</t>
+      <t>This memo proposes to fix the reusability problem by revamping the
+         old BSD socket API and while doing so focusing on composability rather
+         than on completeness.</t>
+      <t>In short, the API proposed in this document doesn't try to virtualize
+         all possible aspects of all possible protocols and provide a single set
+         of functions to deal with all of them. Instead, it acknowledges how
+         varied the protocol landscape is and how much the requirements for
+         individual protocols differ. Therefore, it lets each protocol define
+         its own API and asks only for bare minimum of standardised behaviour
+         needed to implement protocol composability.</t>
+      <t>As a consequence, the new API is much more leightweight and flexible
+         than BSD socket API and allows to decompose the monolithic protocol
+         monsters of today into small single-purpose microprotocols that can
+         be easily combined together to achieve desired functionality. </t>
+      <t>The document also provides some non-binding suggestions for protocol
+         API designers. Following these suggestions would lead to uniform feel
+         of the APIs and flat learning curve for protocol users.</t>
     </section>
 
-    <section title = "Terminology">
+    <section title="Terminology">
       <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
          "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this
          document are to be interpreted as described in RFC 2119.</t>
     </section>
 
-    <section title = "Scope">
-      <t>Unlike BSD sockets, proposed API doesn't try to virtualize all possible
-         protocols and provide a single set of functions to deal with all
-         aspects of any of them. Instead, it acknowledges how varied
-         the protocol landscape is and how much the requirements for individual
-         protocols differ. Therefore, it lets each protocol define its
-         own API and asks only for bare minimum of standardised behaviour
-         needed to implement protocol composability.</t>
-      <t>This memo also provides some non-binding suggestions for protocol API
-         designers. Following these suggestions would lead to uniform feel
-         of the API and flat learning curve for protocol users.</t>
+    <section title="Composability">
+      <t>To cover all the use cases the API has to support two distinct kinds
+         of composabilty.</t>
+
+      <section title="Vertical composability">
+        <t>Vertical composability is an ability to stack protocols one on the top
+           of another. From the network point of view the protocol on the top
+           is a payload of the protocol on the bottom. From the API point of view
+           the top protocol encapsulates the bottom protocol, very much like
+           calling function encapsulates the function being called.</t>
+        <t>Example of vertical stack of protocols:</t>
+        <figure>
+          <artwork>
+                            +----------+
+                            |   HTTP   | 
+                            +----------+
+                            |    TCP   |
+                            +----------+
+                            |    IP    |
+                            +----------+
+                            | Ethernet |
+                            +----------+
+          </artwork>
+        </figure>
+      </section>
+
+      <section title="Horizontal composability">
+        <t>Horizontal composability is an ability to execute protocols in
+           sequential manner. From the network point of view one type of
+           communication ends and is replaced by another type of communication.
+           From API point of view one protocol is terminated and another one
+           is started, reusing the same underlying protocol.</t>
+        <t>An example of horizontal composability is how WebSockets protocol
+           starts with the classic text-based HTTP protocol and then, at some
+           point, switches to a completely different binary protocol:</t>
+        <figure>
+          <artwork>
+               +-----------------------------------+
+               |   HTTP   |       WebSockets       |
+               +----------+------------------------+
+               |                TCP                |
+               +-----------------------------------+
+          </artwork>
+        </figure>
+        <t>Another example is how STARTTLS switches non-encrypted protocol into
+           encrypted version of the same protocol.</t>
+        <t>While these are very visible cases of composing protocols
+           horizontally, the technique is in fact ubiquitous. For example,
+           most protocols are composed from three distinct mini-protocols:
+           protocol header (initial handshake), protocol body (sending data
+           back and forth) and protocol footer (terminal handshake):</t>
+        <figure>
+          <artwork>
+               +-----------------------------------+
+               | Header |       Body      | Footer |
+               +--------+-----------------+--------+
+               |                TCP                |
+               +-----------------------------------+
+          </artwork>
+        </figure>
+      </section>
+
     </section>
 
     <section title="Scheduling or rather lack of it">
@@ -62,9 +149,9 @@
          was supposed to fork a new process for each connection and do all the
          work using simple blocking calls nowadays the user is supposed to keep
          a pool of connections check them via functions like poll() or kqueue()
-         and if there is any work to be done they are supposed to dispatch
-         it to one of the worker threads in a thread pool. In short, user is
-         supposed to do both network and CPU scheduling.</t>
+         and dispatch any work to be done to one of the worker threads in
+         a thread pool. In short, user is supposed to do both network and CPU
+         scheduling.</t>
       <t>This change happened for performance reasons and haven't improved
          functionality or usability of BSD socket API in any way. On the
          contrary, by requiring every programmer, however junior or uninterested
@@ -83,8 +170,8 @@
       <t>This memo thus adheres to "let system programmers do system
          programming" motto and doesn't address the problem of scheduling,
          be it CPU scheduling or network scheduling, at all.</t>
-      <t>As a footnote, it should be said that this proposal makes couple of
-         deliberate design choices to prevent the modern "schedule by hand"
+      <t>As a footnote, it should be metioned that this proposal makes couple of
+         deliberate design choices that prevent the modern "schedule by hand"
          style of network programming.</t>
     </section>
 
