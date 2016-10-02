@@ -318,7 +318,6 @@ DSOCK_EXPORT int mthrottler_stop(
 
 DSOCK_EXPORT int keepalive_start(
     int s,
-    int mode,
     int64_t send_interval,
     int64_t recv_interval,
     const void *buf,

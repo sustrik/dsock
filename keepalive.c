@@ -57,7 +57,7 @@ struct keepalive_sock {
     int64_t last_recv;
 };
 
-int keepalive_start(int s, int mode, int64_t send_interval,
+int keepalive_start(int s, int64_t send_interval,
       int64_t recv_interval, const void *buf, size_t len) {
     int rc;
     int err;

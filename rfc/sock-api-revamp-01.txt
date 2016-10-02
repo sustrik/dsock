@@ -84,7 +84,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    This memo proposes to fix the reusability problem by revamping the
    old BSD socket API and while doing so focusing on composability
-   rather than on other aspects such as completeness.
+   rather than on completeness.
 
    In short, the API proposed in this document doesn't try to virtualize
    all possible aspects of all possible protocols and provide a single
@@ -131,7 +131,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    top of another.  From the network point of view the protocol on the
    top is a payload of the protocol on the bottom.  From the API point
    of view the top protocol encapsulates the bottom protocol, very much
-   like a function call encapsulates the function being called.
+   like a function encapsulates another function that it calls.
 
    Example of vertical stack of protocols:
 
@@ -240,7 +240,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 5.  Socket options
 
-   There's no equivalent to socket options as the are known from BSD
+   There's no equivalent to socket options as they are known from BSD
    socket API.  Any such functionality is supposed to be built by
    vertical layering of protocols.
 
@@ -587,11 +587,69 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 11.3.2.2.  Control (ancillary) data
 
-12.  IANA Considerations
+12.  Examples
+
+   To give an example of microprotocols that can be implemented using
+   proposed API, here's the list of what's implemented in the proof-of-
+   concept project:
+
+      compressor: compresses messages
+
+      crlf: takes a bytestream protocol and turns it into message
+      protocol by delimiting message by CRLF sequences
+
+      encryptor: encrypts and authenticates messages
+
+      keepalive: sends a keepalive message once in a while, on receiving
+      side it check whether keepalives are arriving
+
+      log: logs all data to the console (used for debugging)
+
+      nagle: batches outgoing data to improve performance
+
+      pfx: turns a bytestream protocol into message-based protocol by
+      prefixing each message by its size
+
+
+
+
+Sustrik                   Expires April 5, 2017                [Page 11]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
+      tcp: wraps system implementation of TCP protocol
+
+      throttler: imposes a limit of amount of data that can be sent and/
+      or recevied per second
+
+      udp: wraps system implementation of UDP protocol
+
+      unix: wraps system implementation of UNIX domain sockets
+
+   And here's an example of how the microprotocols can be combined to
+   achieve complex functionality:
+
+       /* Create a TCP connection. */
+       h1 = tcp_connect(addr, -1);
+       /* Limits outgoing traffic to 1MB/sec. Check every 1000ms. */
+       h2 = throttler_start(h1, 1024 * 1024, 1000, 0, 0);
+       /* Batch up to 2000 bytes of outgoing traffic. */
+       h3 = nagle_start(h2, 2000, 100);
+       /* Convert bytes into messages. */
+       h4 = pfx_start(h3);
+       /* Send keepalives message every 1000ms. */
+       h5 = keepalive_start(h4, 1000, 4000, "KEEPALIVE", 9);
+       /* Compress the messages. */
+       h6 = compress(h5);
+       /* Encrypt and authenticate messages. */
+       h7 = encrypt_start(h6, key, sizeof(key), -1);
+
+13.  IANA Considerations
 
    This memo includes no request to IANA.
 
-13.  Security Considerations
+14.  Security Considerations
 
    The security implications of the new API don't differ from security
    implications of classic BSD socket API.  Still, it may be worth
@@ -611,6 +669,4 @@ Author's Address
 
 
 
-
-
-Sustrik                   Expires April 5, 2017                [Page 11]
+Sustrik                   Expires April 5, 2017                [Page 12]
