@@ -71,7 +71,6 @@ int main() {
     assert(elapsed > 40 && elapsed < 60);
     keepalive_pair_close(h);
 
-#if 0
     /* Check whether keepalives are filtered out. */
     keepalive_pair(h, 1);
     start = now();
@@ -80,7 +79,6 @@ int main() {
     elapsed = now() - start;
     assert(elapsed > 280 && elapsed < 320);
     keepalive_pair_close(h);
-#endif
 
     return 0;
 }

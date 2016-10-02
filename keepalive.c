@@ -184,13 +184,13 @@ static ssize_t keepalive_mrecv(int s, void *buf, size_t len, int64_t deadline) {
     if(obj->recv_interval < 0) return mrecv(obj->s, buf, len, deadline);
     /* Compute the deadline. Take keepalive interval into consideration. */
 retry:;
-    int64_t keepalive_deadline = obj->last_recv + obj->recv_interval;
-    int fail_on_deadline = 0;
-    if(keepalive_deadline < deadline) {
-       deadline = keepalive_deadline;
-       fail_on_deadline = 1;
+    int64_t dd = obj->last_recv + obj->recv_interval;
+    int fail_on_deadline = 1;
+    if(deadline < dd) {
+       dd = deadline;
+       fail_on_deadline = 0;
     }
-    ssize_t sz = mrecv(obj->s, buf, len, deadline);
+    ssize_t sz = mrecv(obj->s, buf, len, dd);
     if(dsock_slow(fail_on_deadline && sz < 0 && errno == ETIMEDOUT)) {
         errno = ECONNRESET; return -1;}
     if(dsock_fast(sz >= 0)) {
