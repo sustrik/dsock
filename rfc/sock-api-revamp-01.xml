@@ -46,17 +46,17 @@
          to popular participation. For example, the fact that huge part of the
          networking stack typically lives in the kernel space will prevent most
          people from even trying. More importantly though there's basically
-         no reusability. While in JavaScript you can get other people's
-         libraries, quickly glue them together, add a bit code of your own
-         and publish a shiny new library, you can't do the same thing with
-         network protocols. You can't take framing from WebSockets, add
-         multihoming from SCTP, keep-alives from TCP and congestion control from
-         DCCP and have a new working network protocol. You have to write most
-         of the code yourself which requires a lot of time, often more than a
-         single hobbyist programmer can realistically afford.</t>
+         no way to reuse what already exists. While in JavaScript world you can
+         get other people's libraries, quickly glue them together, add a bit of
+         code of your own and publish a shiny new library, you can't do the same
+         thing with network protocols. You can't take framing from WebSockets,
+         add multihoming from SCTP, keep-alives from TCP and congestion control
+         from DCCP. You have to write most of the code yourself which requires
+         a lot of time, often more than a single hobbyist programmer can
+         realistically afford.</t>
       <t>This memo proposes to fix the reusability problem by revamping the
          old BSD socket API and while doing so focusing on composability rather
-         than on completeness.</t>
+         than on other aspects such as completeness.</t>
       <t>In short, the API proposed in this document doesn't try to virtualize
          all possible aspects of all possible protocols and provide a single set
          of functions to deal with all of them. Instead, it acknowledges how
@@ -65,9 +65,9 @@
          its own API and asks only for bare minimum of standardised behaviour
          needed to implement protocol composability.</t>
       <t>As a consequence, the new API is much more leightweight and flexible
-         than BSD socket API and allows to decompose the monolithic protocol
-         monsters of today into small single-purpose microprotocols that can
-         be easily combined together to achieve desired functionality. </t>
+         than BSD socket API and allows to decompose today's monolithic protocol
+         monsters into small single-purpose microprotocols that can be easily
+         combined together to achieve desired functionality. </t>
       <t>The document also provides some non-binding suggestions for protocol
          API designers. Following these suggestions would lead to uniform feel
          of the APIs and flat learning curve for protocol users.</t>
@@ -84,11 +84,11 @@
          of composabilty.</t>
 
       <section title="Vertical composability">
-        <t>Vertical composability is an ability to stack protocols one on the top
-           of another. From the network point of view the protocol on the top
-           is a payload of the protocol on the bottom. From the API point of view
-           the top protocol encapsulates the bottom protocol, very much like
-           calling function encapsulates the function being called.</t>
+        <t>Vertical composability is an ability to stack protocols one on the
+           top of another. From the network point of view the protocol on the
+           top is a payload of the protocol on the bottom. From the API point of
+           view the top protocol encapsulates the bottom protocol, very much
+           like a function call encapsulates the function being called.</t>
         <t>Example of vertical stack of protocols:</t>
         <figure>
           <artwork>
@@ -110,7 +110,9 @@
            sequential manner. From the network point of view one type of
            communication ends and is replaced by another type of communication.
            From API point of view one protocol is terminated and another one
-           is started, reusing the same underlying protocol.</t>
+           is started, reusing the same underlying protocol, very much like
+           a function can call two nested functions in sequence without
+           having to exit itself.</t>
         <t>An example of horizontal composability is how WebSockets protocol
            starts with the classic text-based HTTP protocol and then, at some
            point, switches to a completely different binary protocol:</t>
@@ -147,8 +149,8 @@
       <t>During the decades since BSD sockets were fisrt introduced the way they
          are used have changed significantly. While in the beginning the user
          was supposed to fork a new process for each connection and do all the
-         work using simple blocking calls nowadays the user is supposed to keep
-         a pool of connections check them via functions like poll() or kqueue()
+         work using simple blocking calls nowadays the user is expected to keep
+         a pool of connections, check them via functions like poll() or kqueue()
          and dispatch any work to be done to one of the worker threads in
          a thread pool. In short, user is supposed to do both network and CPU
          scheduling.</t>
@@ -186,7 +188,7 @@
          SHOULD be composed of short protocol name and action name separated
          by underscore (e.g. "tcp_connect").</t>
       <t>This proposal is focused on C language. In languages that use different
-         naming conventions the native convention SHOULD be used
+         naming conventions the native convention SHOULD be used instead
          (e.g. "TcpConnect" or "Tcp.Connect").</t>
     </section>
 
