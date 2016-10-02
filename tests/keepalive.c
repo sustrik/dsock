@@ -80,6 +80,15 @@ int main() {
     assert(elapsed > 280 && elapsed < 320);
     keepalive_pair_close(h);
 
+    /* Check that not receiving keepalives results in an error. */
+    keepalive_pair(h, 0);
+    start = now();
+    sz = mrecv(h[0], buf, sizeof(buf), now() + 1000);
+    assert(sz < 0 && errno == ECONNRESET);
+    elapsed = now() - start;
+    assert(elapsed > 130 && elapsed < 170);
+    keepalive_pair_close(h);
+
     return 0;
 }
 
