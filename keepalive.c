@@ -174,6 +174,9 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
         if(dsock_slow(rc < 0 && errno == ECONNRESET)) return;
         dsock_assert(rc == 0);
         last = now();
+        rc = chsend(ackch, NULL, 0, -1);
+        if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
+        dsock_assert(rc == 0);
     }
 }
 
