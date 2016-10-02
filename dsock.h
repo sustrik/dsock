@@ -312,5 +312,19 @@ DSOCK_EXPORT int mthrottler_start(
 DSOCK_EXPORT int mthrottler_stop(
     int s);
 
+/******************************************************************************/
+/*  Keep-alives.                                                              */
+/******************************************************************************/
+
+DSOCK_EXPORT int keepalive_start(
+    int s,
+    int mode,
+    int64_t send_interval,
+    int64_t recv_interval,
+    const void *buf,
+    size_t len);
+DSOCK_EXPORT int keepalive_stop(
+    int s);
+
 #endif
 

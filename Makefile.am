@@ -40,6 +40,7 @@ libdsock_la_SOURCES = \
     fdhelpers.h \
     fdhelpers.c \
     ipaddr.c \
+    keepalive.c \
     lz4.c \
     mlog.c \
     msock.h \
