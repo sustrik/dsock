@@ -358,7 +358,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    To perform clean shut down there SHOULD be a protocol-specific
    function called "stop".  In addition to the handle to close the
-   function can have arbitrary numer of other arguments.
+   function can have arbitrary number of other arguments.
 
    If the shut down functionality is potentially blocking (e.g. if it
    requires a response from the peer) the last argument SHOULD be a
