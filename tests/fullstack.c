@@ -51,9 +51,9 @@ int main() {
     assert(h5_0 >= 0);
     int h5_1 = pfx_start(h4_1);
     assert(h5_1 >= 0);
-    int h6_0 = keepalive_start(h5_0, 1000, 4000, "KEEPALIVE", 9);
+    int h6_0 = keepalive_start(h5_0, 50, 150, "KEEPALIVE", 9);
     assert(h6_0 >= 0);
-    int h6_1 = keepalive_start(h5_1, 1000, 4000, "KEEPALIVE", 9);
+    int h6_1 = keepalive_start(h5_1, 50, 150, "KEEPALIVE", 9);
     assert(h6_0 >= 0);
     int h7_0 = nacl_start(h6_0, key, 32, -1);
     assert(h7_0 >= 0);
@@ -75,6 +75,9 @@ int main() {
     assert(sz == 3);
     assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
     rc = msend(h7_1, "GHI", 3, -1);
+    assert(rc == 0);
+    /* Allow some heartbeats to be sent. */
+    rc = msleep(500);
     assert(rc == 0);
     sz = mrecv(h7_0, buf, 3, -1);
     assert(sz == 3);
