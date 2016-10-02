@@ -513,9 +513,9 @@ Internet-Draft            BSD Socket API Revamp             October 2016
        ssize_t mrecv(int h, void *buf, size_t len,
            int64_t deadline);
        int msendmsg(int s, const struct iovec *iov, size_t iovlen,
-           void *ctrl, size_t ctrllen, int64_t deadline);
+           int64_t deadline);
        int mrecvmsg(int s, struct iovec *iov, size_t iovlen,
-           void *ctrl, size_t ctrllen, int64_t deadline);
+           int64_t deadline);
 
    Function msend() sends message to the protocol.  The protocol SHOULD
    send it, after whatever manipulation is required, to its underlying
@@ -551,9 +551,9 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    behaviour.
 
    Functions msendmsg() and mrecvmsg() MUST behave in the same way as
-   msend() and mrecv(), however, there are two differences.
-
-
+   msend() and mrecv().  The only difference is that buffers are passed
+   to the functions via scatter/gather arrays, same way as in POSIX
+   sendmsg() and recvmsg() functions.
 
 
 
@@ -562,18 +562,11 @@ Sustrik                   Expires April 5, 2017                [Page 10]
 Internet-Draft            BSD Socket API Revamp             October 2016
 
 
-   First, buffers are passed to the functions via scatter/gather arrays,
-   same way as in POSIX sendmsg() and recvmsg() functions.
+11.3.3.  Custom sending and receiving
 
-   Second, additional data may be passed to and/or out of the functions
-   via control data buffer.  Control data are discussed in detail later
-   on in this proposal.
-
-11.3.2.1.  Custom sending and receiving
-
-   In addition to send/recv functions described above, message-based
-   protocols MAY implement its own custom send/recv functions.  These
-   functions should be called "send" and/or "recv" (e.g.  "udp_send").
+   In addition to send/recv functions described above, protocols MAY
+   implement its own custom send/recv functions.  These functions should
+   be called "send" and/or "recv" (e.g.  "udp_send").
 
    Custom functions allow for providing additional arguments.  For
    example, UDP protocol may implement custom send function with
@@ -584,8 +577,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    Protocol implementors should try to make custom send/recv functions
    as consistent with msend/mrecv as possible.
-
-11.3.2.2.  Control (ancillary) data
 
 12.  Examples
 
@@ -610,14 +601,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
       pfx: turns a bytestream protocol into message-based protocol by
       prefixing each message by its size
 
-
-
-
-Sustrik                   Expires April 5, 2017                [Page 11]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
       tcp: wraps system implementation of TCP protocol
 
       throttler: imposes a limit of amount of data that can be sent and/
@@ -626,6 +609,14 @@ Internet-Draft            BSD Socket API Revamp             October 2016
       udp: wraps system implementation of UDP protocol
 
       unix: wraps system implementation of UNIX domain sockets
+
+
+
+
+Sustrik                   Expires April 5, 2017                [Page 11]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
 
    And here's an example of how the microprotocols can be combined to
    achieve complex functionality:
@@ -640,14 +631,48 @@ Internet-Draft            BSD Socket API Revamp             October 2016
        h4 = pfx_start(h3);
        /* Send keepalives message every 1000ms. */
        h5 = keepalive_start(h4, 1000, 4000, "KEEPALIVE", 9);
-       /* Compress the messages. */
-       h6 = compress(h5);
        /* Encrypt and authenticate messages. */
-       h7 = encrypt_start(h6, key, sizeof(key), -1);
+       h6 = encrypt_start(h5, key, sizeof(key), -1);
+       /* Compress the messages. */
+       h7 = compress(h6);
+
+   Let's have a look at what happens to a message sent by the end user.
+   It traverses the stack from level 7 to level 1.  First it gets
+   compressed, then it gets encrypted.  Keepalive protocol doesn't
+   modify the message but may interject keepalive messages.  Then the
+   message is transformed to a stream of bytes.  In this case it's the
+   size of the message in network byte order followed by the body of the
+   message.  Nagle protocol doesn't modify the data but it may delay it
+   by at most 100ms and batch it with preceding and/or following data.
+   Throttler once again doesn't modify the data but may delay so as not
+   to violate the bandwidth limit.  Finally, the data is sent to the
+   network via TCP protocol.
+
+   In the opposite direction, message traverses the stack from level 1
+   to level 7.  Bytes are read from TCP protocol.  Throttler doesn't
+   have limit set for incoming data and thus the data are just silently
+   passed through it.  Nagle doesn't do anything with incoming data.
+   Then, the bytes are parsed and converted into a message.  Keepalive
+   layer doesn't do anything with the message itself, but it checks
+   whether there have been any messages in last 4 seconds and if not so
+   it raises an error.  Finally, message is decrypted and authenticated
+   at level 6 and decompressed at level 7.
 
 13.  IANA Considerations
 
    This memo includes no request to IANA.
+
+
+
+
+
+
+
+
+Sustrik                   Expires April 5, 2017                [Page 12]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
 
 14.  Security Considerations
 
@@ -669,4 +694,35 @@ Author's Address
 
 
 
-Sustrik                   Expires April 5, 2017                [Page 12]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sustrik                   Expires April 5, 2017                [Page 13]
