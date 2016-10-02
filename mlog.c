@@ -77,7 +77,7 @@ static int mlog_msend(int s, const void *buf, size_t len,
       int64_t deadline) {
     struct mlog_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == mlog_type);
-    fprintf(stderr, "send %8zuB: 0x", len);
+    fprintf(stderr, "handle: %-4d send %8zuB: 0x", s, len);
     size_t i;
     for(i = 0; i != len; ++i)
         fprintf(stderr, "%02x", (int)((uint8_t*)buf)[i]);
@@ -91,7 +91,7 @@ static ssize_t mlog_mrecv(int s, void *buf, size_t len,
     dsock_assert(obj->vfptrs.type == mlog_type);
     ssize_t sz = mrecv(obj->s, buf, len, deadline);
     if(dsock_slow(sz < 0)) return -1;
-    fprintf(stderr, "recv %8zuB: 0x", sz);
+    fprintf(stderr, "handle: %-4d recv %8zuB: 0x", s, sz);
     size_t i;
     for(i = 0; i != sz && i != len; ++i)
         fprintf(stderr, "%02x", (int)((uint8_t*)buf)[i]);
