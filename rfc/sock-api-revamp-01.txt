@@ -238,41 +238,41 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    of deliberate design choices that prevent the modern "schedule by
    hand" style of network programming.
 
-5.  Socket options
+5.  File descriptors
+
+   One of the design goals of this API is to support both kernel space
+   and user space implementations.  One problem with that is that kernel
+   space objects are typically reffered to by file descriptors while, at
+   the same time, there's no easy way to associate user space objects
+   with file descriptors.
+
+   Therefore this specification allows user space implementations to use
+   fake file descriptors (simple integers that kernel space knows
+   nothing about) and does not guarantee that system functions will work
+   with those descriptors.  For example, you cannot count on POSIX
+   close() function to be able to close a socket.
+
+6.  Socket options
 
    There's no equivalent to socket options as they are known from BSD
    socket API.  Any such functionality is supposed to be built by
    vertical layering of protocols.
 
-6.  Function names
+7.  Deadlines
+
+   Unlike with BSD sockets the deadlines are points in time rather than
+   intervals.  This allows to use the same deadline in multiple calls
+   without need for recomputing the remaining interval:
+
+       int64_t deadline = now() + 1000;
+       bsend(h, "ABC", 3, deadline);
+       bsend(h, "DEF", 3, deadline);
+
+8.  Function prototypes
 
    For consistency's sake the function names SHOULD be in lowercase and
    SHOULD be composed of short protocol name and action name separated
-   by underscore (e.g. "tcp_connect").
-
-   This proposal is focused on C language.  In languages that use
-   different naming conventions the native convention SHOULD be used
-   instead (e.g.  "TcpConnect" or "Tcp.Connect").
-
-7.  Handles
-
-   First argument of every function SHOULD be the handle, unless the
-   function has not handle argument at all.
-
-   With BSD socket APIs protocol instances are referred to by file
-   descriptors.  This proposal doesn't change that in any way, however,
-   it acknowledges the fact that for multiple reasons (performance, ease
-   of development) there's a need for network protocol implementations
-   in the user space.
-
-   Given that POSIX provides no way to create custom file descriptor
-   types in user space, protocol implementors are forced to use fake
-   file descriptors that don't work with standard POSIX functionslike
-   close() or fcntl().
-
-   To address the problem this proposal is agnostic about whether
-   protocols are implemented in kernel space and referred to by file
-   descriptors or whether they are implemented in user space and
+   by underscore (e.g. "tcp_connect").  Of course, in non-C languages
 
 
 
@@ -282,34 +282,26 @@ Sustrik                   Expires April 5, 2017                 [Page 5]
 Internet-Draft            BSD Socket API Revamp             October 2016
 
 
-   referred to by fake file descriptors.  It uses term "handle" to refer
-   to both kinds of descriptors.
+   the native naming convention should be followed, but still, the name
+   SHOULD contain both protocol name and action name.
 
-8.  Deadlines
+   First argument of the function, where applicable, SHOULD be the file
+   descriptor.
 
-   All blocking functions conformant with this specification SHOULD have
-   an explicit deadline parameter.  Unlike with BSD sockets though the
-   deadline is a point in time rather than interval.  This allows to use
-   the same deadline in multiple calls without need for recomputing the
-   remaining interval:
-
-       int64_t deadline = now() + 1000;
-       bsend(h, "ABC", 3, deadline);
-       bsend(h, "DEF", 3, deadline);
-
-   The deadline argument SHOULD be the last argument in the function.
+   In all potentially blocking functions the last argument should be
+   deadline.
 
 9.  Protocol initialization
 
    A protocol SHOULD be initialized using "start" function (e.g.
-   "smtp_start").  If protocol runs on top of another protocol the
-   handle of the underlying protocol SHOULD be supplied as the first
+   "smtp_start").  If protocol runs on top of another protocol the file
+   descriptor of the underlying protocol SHOULD be supplied as the first
    argument of the function.  The function may have arbitrary number of
    additional arguments.
 
-   The function SHOULD return the handle of the newly created protocol
-   instance.  In case of error it SHOULD return -1 and set errno to the
-   appropriate error.
+   The function SHOULD return the file descriptor of the newly created
+   protocol instance.  In case of error it SHOULD return -1 and set
+   errno to the appropriate error.
 
    Some protocols require more complex setup.  Consider TCP's
    listen/connect/accept connection setup process.  These protocols
@@ -317,9 +309,8 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    the functionality into an all-purpose "start" function.
 
    If protocol runs on top of an underlying protocol it takes of
-   ownership of that protocol's handle.  Using the handle of low level
-   protocol while it is owned by a higher level protocol will result in
-   undefined behaviour.
+   ownership of that protocol.  Using the low level protocol while it is
+   owned by a higher level protocol will result in undefined behaviour.
 
    Example of creating a stack of four protocols:
 
@@ -328,7 +319,16 @@ Internet-Draft            BSD Socket API Revamp             October 2016
        int h3 = bar_start(h2);
        int h4 = baz_start(h3, arg4, arg5);
 
+10.  Protocol termination
 
+   Protocol descriptor is closed by hclose() function.  The protocol
+   SHOULD shut down immediately without even trying to do termination
+   handshake or similar.  Note that this is different from how BSD
+   sockets behave.
+
+   The protocol MUST also clean up all resources it owns including
+   closing the underlying protocol.  Given that the underlying protocol
+   does the same operation, an entire stack of protocols can be shut
 
 
 
@@ -338,17 +338,7 @@ Sustrik                   Expires April 5, 2017                 [Page 6]
 Internet-Draft            BSD Socket API Revamp             October 2016
 
 
-10.  Protocol termination
-
-   When handle is closed (i.e. close() function in POSIX, an equivalent
-   in user space protocol implementation) the protocol SHOULD shut down
-   immediately without even trying to do termination handshake or
-   similar.  Note that this is different from how BSD sockets behave.
-
-   The protocol MUST also clean up all resources it owns including
-   closing the handle of the underlying protocol.  Given that the
-   underlying protocol does the same operation, an entire stack of
-   protocols can be shut down by closing the handle of the topmost
+   down recursivelly by closing the file descriptor of the topmost
    protocol:
 
        int h1 = foo_start();
@@ -357,16 +347,16 @@ Internet-Draft            BSD Socket API Revamp             October 2016
        hclose(h3); /* baz, bar and foo are shut down */
 
    To perform clean shut down there SHOULD be a protocol-specific
-   function called "stop".  In addition to the handle to close the
-   function can have arbitrary number of other arguments.
+   function called "stop".  In addition to the file descriptor to close
+   the function can have arbitrary number of other arguments.
 
    If the shut down functionality is potentially blocking (e.g. if it
    requires a response from the peer) the last argument SHOULD be a
    deadline.
 
    If shut down function succeeds it SHOULD NOT close the underlying
-   protocol.  Instead it should return its handle.  This is crucial for
-   horizontal composability of protocols:
+   protocol.  Instead it should return its file descriptor.  This is
+   crucial for horizontal composability of protocols:
 
        /* create stack of two protocols */
        h1 = foo_start();
@@ -386,6 +376,16 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    Also, if the protocol has no underlying protocol the function SHOULD
    return zero on success.
 
+   In case of error shut down function SHOULD close the underying
+   protocol (and thus recursively all protocols beneath it), return -1
+   and set errno to appropriate value.
+
+   Note that this design does away with BSD socket linger behaviour
+   which cannot be cleanly implemented in user space.
+
+
+
+
 
 
 
@@ -393,10 +393,6 @@ Sustrik                   Expires April 5, 2017                 [Page 7]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
-
-   In case of error shut down function SHOULD close the underying
-   protocol (and thus recursively all protocols beneath it), return -1
-   and set errno to appropriate value.
 
 11.  Normal operation
 
@@ -442,6 +438,10 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    sent in).  TCP is a classic example of bytestream protocol.
 
    Bytestream protocols can be used via following two functions:
+
+
+
+
 
 
 

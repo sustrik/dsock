@@ -76,7 +76,7 @@ int main() {
     assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
     rc = msend(h7_1, "GHI", 3, -1);
     assert(rc == 0);
-    /* Allow some heartbeats to be sent. */
+    /* Allow some keepalives to be sent. */
     rc = msleep(500);
     assert(rc == 0);
     sz = mrecv(h7_0, buf, 3, -1);
