@@ -454,10 +454,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
            int64_t deadline);
        int brecv(int h, void *buf, size_t len,
            int64_t deadline);
-       int bsendmsg(int h, const struct iovec *iov, size_t iovlen,
-           int64_t deadline);
-       int brecvmsg(int h, struct iovec *iov, size_t iovlen,
-           int64_t deadline);
 
    Function bsend() sends data to the protocol.  The protocol SHOULD
    send them, after whatever manipulation is required, to its underlying
@@ -485,11 +481,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    buffer is unpredictable and using such data will result in undefined
    behaviour.
 
-   Functions bsendmsg() and brecvmsg() MUST behave in the same way as
-   bsend() and brecv(), the only difference being that buffers are
-   passed to the functions via scatter/gather arrays, same way as in
-   POSIX sendmsg() and recvmsg() functions.
-
 11.3.2.  Message protocols
 
    Message protocols are transport protocols that preserve message
@@ -499,23 +490,21 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    will receive either complete message or no message.  IP, UDP and
    WebSockets are examples of message protocols.
 
+   Message protocols can be used via following two functions:
+
+       int msend(int s, const void *buf, size_t len,
+           int64_t deadline);
+       ssize_t mrecv(int h, void *buf, size_t len,
+           int64_t deadline);
+
+
+
 
 
 Sustrik                   Expires April 5, 2017                 [Page 9]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
-
-   Message protocols can be used via following four functions:
-
-       int msend(int s, const void *buf, size_t len,
-           int64_t deadline);
-       ssize_t mrecv(int h, void *buf, size_t len,
-           int64_t deadline);
-       int msendmsg(int s, const struct iovec *iov, size_t iovlen,
-           int64_t deadline);
-       int mrecvmsg(int s, struct iovec *iov, size_t iovlen,
-           int64_t deadline);
 
    Function msend() sends message to the protocol.  The protocol SHOULD
    send it, after whatever manipulation is required, to its underlying
@@ -550,18 +539,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    is unpredictable and using such data will result in undefined
    behaviour.
 
-   Functions msendmsg() and mrecvmsg() MUST behave in the same way as
-   msend() and mrecv().  The only difference is that buffers are passed
-   to the functions via scatter/gather arrays, same way as in POSIX
-   sendmsg() and recvmsg() functions.
-
-
-
-Sustrik                   Expires April 5, 2017                [Page 10]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
 11.3.3.  Custom sending and receiving
 
    In addition to send/recv functions described above, protocols MAY
@@ -577,6 +554,13 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    Protocol implementors should try to make custom send/recv functions
    as consistent with msend/mrecv as possible.
+
+
+
+Sustrik                   Expires April 5, 2017                [Page 10]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
 
 12.  Examples
 
@@ -610,6 +594,22 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
       unix: wraps system implementation of UNIX domain sockets
 
+   And here's an example of how the microprotocols can be combined to
+   achieve complex functionality:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -617,9 +617,6 @@ Sustrik                   Expires April 5, 2017                [Page 11]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
-
-   And here's an example of how the microprotocols can be combined to
-   achieve complex functionality:
 
        /* Create a TCP connection. */
        h1 = tcp_connect(addr, -1);
@@ -662,8 +659,11 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    This memo includes no request to IANA.
 
+14.  Security Considerations
 
-
+   The security implications of the new API don't differ from security
+   implications of classic BSD socket API.  Still, it may be worth
+   passing the design through a security audit.
 
 
 
@@ -674,17 +674,17 @@ Sustrik                   Expires April 5, 2017                [Page 12]
 Internet-Draft            BSD Socket API Revamp             October 2016
 
 
-14.  Security Considerations
-
-   The security implications of the new API don't differ from security
-   implications of classic BSD socket API.  Still, it may be worth
-   passing the design through a security audit.
-
 Author's Address
 
    Martin Sustrik (editor)
 
    Email: sustrik@250bpm.com
+
+
+
+
+
+
 
 
 
