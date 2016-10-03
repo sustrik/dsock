@@ -29,23 +29,32 @@
 
 int main() {
 
-    /* Test whether big chunk gets through. */
     int s[2];
     int rc = unix_pair(s);
     assert(rc == 0);
-    int l0 = lz4_start(s[0]);
-    assert(l0 >= 0);
-    int l1 = lz4_start(s[1]);
-    assert(l1 >= 0);
-    rc = bsend(l0, "123456789012345678901234567890", 30, -1);
+    int pfx0 = pfx_start(s[0]);
+    assert(pfx0 >= 0);
+    int pfx1 = pfx_start(s[1]);
+    assert(pfx1 >= 0);
+    int mlog0 = mlog_start(pfx0);
+    assert(mlog0 >= 0);
+    int mlog1 = mlog_start(pfx1);
+    assert(mlog0 >= 0);
+    int lz0 = lz4_start(mlog0);
+    assert(lz0 >= 0);
+    int lz1 = lz4_start(mlog1);
+    assert(lz1 >= 0);
+    
+    rc = msend(lz0, "123456789012345678901234567890", 30, -1);
     assert(rc == 0);
     uint8_t buf[30];
-    rc = brecv(l1, buf, 30, -1);
-    assert(rc == 0);
+    size_t sz = mrecv(lz1, buf, 30, -1);
+    assert(sz == 30);
     assert(memcmp(buf, "123456789012345678901234567890", 30) == 0);
-    rc = hclose(l1);
+
+    rc = hclose(lz1);
     assert(rc == 0);
-    rc = hclose(l0);
+    rc = hclose(lz0);
     assert(rc == 0);
 
     return 0;

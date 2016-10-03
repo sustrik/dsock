@@ -59,34 +59,34 @@ int main() {
     assert(h7_0 >= 0);
     int h7_1 = nacl_start(h6_1, key, 32, -1);
     assert(h7_1 >= 0);
-    //int h8_0 = lz4_start(h7_0);
-    //assert(h8_0 > = 0);
-    //int h8_1 = lz4_start(h7_1);
-    //assert(h8_1 > = 0);
+    int h8_0 = lz4_start(h7_0);
+    assert(h8_0 >= 0);
+    int h8_1 = lz4_start(h7_1);
+    assert(h8_1 >= 0);
 
-    rc = msend(h7_0, "ABC", 3, -1);
+    rc = msend(h8_0, "ABC", 3, -1);
     assert(rc == 0);
-    rc = msend(h7_0, "DEF", 3, -1);
+    rc = msend(h8_0, "DEF", 3, -1);
     assert(rc == 0);
-    sz = mrecv(h7_1, buf, 3, -1);
+    sz = mrecv(h8_1, buf, 3, -1);
     assert(sz == 3);
     assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
-    sz = mrecv(h7_1, buf, 3, -1);
+    sz = mrecv(h8_1, buf, 3, -1);
     assert(sz == 3);
     assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
-    rc = msend(h7_1, "GHI", 3, -1);
+    rc = msend(h8_1, "GHI", 3, -1);
     assert(rc == 0);
     /* Allow some keepalives to be sent. */
     rc = msleep(500);
     assert(rc == 0);
-    sz = mrecv(h7_0, buf, 3, -1);
+    sz = mrecv(h8_0, buf, 3, -1);
     assert(sz == 3);
     assert(buf[0] == 'G' && buf[1] == 'H' && buf[2] == 'I');
 
 
-    rc = hclose(h7_1);
+    rc = hclose(h8_1);
     assert(rc == 0);
-    rc = hclose(h7_0);
+    rc = hclose(h8_0);
     assert(rc == 0);
 
     return 0;
