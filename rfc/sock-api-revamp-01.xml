@@ -472,7 +472,7 @@
     /* Encrypt and authenticate messages. */
     h6 = encrypt_start(h5, key, sizeof(key), -1);
     /* Compress the messages. */
-    h7 = compress(h6);
+    h7 = compress_start(h6);
         </artwork>
       </figure>
       <t>Let's have a look at what happens to a message sent by the end user.
