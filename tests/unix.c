@@ -42,7 +42,7 @@ coroutine void client(void) {
     rc = unix_recv(cs, buf, 3, -1);
     assert(rc == 0);
     assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
-    rc = unix_recv(cs, NULL, 2, -1);
+    rc = unix_recv(cs, buf, 2, -1);
     assert(rc == 0);
     rc = unix_recv(cs, buf, 1, -1);
     assert(rc == 0);

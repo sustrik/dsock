@@ -57,14 +57,14 @@ int dsaccept(
     int64_t deadline);
 int dssend(
     int s,
-    const void *buf,
-    size_t len,
+    const struct iovec *iov,
+    size_t iovlen,
     int64_t deadline);
 int dsrecv(
     int s,
     struct dsrxbuf *rxbuf,
-    void *buf,
-    size_t len,
+    struct iovec *iov,
+    size_t iovlen,
     int64_t deadline);
 int dsclose(
     int s);

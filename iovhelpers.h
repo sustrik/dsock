@@ -21,39 +21,26 @@
   IN THE SOFTWARE.
 
 */
+#ifndef DSOCK_IOVHELPERS_H_INCLUDED
+#define DSOCK_IOVHELPERS_H_INCLUDED
 
-#include "bsock.h"
-#include "dsock.h"
-#include "utils.h"
+#include <stddef.h>
+#include <sys/uio.h>
 
-static const int bsock_type_placeholder = 0;
-const void *bsock_type = &bsock_type_placeholder;
+size_t iov_size(const struct iovec *iov, size_t iovlen);
 
-int bsend(int s, const void *buf, size_t len, int64_t deadline) {
-    struct iovec iov;
-    iov.iov_base = (void*)buf;
-    iov.iov_len = len;
-    return bsendmsg(s, &iov, 1, deadline);
-}
+void iov_copyfrom(void *dst, const struct iovec *src, size_t srclen,
+    size_t offset, size_t bytes);
 
-int brecv(int s, void *buf, size_t len, int64_t deadline) {
-    struct iovec iov;
-    iov.iov_base = buf;
-    iov.iov_len = len;
-    return brecvmsg(s, &iov, 1, deadline);
-}
+void iov_copyto(struct iovec *dst, size_t dstlen, const void *src,
+    size_t offset, size_t bytes);
 
-int bsendmsg(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
-    struct hvfptr *h = hdata(s, bsock_type);
-    if(dsock_slow(!h)) return -1;
-    struct bsock_vfptrs *b = (struct bsock_vfptrs*)h;
-    return b->bsendmsg(s, iov, iovlen, deadline);
-}
+void iov_copyallfrom(void *dst, const struct iovec *src, size_t srclen);
 
-int brecvmsg(int s, struct iovec *iov, size_t iovlen, int64_t deadline) {
-    struct hvfptr *h = hdata(s, bsock_type);
-    if(dsock_slow(!h)) return -1;
-    struct bsock_vfptrs *b = (struct bsock_vfptrs*)h;
-    return b->brecvmsg(s, iov, iovlen, deadline);
-}
+void iov_copyallto(struct iovec *dst, size_t dstlen, const void *src);
+
+size_t iov_cut(const struct iovec *src, struct iovec *dst, size_t iovlen,
+      size_t offset, size_t bytes);
+
+#endif
 

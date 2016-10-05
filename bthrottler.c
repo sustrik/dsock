@@ -28,14 +28,15 @@
 
 #include "bsock.h"
 #include "dsock.h"
+#include "iovhelpers.h"
 #include "utils.h"
 
 static const int bthrottler_type_placeholder = 0;
 static const void *bthrottler_type = &bthrottler_type_placeholder;
 static void bthrottler_close(int s);
-static int bthrottler_bsend(int s, const void *buf, size_t len,
+static int bthrottler_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static int bthrottler_brecv(int s, void *buf, size_t len,
+static int bthrottler_brecvmsg(int s, struct iovec *iov, size_t iovlen,
     int64_t deadline);
 
 struct bthrottler_sock {
@@ -65,8 +66,8 @@ int bthrottler_start(int s,
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = bthrottler_close;
     obj->vfptrs.type = bthrottler_type;
-    obj->vfptrs.bsend = bthrottler_bsend;
-    obj->vfptrs.brecv = bthrottler_brecv;
+    obj->vfptrs.bsendmsg = bthrottler_bsendmsg;
+    obj->vfptrs.brecvmsg = bthrottler_brecvmsg;
     obj->s = s;
     obj->send_full = 0;
     if(send_throughput > 0) {
@@ -102,25 +103,29 @@ int bthrottler_stop(int s) {
     return u;
 }
 
-static int bthrottler_bsend(int s, const void *buf, size_t len,
+static int bthrottler_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct bthrottler_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == bthrottler_type);
     /* If send-throttling is off forward the call. */
-    if(obj->send_full == 0) return bsend(obj->s, buf, len, deadline);
+    if(obj->send_full == 0) return bsendmsg(obj->s, iov, iovlen, deadline);
     /* Get rid of the corner case. */
-    if(dsock_slow(len == 0)) return 0;
+    size_t bytes = iov_size(iov, iovlen);
+    if(dsock_slow(bytes == 0)) return 0;
+    size_t pos = 0;
     while(1) {
         /* If there's capacity send as much data as possible. */
         if(obj->send_remaining) {
-            size_t tosend = len < obj->send_remaining ?
-                len : obj->send_remaining;
-            int rc = bsend(obj->s, buf, tosend, deadline);
+            size_t tosend = bytes < obj->send_remaining ?
+                bytes : obj->send_remaining;
+            struct iovec vec[iovlen];
+            size_t veclen = iov_cut(iov, vec, iovlen, pos, tosend);
+            int rc = bsendmsg(obj->s, vec, veclen, deadline);
             if(dsock_slow(rc < 0)) return -1;
             obj->send_remaining -= tosend;
-            buf = (char*)buf + tosend;
-            len -= tosend;
-            if(len == 0) return 0;
+            pos += tosend;
+            bytes -= tosend;
+            if(bytes == 0) return 0;
         }
         /* Wait till capacity can be renewed. */
         int rc = msleep(obj->send_last + obj->send_interval);
@@ -131,25 +136,29 @@ static int bthrottler_bsend(int s, const void *buf, size_t len,
     }
 }
 
-static int bthrottler_brecv(int s, void *buf, size_t len,
+static int bthrottler_brecvmsg(int s, struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct bthrottler_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == bthrottler_type);
     /* If recv-throttling is off forward the call. */
-    if(obj->recv_full == 0) return brecv(obj->s, buf, len, deadline);
+    if(obj->recv_full == 0) return brecvmsg(obj->s, iov, iovlen, deadline);
     /* Get rid of the corner case. */
-    if(dsock_slow(len == 0)) return 0;
+    size_t bytes = iov_size(iov, iovlen);
+    if(dsock_slow(bytes == 0)) return 0;
+    size_t pos = 0;
     while(1) {
         /* If there's capacity receive as much data as possible. */
         if(obj->recv_remaining) {
-            size_t torecv = len < obj->recv_remaining ?
-                len : obj->recv_remaining;
-            int rc = brecv(obj->s, buf, torecv, deadline);
+            size_t torecv = bytes < obj->recv_remaining ?
+                bytes : obj->recv_remaining;
+            struct iovec vec[iovlen];
+            size_t veclen = iov_cut(iov, vec, iovlen, pos, torecv);
+            int rc = brecvmsg(obj->s, vec, veclen, deadline);
             if(dsock_slow(rc < 0)) return -1;
             obj->recv_remaining -= torecv;
-            buf = (char*)buf + torecv;
-            len -= torecv;
-            if(len == 0) return 0;
+            pos += torecv;
+            bytes -= torecv;
+            if(bytes == 0) return 0;
         }
         /* Wait till capacity can be renewed. */
         int rc = msleep(obj->recv_last + obj->recv_interval);

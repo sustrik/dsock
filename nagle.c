@@ -29,19 +29,22 @@
 
 #include "bsock.h"
 #include "dsock.h"
+#include "iovhelpers.h"
 #include "utils.h"
 
 static const int nagle_type_placeholder = 0;
 static const void *nagle_type = &nagle_type_placeholder;
 static void nagle_close(int s);
-static int nagle_bsend(int s, const void *buf, size_t len, int64_t deadline);
-static int nagle_brecv(int s, void *buf, size_t len, int64_t deadline);
+static int nagle_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
+    int64_t deadline);
+static int nagle_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+    int64_t deadline);
 static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
     uint8_t *buf, int sendch, int ackch);
 
-struct naglevec {
-    const void *buf;
-    size_t len;
+struct nagle_vec {
+    const struct iovec *iov;
+    size_t iovlen;
 };
 
 struct nagle_sock {
@@ -63,12 +66,12 @@ int nagle_start(int s, size_t batch, int64_t interval) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->vfptrs.hvfptrs.close = nagle_close;
     obj->vfptrs.type = nagle_type;
-    obj->vfptrs.bsend = nagle_bsend;
-    obj->vfptrs.brecv = nagle_brecv;
+    obj->vfptrs.bsendmsg = nagle_bsendmsg;
+    obj->vfptrs.brecvmsg = nagle_brecvmsg;
     obj->s = s;
     obj->buf = malloc(batch);
     if(dsock_slow(!obj->buf)) {errno = ENOMEM; goto error2;}
-    obj->sendch = channel(sizeof(struct naglevec), 0);
+    obj->sendch = channel(sizeof(struct nagle_vec), 0);
     if(dsock_slow(obj->sendch < 0)) {err = errno; goto error3;}
     obj->ackch = channel(0, 0);
     if(dsock_slow(obj->ackch < 0)) {err = errno; goto error4;}
@@ -114,11 +117,12 @@ int nagle_stop(int s, int64_t deadline) {
     return u;
 }
 
-static int nagle_bsend(int s, const void *buf, size_t len, int64_t deadline) {
+static int nagle_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
     struct nagle_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == nagle_type);
     /* Send is done in a worker coroutine. */
-    struct naglevec vec = {buf, len};
+    struct nagle_vec vec = {iov, iovlen};
     int rc = chsend(obj->sendch, &vec, sizeof(vec), deadline);
     if(dsock_slow(rc < 0)) return -1;
     /* Wait till worker is done. */
@@ -135,7 +139,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
     int64_t last = now();
     while(1) {
         /* Get data to send from the user coroutine. */
-        struct naglevec vec;
+        struct nagle_vec vec;
         int rc = chrecv(sendch, &vec, sizeof(vec),
             interval >= 0 && len ? last + interval : -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
@@ -150,9 +154,10 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         }
         dsock_assert(rc == 0);
         /* If data fit into the buffer, store them there. */
-        if(len + vec.len < batch) {
-            memcpy(buf + len, vec.buf, vec.len);
-            len += vec.len;
+        size_t bytes = iov_size(vec.iov, vec.iovlen);
+        if(len + bytes < batch) {
+            iov_copyallfrom(buf + len, vec.iov, vec.iovlen);
+            len += bytes;
             rc = chsend(ackch, NULL, 0, -1);
             if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
             dsock_assert(rc == 0);
@@ -167,9 +172,9 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
             last = now();
         }
         /* Once again: If data fit into buffer store them there. */
-        if(vec.len < batch) {
-            memcpy(buf, vec.buf, vec.len);
-            len = vec.len;
+        if(bytes < batch) {
+            iov_copyallfrom(buf, vec.iov, vec.iovlen);
+            len = bytes;
             rc = chsend(ackch, NULL, 0, -1);
             if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
             dsock_assert(rc == 0);
@@ -177,7 +182,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         }
         /* This is a big chunk of data, no need to Nagle it.
            We'll send it straight away. */
-        rc = bsend(s, vec.buf, vec.len, -1);
+        rc = bsendmsg(s, vec.iov, vec.iovlen, -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         dsock_assert(rc == 0);
         last = now();
@@ -187,10 +192,11 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
     }
 }
 
-static int nagle_brecv(int s, void *buf, size_t len, int64_t deadline) {
+static int nagle_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
     struct nagle_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == nagle_type);
-    return brecv(obj->s, buf, len, deadline);
+    return brecvmsg(obj->s, iov, iovlen, deadline);
 } 
 
 static void nagle_close(int s) {

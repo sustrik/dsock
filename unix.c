@@ -43,9 +43,10 @@ static int unixmakeconn(int fd);
 static const int unix_conn_type_placeholder = 0;
 static const void *unix_conn_type = &unix_conn_type_placeholder;
 static void unix_conn_close(int s);
-static int unix_conn_bsend(int s, const void *buf, size_t len,
+static int unix_conn_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static int unix_conn_brecv(int s, void *buf, size_t len, int64_t deadline);
+static int unix_conn_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+    int64_t deadline);
 
 struct unix_conn {
     struct bsock_vfptrs vfptrs;
@@ -80,20 +81,21 @@ error1:
     return -1;
 }
 
-static int unix_conn_bsend(int s, const void *buf, size_t len,
+static int unix_conn_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct unix_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == unix_conn_type);
-    ssize_t sz = dssend(obj->fd, buf, len, deadline);
+    ssize_t sz = dssend(obj->fd, iov, iovlen, deadline);
     if(dsock_fast(sz >= 0)) return sz;
     if(errno == EPIPE) errno = ECONNRESET;
     return -1;
 }
 
-static int unix_conn_brecv(int s, void *buf, size_t len, int64_t deadline) {
+static int unix_conn_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
     struct unix_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == unix_conn_type);
-    return dsrecv(obj->fd, &obj->rxbuf, buf, len, deadline);
+    return dsrecv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
 }
 
 static void unix_conn_close(int s) {
@@ -237,8 +239,8 @@ static int unixmakeconn(int fd) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->vfptrs.hvfptrs.close = unix_conn_close;
     obj->vfptrs.type = unix_conn_type;
-    obj->vfptrs.bsend = unix_conn_bsend;
-    obj->vfptrs.brecv = unix_conn_brecv;
+    obj->vfptrs.bsendmsg = unix_conn_bsendmsg;
+    obj->vfptrs.brecvmsg = unix_conn_brecvmsg;
     obj->fd = fd;
     dsinitrxbuf(&obj->rxbuf);
     /* Create the handle. */

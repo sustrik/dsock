@@ -34,8 +34,10 @@
 static const int blog_type_placeholder = 0;
 static const void *blog_type = &blog_type_placeholder;
 static void blog_close(int s);
-static int blog_bsend(int s, const void *buf, size_t len, int64_t deadline);
-static int blog_brecv(int s, void *buf, size_t len, int64_t deadline);
+static int blog_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
+    int64_t deadline);
+static int blog_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+    int64_t deadline);
 
 struct blog_sock {
     struct bsock_vfptrs vfptrs;
@@ -50,8 +52,8 @@ int blog_start(int s) {
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = blog_close;
     obj->vfptrs.type = blog_type;
-    obj->vfptrs.bsend = blog_bsend;
-    obj->vfptrs.brecv = blog_brecv;
+    obj->vfptrs.bsendmsg = blog_bsendmsg;
+    obj->vfptrs.brecvmsg = blog_brecvmsg;
     obj->s = s;
     /* Create the handle. */
     int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);
@@ -73,28 +75,38 @@ int blog_stop(int s) {
     return u;
 }
 
-static int blog_bsend(int s, const void *buf, size_t len,
+static int blog_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct blog_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == blog_type);
+    size_t len = 0;
+    size_t i, j;
+    for(i = 0; i != iovlen; ++i) len += iov[i].iov_len;
     fprintf(stderr, "handle: %-4d send %8zuB: 0x", s, len);
-    size_t i;
-    for(i = 0; i != len; ++i)
-        fprintf(stderr, "%02x", (int)((uint8_t*)buf)[i]);
+    for(i = 0; i != iovlen; ++i) {
+        for(j = 0; j != iov[i].iov_len; ++j) {
+            fprintf(stderr, "%02x", (int)((uint8_t*)iov[i].iov_base)[j]);
+        }
+    }
     fprintf(stderr, "\n");
-    return bsend(obj->s, buf, len, deadline);
+    return bsendmsg(obj->s, iov, iovlen, deadline);
 }
 
-static int blog_brecv(int s, void *buf, size_t len,
+static int blog_brecvmsg(int s, struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct blog_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == blog_type);
-    int rc = brecv(obj->s, buf, len, deadline);
+    int rc = brecvmsg(obj->s, iov, iovlen, deadline);
     if(dsock_slow(rc < 0)) return -1;
+    size_t len = 0;
+    size_t i, j;
+    for(i = 0; i != iovlen; ++i) len += iov[i].iov_len;
     fprintf(stderr, "handle: %-4d recv %8zuB: 0x", s, len);
-    size_t i;
-    for(i = 0; i != len; ++i)
-        fprintf(stderr, "%02x", (int)((uint8_t*)buf)[i]);
+    for(i = 0; i != iovlen; ++i) {
+        for(j = 0; j != iov[i].iov_len; ++j) {
+            fprintf(stderr, "%02x", (int)((uint8_t*)iov[i].iov_base)[j]);
+        }
+    }
     fprintf(stderr, "\n");
     return 0;
 } 

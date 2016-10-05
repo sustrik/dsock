@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 #include "fdhelpers.h"
+#include "iovhelpers.h"
 #include "utils.h"
 
 void dsinitrxbuf(struct dsrxbuf *rxbuf) {
@@ -93,11 +94,18 @@ int dsaccept(int s, struct sockaddr *addr, socklen_t *addrlen,
     return as;
 }
 
-int dssend(int s, const void *buf, size_t len, int64_t deadline) {
-    if(dsock_slow(len > 0 && !buf)) {errno = EINVAL; return -1;}
+int dssend(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    if(dsock_slow(iovlen > 0 && !iov)) {errno = EINVAL; return -1;}
+    struct msghdr hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    size_t len = iov_size(iov, iovlen);
     ssize_t sent = 0;
     while(sent < len) {
-        ssize_t sz = send(s, ((char*)buf) + sent, len - sent, DSOCK_NOSIGNAL);
+        struct iovec vec[iovlen];
+        size_t veclen = iov_cut(iov, vec, iovlen, sent, len - sent);
+        hdr.msg_iov = vec;
+        hdr.msg_iovlen = veclen;
+        ssize_t sz = sendmsg(s, &hdr, DSOCK_NOSIGNAL);
         if(sz < 0) {
             if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) return -1;
             int rc = fdout(s, deadline);
@@ -109,17 +117,25 @@ int dssend(int s, const void *buf, size_t len, int64_t deadline) {
     return 0;
 }
 
-static ssize_t dsget(int s, void *buf, size_t len, int block,
+static ssize_t dsget(int s, struct iovec *iov, size_t iovlen, int block,
       int64_t deadline) {
+    struct msghdr hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    size_t pos = 0;
+    size_t len = iov_size(iov, iovlen);
     while(1) {
-        ssize_t sz = recv(s, buf, len, 0);
+        struct iovec vec[iovlen];
+        size_t veclen = iov_cut(iov, vec, iovlen, pos, len);
+        hdr.msg_iov = vec;
+        hdr.msg_iovlen = veclen;
+        ssize_t sz = recvmsg(s, &hdr, 0);
         if(dsock_fast(sz == len)) return len;
         if(dsock_slow(sz == 0)) {errno = ECONNRESET; return -1;}
         if(dsock_slow(sz < 0 && errno != EWOULDBLOCK && errno != EAGAIN))
             return -1;
         if(dsock_fast(sz > 0)) {
             if(!block) return sz;
-            buf = (char*)buf + sz;
+            pos += sz;
             len -= sz;
         }
         int rc = fdin(s, deadline);
@@ -127,29 +143,35 @@ static ssize_t dsget(int s, void *buf, size_t len, int block,
     }
 }
 
-int dsrecv(int s, struct dsrxbuf *rxbuf, void *buf, size_t len,
+int dsrecv(int s, struct dsrxbuf *rxbuf, struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     dsock_assert(rxbuf);
+    dsock_assert(iovlen);
+    struct iovec vec[iovlen];
+    size_t pos = 0;
+    size_t len = iov_size(iov, iovlen);
     while(1) {
         /* Use data from rxbuf. */
         size_t remaining = rxbuf->len - rxbuf->pos;
-        size_t tocopy = remaining < len ? remaining : len;
-        if(dsock_fast(buf))
-            memcpy(buf, (char*)(rxbuf->data) + rxbuf->pos, tocopy);
+        size_t tocopy = remaining < len ? remaining : len;    
+        iov_copyto(iov, iovlen, (char*)(rxbuf->data) + rxbuf->pos, pos, tocopy);
         rxbuf->pos += tocopy;
-        buf = (char*)buf + tocopy;
+        pos += tocopy;
         len -= tocopy;
         if(!len) return 0;
         /* If requested amount of data is large avoid the copy
            and read it directly into user's buffer. */
-        if(len >= sizeof(rxbuf->data) && buf) {
-            ssize_t sz = dsget(s, buf, len, 1, deadline);
+        if(len >= sizeof(rxbuf->data)) {
+            size_t veclen = iov_cut(iov, vec, iovlen, pos, len);
+            ssize_t sz = dsget(s, vec, veclen, 1, deadline);
             if(dsock_slow(sz < 0)) return -1;
             return 0;
         }
         /* Read as much data as possible into rxbuf. */
         dsock_assert(rxbuf->len == rxbuf->pos);
-        ssize_t sz = dsget(s, rxbuf->data, sizeof(rxbuf->data), 0, deadline);
+        vec[0].iov_base = rxbuf->data;
+        vec[0].iov_len = sizeof(rxbuf->data);
+        ssize_t sz = dsget(s, vec, 1, 0, deadline);
         if(dsock_slow(sz < 0)) return -1;
         rxbuf->len = sz;
         rxbuf->pos = 0;

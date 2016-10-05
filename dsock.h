@@ -121,6 +121,16 @@ DSOCK_EXPORT int brecv(
     void *buf,
     size_t len,
     int64_t deadline);
+DSOCK_EXPORT int bsendmsg(
+    int s,
+    const struct iovec *iov,
+    size_t iovlen,
+    int64_t deadline);
+DSOCK_EXPORT int brecvmsg(
+    int s,
+    struct iovec *iov,
+    size_t iovlen,
+    int64_t deadline);
 
 /******************************************************************************/
 /*  Message sockets.                                                          */
