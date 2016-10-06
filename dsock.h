@@ -128,7 +128,7 @@ DSOCK_EXPORT int bsendmsg(
     int64_t deadline);
 DSOCK_EXPORT int brecvmsg(
     int s,
-    struct iovec *iov,
+    const struct iovec *iov,
     size_t iovlen,
     int64_t deadline);
 

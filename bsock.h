@@ -31,7 +31,7 @@ struct bsock_vfptrs {
     const void *type;
     int (*bsendmsg)(int s, const struct iovec *iov, size_t iovlen,
         int64_t deadline);
-    int (*brecvmsg)(int s, struct iovec *iov, size_t iovlen,
+    int (*brecvmsg)(int s, const struct iovec *iov, size_t iovlen,
         int64_t deadline);
 };
 

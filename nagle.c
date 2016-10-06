@@ -37,7 +37,7 @@ static const void *nagle_type = &nagle_type_placeholder;
 static void nagle_close(int s);
 static int nagle_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static int nagle_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+static int nagle_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
     uint8_t *buf, int sendch, int ackch);
@@ -192,7 +192,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
     }
 }
 
-static int nagle_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+static int nagle_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct nagle_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == nagle_type);

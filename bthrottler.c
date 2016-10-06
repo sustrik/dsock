@@ -36,7 +36,7 @@ static const void *bthrottler_type = &bthrottler_type_placeholder;
 static void bthrottler_close(int s);
 static int bthrottler_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static int bthrottler_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+static int bthrottler_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 
 struct bthrottler_sock {
@@ -136,7 +136,7 @@ static int bthrottler_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
     }
 }
 
-static int bthrottler_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+static int bthrottler_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct bthrottler_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == bthrottler_type);

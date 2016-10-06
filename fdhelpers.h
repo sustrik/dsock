@@ -63,7 +63,7 @@ int dssend(
 int dsrecv(
     int s,
     struct dsrxbuf *rxbuf,
-    struct iovec *iov,
+    const struct iovec *iov,
     size_t iovlen,
     int64_t deadline);
 int dsclose(

@@ -43,7 +43,7 @@ void iov_copyallfrom(void *dst, const struct iovec *src, size_t srclen) {
     }
 }
 
-void iov_copyallto(struct iovec *dst, size_t dstlen, const void *src) {
+void iov_copyallto(const struct iovec *dst, size_t dstlen, const void *src) {
     int i;
     for(i = 0; i != dstlen; ++i) {
         memcpy(dst[i].iov_base, src, dst[i].iov_len);
@@ -85,7 +85,7 @@ void iov_copyfrom(void *dst, const struct iovec *src, size_t srclen,
     iov_copyallfrom(dst, vec, veclen);
 }
 
-void iov_copyto(struct iovec *dst, size_t dstlen, const void *src,
+void iov_copyto(const struct iovec *dst, size_t dstlen, const void *src,
       size_t offset, size_t bytes) {
     struct iovec vec[dstlen];
     size_t veclen = iov_cut(dst, vec, dstlen, offset, bytes);

@@ -45,7 +45,7 @@ static const void *unix_conn_type = &unix_conn_type_placeholder;
 static void unix_conn_close(int s);
 static int unix_conn_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static int unix_conn_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+static int unix_conn_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 
 struct unix_conn {
@@ -91,7 +91,7 @@ static int unix_conn_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
     return -1;
 }
 
-static int unix_conn_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+static int unix_conn_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct unix_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == unix_conn_type);

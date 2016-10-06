@@ -32,12 +32,12 @@ size_t iov_size(const struct iovec *iov, size_t iovlen);
 void iov_copyfrom(void *dst, const struct iovec *src, size_t srclen,
     size_t offset, size_t bytes);
 
-void iov_copyto(struct iovec *dst, size_t dstlen, const void *src,
+void iov_copyto(const struct iovec *dst, size_t dstlen, const void *src,
     size_t offset, size_t bytes);
 
 void iov_copyallfrom(void *dst, const struct iovec *src, size_t srclen);
 
-void iov_copyallto(struct iovec *dst, size_t dstlen, const void *src);
+void iov_copyallto(const struct iovec *dst, size_t dstlen, const void *src);
 
 size_t iov_cut(const struct iovec *src, struct iovec *dst, size_t iovlen,
       size_t offset, size_t bytes);

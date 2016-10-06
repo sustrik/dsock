@@ -143,7 +143,7 @@ static ssize_t dsget(int s, struct iovec *iov, size_t iovlen, int block,
     }
 }
 
-int dsrecv(int s, struct dsrxbuf *rxbuf, struct iovec *iov, size_t iovlen,
+int dsrecv(int s, struct dsrxbuf *rxbuf, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     dsock_assert(rxbuf);
     dsock_assert(iovlen);

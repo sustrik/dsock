@@ -36,7 +36,7 @@ static const void *blog_type = &blog_type_placeholder;
 static void blog_close(int s);
 static int blog_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static int blog_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+static int blog_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 
 struct blog_sock {
@@ -92,7 +92,7 @@ static int blog_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
     return bsendmsg(obj->s, iov, iovlen, deadline);
 }
 
-static int blog_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+static int blog_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct blog_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == blog_type);

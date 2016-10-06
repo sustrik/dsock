@@ -50,7 +50,7 @@ int bsendmsg(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
     return b->bsendmsg(s, iov, iovlen, deadline);
 }
 
-int brecvmsg(int s, struct iovec *iov, size_t iovlen, int64_t deadline) {
+int brecvmsg(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct hvfptr *h = hdata(s, bsock_type);
     if(dsock_slow(!h)) return -1;
     struct bsock_vfptrs *b = (struct bsock_vfptrs*)h;

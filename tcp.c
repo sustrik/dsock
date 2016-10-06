@@ -42,7 +42,7 @@ static const void *tcp_conn_type = &tcp_conn_type_placeholder;
 static void tcp_conn_close(int s);
 static int tcp_conn_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static int tcp_conn_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+static int tcp_conn_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 
 struct tcp_conn {
@@ -84,7 +84,7 @@ static int tcp_conn_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
     return -1;
 }
 
-static int tcp_conn_brecvmsg(int s, struct iovec *iov, size_t iovlen,
+static int tcp_conn_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct tcp_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == tcp_conn_type);
