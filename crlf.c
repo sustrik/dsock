@@ -28,14 +28,17 @@
 
 #include "bsock.h"
 #include "dsock.h"
+#include "iovhelpers.h"
 #include "msock.h"
 #include "utils.h"
 
 static const int crlf_type_placeholder = 0;
 static const void *crlf_type = &crlf_type_placeholder;
 static void crlf_close(int s);
-static int crlf_msend(int s, const void *buf, size_t len, int64_t deadline);
-static ssize_t crlf_mrecv(int s, void *buf, size_t len, int64_t deadline);
+static int crlf_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+    int64_t deadline);
+static ssize_t crlf_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+    int64_t deadline);
 
 struct crlf_sock {
     struct msock_vfptrs vfptrs;
@@ -50,8 +53,8 @@ int crlf_start(int s) {
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = crlf_close;
     obj->vfptrs.type = crlf_type;
-    obj->vfptrs.msend = crlf_msend;
-    obj->vfptrs.mrecv = crlf_mrecv;
+    obj->vfptrs.msendmsg = crlf_msendmsg;
+    obj->vfptrs.mrecvmsg = crlf_mrecvmsg;
     obj->s = s;
     /* Create the handle. */
     int h = handle(msock_type, obj, &obj->vfptrs.hvfptrs);
@@ -73,28 +76,40 @@ int crlf_stop(int s, int64_t deadline) {
     return u;
 }
 
-static int crlf_msend(int s, const void *buf, size_t len, int64_t deadline) {
+static int crlf_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
     struct crlf_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == crlf_type);
-    struct iovec iov[2] = {{(void*)buf, len}, {(void*)"\r\n", 2}};
-    int rc = bsendmsg(obj->s, iov, 2, deadline);
+    struct iovec vec[iovlen + 1];
+    iov_copy(vec, iov, iovlen);
+    vec[iovlen].iov_base = (void*)"\r\n";
+    vec[iovlen].iov_len = 2;
+    int rc = bsendmsg(obj->s, vec, iovlen + 1, deadline);
     if(dsock_slow(rc < 0)) return -1;
     return 0;
 }
 
-static ssize_t crlf_mrecv(int s, void *buf, size_t len, int64_t deadline) {
+static ssize_t crlf_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
     struct crlf_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == crlf_type);
-    size_t pos = 0;
+    size_t row = 0;
+    size_t column = 0;
+    size_t sz = 0;
     char c = 0;
     char pc;
     while(1) {
         pc = c;
         int rc = brecv(obj->s, &c, 1, deadline);
         if(dsock_slow(rc < 0)) return -1;
-        if(pos < len) ((char*)buf)[pos] = c;
-        ++pos;
-        if(pc == '\r' && c == '\n') return pos - 2;
+        if(row >= 0) {
+            ((char*)iov[row].iov_base)[column] = c;
+            if(column == iov[row].iov_len) {
+                ++row; column = 0;}
+            ++column;
+        }
+        ++sz;
+        if(pc == '\r' && c == '\n') return sz - 2;
     }
 }
 

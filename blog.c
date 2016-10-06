@@ -79,9 +79,8 @@ static int blog_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct blog_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == blog_type);
-    size_t len = 0;
+    size_t len = iov_size(iov, iovlen);
     size_t i, j;
-    for(i = 0; i != iovlen; ++i) len += iov[i].iov_len;
     fprintf(stderr, "handle: %-4d send %8zuB: 0x", s, len);
     for(i = 0; i != iovlen; ++i) {
         for(j = 0; j != iov[i].iov_len; ++j) {
@@ -98,9 +97,8 @@ static int blog_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
     dsock_assert(obj->vfptrs.type == blog_type);
     int rc = brecvmsg(obj->s, iov, iovlen, deadline);
     if(dsock_slow(rc < 0)) return -1;
-    size_t len = 0;
+    size_t len = iov_size(iov, iovlen);
     size_t i, j;
-    for(i = 0; i != iovlen; ++i) len += iov[i].iov_len;
     fprintf(stderr, "handle: %-4d recv %8zuB: 0x", s, len);
     for(i = 0; i != iovlen; ++i) {
         for(j = 0; j != iov[i].iov_len; ++j) {

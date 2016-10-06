@@ -24,6 +24,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "msock.h"
@@ -34,8 +35,10 @@
 static const int udp_type_placeholder = 0;
 static const void *udp_type = &udp_type_placeholder;
 static void udp_close(int s);
-static int udp_msend(int s, const void *buf, size_t len, int64_t deadline);
-static ssize_t udp_mrecv(int s, void *buf, size_t len, int64_t deadline);
+static int udp_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+    int64_t deadline);
+static ssize_t udp_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+    int64_t deadline);
 
 struct udp_sock {
     struct msock_vfptrs vfptrs;
@@ -77,8 +80,8 @@ int udp_socket(ipaddr *local, const ipaddr *remote) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error2;}
     obj->vfptrs.hvfptrs.close = udp_close;
     obj->vfptrs.type = udp_type;
-    obj->vfptrs.msend = udp_msend;
-    obj->vfptrs.mrecv = udp_mrecv;
+    obj->vfptrs.msendmsg = udp_msendmsg;
+    obj->vfptrs.mrecvmsg = udp_mrecvmsg;
     obj->fd = s;
     obj->hasremote = remote ? 1 : 0;
     if(remote) obj->remote = *remote;
@@ -96,43 +99,42 @@ error1:
     return -1;
 }
 
-int udp_send(int s, const ipaddr *addr, const void *buf, size_t len) {
+int udp_sendmsg(int s, const ipaddr *addr, const struct iovec *iov,
+      size_t iovlen) {
     struct udp_sock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;
-    if(dsock_slow(obj->vfptrs.type != udp_type)) {
-        errno = ENOTSUP; return -1;}
-    if(dsock_slow(!len || (len > 0 && !buf))) {errno = EINVAL; return -1;}
+    if(dsock_slow(obj->vfptrs.type != udp_type)) {errno = ENOTSUP; return -1;}
     /* If no destination IP address is provided, fall back to the stored one. */
     const ipaddr *dstaddr = addr;
     if(!dstaddr) {
         if(dsock_slow(!obj->hasremote)) {errno = EINVAL; return -1;}
         dstaddr = &obj->remote;
     }
-    ssize_t sz = sendto(obj->fd, buf, len, 0,
-        (struct sockaddr*)ipaddr_sockaddr(dstaddr), ipaddr_len(dstaddr));
-    if(dsock_fast(sz == len)) return 0;
-    dsock_assert(sz < 0);
+    struct msghdr hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.msg_name = (void*)ipaddr_sockaddr(dstaddr);
+    hdr.msg_namelen = ipaddr_len(dstaddr);
+    hdr.msg_iov = (struct iovec*)iov;
+    hdr.msg_iovlen = iovlen;
+    ssize_t sz = sendmsg(obj->fd, &hdr, 0);
+    if(dsock_fast(sz >= 0)) return 0;
     if(errno == EAGAIN || errno == EWOULDBLOCK) return 0;
     return -1;
 }
 
-ssize_t udp_recv(int s, ipaddr *addr, void *buf, size_t len, int64_t deadline) {
+ssize_t udp_recvmsg(int s, ipaddr *addr, const struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
     struct udp_sock *obj = hdata(s, msock_type);
     if(dsock_slow(!obj)) return -1;
-    if(dsock_slow(obj->vfptrs.type != udp_type)) {
-        errno = ENOTSUP; return -1;}
-    /* If user doesn't supply buffer we'll read the packet anyway and discard
-       the data. Dummy buffer is used to avoid possible corner cases in UDP
-       socket implementation. */
-    int dummy;
-    if(dsock_slow(!buf)) {
-        buf = &dummy;
-        len = sizeof(dummy);
-    }
-    ssize_t sz;
+    if(dsock_slow(obj->vfptrs.type != udp_type)) {errno = ENOTSUP; return -1;}
     while(1) {
-        socklen_t slen = sizeof(ipaddr);
-        sz = recvfrom(obj->fd, buf, len, 0, (struct sockaddr*)addr, &slen);
+        struct msghdr hdr;
+        memset(&hdr, 0, sizeof(hdr));
+        hdr.msg_name = (void*)addr;
+        hdr.msg_namelen = sizeof(ipaddr);
+        hdr.msg_iov = (struct iovec*)iov;
+        hdr.msg_iovlen = iovlen;
+        ssize_t sz = recvmsg(obj->fd, &hdr, 0);
         if(sz >= 0) return sz;
         if(errno != EAGAIN && errno != EWOULDBLOCK) return -1;
         int rc = fdin(obj->fd, deadline);
@@ -140,12 +142,24 @@ ssize_t udp_recv(int s, ipaddr *addr, void *buf, size_t len, int64_t deadline) {
     }
 }
 
-static int udp_msend(int s, const void *buf, size_t len, int64_t deadline) {
-    return udp_send(s, NULL, buf, len);
+int udp_send(int s, const ipaddr *addr, const void *buf, size_t len) {
+    struct iovec iov = {(void*)buf, len};
+    return udp_sendmsg(s, addr, &iov, 1);
 }
 
-static ssize_t udp_mrecv(int s, void *buf, size_t len, int64_t deadline) {
-    return udp_recv(s, NULL, buf, len, deadline);
+ssize_t udp_recv(int s, ipaddr *addr, void *buf, size_t len, int64_t deadline) {
+    struct iovec iov = {(void*)buf, len};
+    return udp_recvmsg(s, addr, &iov, 1, deadline);
+}
+
+static int udp_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
+    return udp_sendmsg(s, NULL, iov, iovlen);
+}
+
+static ssize_t udp_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
+    return udp_recvmsg(s, NULL, iov, iovlen, deadline);
 }
 
 static void udp_close(int s) {

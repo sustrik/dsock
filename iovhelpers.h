@@ -39,6 +39,8 @@ void iov_copyallfrom(void *dst, const struct iovec *src, size_t srclen);
 
 void iov_copyallto(const struct iovec *dst, size_t dstlen, const void *src);
 
+void iov_copy(struct iovec *dst, const struct iovec *src, size_t len);
+
 size_t iov_cut(const struct iovec *src, struct iovec *dst, size_t iovlen,
       size_t offset, size_t bytes);
 

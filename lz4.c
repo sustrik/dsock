@@ -28,17 +28,18 @@
 
 #include "lz4/lz4frame.h"
 
+#include "iovhelpers.h"
 #include "msock.h"
 #include "dsock.h"
 #include "utils.h"
 
-#define BLOCK_SIZE 8192
-
 static const int lz4_type_placeholder = 0;
 static const void *lz4_type = &lz4_type_placeholder;
 static void lz4_close(int s);
-static int lz4_msend(int s, const void *buf, size_t len, int64_t deadline);
-static ssize_t lz4_mrecv(int s, void *buf, size_t len, int64_t deadline);
+static int lz4_msendmsg(int s, const struct iovec *iov, size_t ioveln,
+    int64_t deadline);
+static ssize_t lz4_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+    int64_t deadline);
 
 struct lz4_sock {
     struct msock_vfptrs vfptrs;
@@ -59,8 +60,8 @@ int lz4_start(int s) {
     if(dsock_slow(!obj)) {errno = ENOMEM; goto error1;}
     obj->vfptrs.hvfptrs.close = lz4_close;
     obj->vfptrs.type = lz4_type;
-    obj->vfptrs.msend = lz4_msend;
-    obj->vfptrs.mrecv = lz4_mrecv;
+    obj->vfptrs.msendmsg = lz4_msendmsg;
+    obj->vfptrs.mrecvmsg = lz4_mrecvmsg;
     obj->s = s;
     obj->outbuf = NULL;
     obj->outlen = 0;
@@ -95,11 +96,12 @@ int lz4_stop(int s, int64_t deadline) {
     return u;
 }
 
-static int lz4_msend(int s, const void *buf, size_t len, int64_t deadline) {
+static int lz4_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
     struct lz4_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == lz4_type);
-    if(dsock_slow(!buf && len > 0)) {errno = EINVAL; return -1;}
     /* Adjust the buffer size as needed. */
+    size_t len = iov_size(iov, iovlen);
     size_t maxlen = LZ4F_compressFrameBound(len, NULL);
     if(obj->outlen < maxlen) {
         uint8_t *newbuf = realloc(obj->outbuf, maxlen);
@@ -108,21 +110,27 @@ static int lz4_msend(int s, const void *buf, size_t len, int64_t deadline) {
         obj->outlen = maxlen;
     }
     /* Compress the data. */
+    /* TODO: Avoid the extra allocations and copies. */
+    uint8_t *buf = malloc(len);
+    if(dsock_slow(!buf)) {errno = ENOMEM; return -1;}
+    iov_copyallfrom(buf, iov, iovlen);
     LZ4F_preferences_t prefs = {0};
     prefs.frameInfo.contentSize = len;
     size_t dstlen = LZ4F_compressFrame(obj->outbuf, obj->outlen,
         buf, len, &prefs);
     dsock_assert(!LZ4F_isError(dstlen));
     dsock_assert(dstlen <= obj->outlen);
+    free(buf);
     /* Send the compressed frame. */
     return msend(obj->s, obj->outbuf, dstlen, deadline);
 }
 
-static ssize_t lz4_mrecv(int s, void *buf, size_t len, int64_t deadline) {
+static ssize_t lz4_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
     struct lz4_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == lz4_type);
-    if(dsock_slow(!buf && len > 0)) {errno = EINVAL; return -1;}
     /* Adjust the buffer size as needed. */
+    size_t len = iov_size(iov, iovlen);
     size_t maxlen = LZ4F_compressFrameBound(len, NULL);
     if(obj->inlen < maxlen) {
         uint8_t *newbuf = realloc(obj->inbuf, maxlen);
@@ -143,12 +151,17 @@ static ssize_t lz4_mrecv(int s, void *buf, size_t len, int64_t deadline) {
     /* Decompressed message would exceed the buffer size. */
     if(dsock_slow(info.contentSize > len)) {errno = EMSGSIZE; return -1;}
     /* Decompress. */
+    /* TODO: Avoid the extra allocations and copies. */
+    uint8_t *buf = malloc(len);
+    if(dsock_slow(!buf)) {errno = ENOMEM; return -1;}
     size_t dstlen = len;
     size_t srclen = sz - infolen;
     ec = LZ4F_decompress(obj->dctx, buf, &dstlen,
         obj->inbuf + infolen, &srclen, NULL);
     dsock_assert(ec == 0);
     dsock_assert(srclen == sz - infolen);
+    iov_copyallto(iov, iovlen, buf);
+    free(buf);
     return dstlen;
 } 
 

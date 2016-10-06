@@ -30,6 +30,7 @@
 
 #include "tweetnacl/tweetnacl.h"
 
+#include "iovhelpers.h"
 #include "msock.h"
 #include "dsock.h"
 #include "utils.h"
@@ -37,8 +38,10 @@
 static const int nacl_type_placeholder = 0;
 static const void *nacl_type = &nacl_type_placeholder;
 static void nacl_close(int s);
-static int nacl_msend(int s, const void *buf, size_t len, int64_t deadline);
-static ssize_t nacl_mrecv(int s, void *buf, size_t len, int64_t deadline);
+static int nacl_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+    int64_t deadline);
+static ssize_t nacl_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+    int64_t deadline);
 
 #define NACL_MAX(a, b) ((a) > (b) ? (a) : (b))
 
@@ -67,8 +70,8 @@ int nacl_start(int s, const void *key, size_t keylen, int64_t deadline) {
     if(dsock_slow(!obj)) {errno = ENOMEM; goto error1;}
     obj->vfptrs.hvfptrs.close = nacl_close;
     obj->vfptrs.type = nacl_type;
-    obj->vfptrs.msend = nacl_msend;
-    obj->vfptrs.mrecv = nacl_mrecv;
+    obj->vfptrs.msendmsg = nacl_msendmsg;
+    obj->vfptrs.mrecvmsg = nacl_mrecvmsg;
     obj->s = s;
     obj->buflen = 0;
     obj->buf1 = NULL;
@@ -111,10 +114,12 @@ static int nacl_resizebufs(struct nacl_sock *obj, size_t len) {
     return 0;
 }
 
-static int nacl_msend(int s, const void *buf, size_t len, int64_t deadline) {
+static int nacl_msendmsg(int s, const struct iovec *iov,
+      size_t iovlen, int64_t deadline) {
     struct nacl_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == nacl_type);
     /* If needed, adjust the buffers. */
+    size_t len = iov_size(iov, iovlen);
     int rc = nacl_resizebufs(obj, NACL_EXTRABYTES + len);
     if(dsock_slow(rc < 0)) return -1;
     /* Increase nonce. */
@@ -126,7 +131,7 @@ static int nacl_msend(int s, const void *buf, size_t len, int64_t deadline) {
     /* Encrypt and authenticate the message. */
     size_t mlen = len + crypto_secretbox_ZEROBYTES;
     memset(obj->buf1, 0, crypto_secretbox_ZEROBYTES);
-    memcpy(obj->buf1 + crypto_secretbox_ZEROBYTES, buf, len);
+    iov_copyallfrom(obj->buf1 + crypto_secretbox_ZEROBYTES, iov, iovlen);
     crypto_secretbox(obj->buf2, obj->buf1, mlen, obj->send_nonce, obj->key);
     /* Prepare the message: nonce + ciphertext */
     memcpy(obj->buf1, obj->send_nonce, crypto_secretbox_NONCEBYTES);
@@ -138,10 +143,12 @@ static int nacl_msend(int s, const void *buf, size_t len, int64_t deadline) {
         crypto_secretbox_BOXZEROBYTES , deadline);
 }
 
-static ssize_t nacl_mrecv(int s, void *buf, size_t len, int64_t deadline) {
+static ssize_t nacl_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
     struct nacl_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == nacl_type);
     /* If needed, adjust the buffers. */
+    size_t len = iov_size(iov, iovlen);
     int rc = nacl_resizebufs(obj, NACL_EXTRABYTES + len);
     /* Read the encrypted message. */
     ssize_t sz = mrecv(obj->s, obj->buf1, NACL_EXTRABYTES + len, deadline);
@@ -160,7 +167,7 @@ static ssize_t nacl_mrecv(int s, void *buf, size_t len, int64_t deadline) {
         obj->recv_nonce, obj->key);
     if(dsock_slow(rc < 0)) {errno = EACCES; return -1;}
     /* Copy the message into user's buffer. */
-    memcpy(buf, obj->buf1 + crypto_secretbox_ZEROBYTES,
+    iov_copyto(iov, iovlen, obj->buf1 + crypto_secretbox_ZEROBYTES, 0,
         clen - crypto_secretbox_ZEROBYTES);
     return clen - crypto_secretbox_ZEROBYTES;
 } 

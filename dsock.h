@@ -146,6 +146,16 @@ DSOCK_EXPORT ssize_t mrecv(
     void *buf,
     size_t len,
     int64_t deadline);
+DSOCK_EXPORT int msendmsg(
+    int s,
+    const struct iovec *iov,
+    size_t iovlen,
+    int64_t deadline);
+DSOCK_EXPORT ssize_t mrecvmsg(
+    int s,
+    const struct iovec *iov,
+    size_t iovlen,
+    int64_t deadline);
 
 /******************************************************************************/
 /*  TCP protocol.                                                             */
@@ -164,6 +174,8 @@ DSOCK_EXPORT int tcp_connect(
 
 #define tcp_send bsend
 #define tcp_recv brecv
+#define tcp_sendmsg bsendmsg
+#define tcp_recvmsg brecvmsg
 
 /******************************************************************************/
 /*  UNIX protocol.                                                            */
@@ -183,6 +195,8 @@ DSOCK_EXPORT int unix_pair(
 
 #define unix_send bsend
 #define unix_recv brecv
+#define unix_sendmsg bsendmsg
+#define unix_recvmsg brecvmsg
 
 /******************************************************************************/
 /*  UDP protocol.                                                             */
@@ -202,6 +216,17 @@ DSOCK_EXPORT ssize_t udp_recv(
     void *buf,
     size_t len,
     int64_t deadline);
+DSOCK_EXPORT int udp_sendmsg(
+    int s,
+    const ipaddr *addr,
+    const struct iovec *iov,
+    size_t iovlen);
+DSOCK_EXPORT ssize_t udp_recvmsg(
+    int s,
+    ipaddr *addr,
+    const struct iovec *iov,
+    size_t iovlen,
+    int64_t deadline);
 
 /******************************************************************************/
 /*  PFX protocol.                                                             */
@@ -216,6 +241,8 @@ DSOCK_EXPORT int pfx_stop(
 
 #define pfx_send msend
 #define pfx_recv mrecv
+#define pfx_sendmsg msendmsg
+#define pfx_recvmsg mrecvmsg
 
 /******************************************************************************/
 /*  CRLF protocol.                                                            */
@@ -230,6 +257,8 @@ DSOCK_EXPORT int crlf_stop(
 
 #define crlf_send msend
 #define crlf_recv mrecv
+#define crlf_sendmsg msendmsg
+#define crlf_recvmsg mrecvmsg
 
 /******************************************************************************/
 /*  NaCl encryption and authentication protocol.                              */

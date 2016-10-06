@@ -35,9 +35,10 @@
 static const int keepalive_type_placeholder = 0;
 static const void *keepalive_type = &keepalive_type_placeholder;
 static void keepalive_close(int s);
-static int keepalive_msend(int s, const void *buf, size_t len,
+static int keepalive_msendmsg(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static ssize_t keepalive_mrecv(int s, void *buf, size_t len, int64_t deadline);
+static ssize_t keepalive_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+    int64_t deadline);
 static coroutine void keepalive_sender(int s, int64_t send_interval,
     const uint8_t *buf, size_t len, int sendch, int ackch);
 
@@ -57,6 +58,11 @@ struct keepalive_sock {
     int64_t last_recv;
 };
 
+struct keepalive_vec {
+    const struct iovec *iov;
+    size_t iovlen;
+};
+
 int keepalive_start(int s, int64_t send_interval,
       int64_t recv_interval, const void *buf, size_t len) {
     int rc;
@@ -68,8 +74,8 @@ int keepalive_start(int s, int64_t send_interval,
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->vfptrs.hvfptrs.close = keepalive_close;
     obj->vfptrs.type = keepalive_type;
-    obj->vfptrs.msend = keepalive_msend;
-    obj->vfptrs.mrecv = keepalive_mrecv;
+    obj->vfptrs.msendmsg = keepalive_msendmsg;
+    obj->vfptrs.mrecvmsg = keepalive_mrecvmsg;
     obj->s = s;
     obj->send_interval = send_interval;
     obj->recv_interval = recv_interval;
@@ -81,7 +87,7 @@ int keepalive_start(int s, int64_t send_interval,
     obj->ackch = -1;
     obj->sender = -1;
     if(send_interval >= 0) {
-        obj->sendch = channel(sizeof(struct iovec), 0);
+        obj->sendch = channel(sizeof(struct keepalive_vec), 0);
         if(dsock_slow(obj->sendch < 0)) {err = errno; goto error3;}
         obj->ackch = channel(0, 0);
         if(dsock_slow(obj->ackch < 0)) {err = errno; goto error4;}
@@ -136,12 +142,12 @@ int keepalive_stop(int s) {
     return u;
 }
 
-static int keepalive_msend(int s, const void *buf, size_t len,
+static int keepalive_msendmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct keepalive_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == keepalive_type);
     /* Send is done in a worker coroutine. */
-    struct iovec vec = {(void*)buf, len};
+    struct keepalive_vec vec = {iov, iovlen};
     int rc = chsend(obj->sendch, &vec, sizeof(vec), deadline);
     if(dsock_slow(rc < 0)) return -1;
     /* Wait till worker is done. */
@@ -156,7 +162,7 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
     int64_t last = now();
     while(1) {
         /* Get data to send from the user coroutine. */
-        struct iovec vec;
+        struct keepalive_vec vec;
         int rc = chrecv(sendch, &vec, sizeof(vec), last + send_interval);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         if(dsock_slow(rc < 0 && errno == ETIMEDOUT)) {
@@ -169,7 +175,7 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
             continue;
         }
         dsock_assert(rc == 0);
-        rc = msend(s, vec.iov_base, vec.iov_len, -1);
+        rc = msendmsg(s, vec.iov, vec.iovlen, -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         if(dsock_slow(rc < 0 && errno == ECONNRESET)) return;
         dsock_assert(rc == 0);
@@ -180,11 +186,12 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
     }
 }
 
-static ssize_t keepalive_mrecv(int s, void *buf, size_t len, int64_t deadline) {
+static ssize_t keepalive_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
     struct keepalive_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == keepalive_type);
     /* If receive mode is off, just forward the call. */
-    if(obj->recv_interval < 0) return mrecv(obj->s, buf, len, deadline);
+    if(obj->recv_interval < 0) return mrecvmsg(obj->s, iov, iovlen, deadline);
     /* Compute the deadline. Take keepalive interval into consideration. */
 retry:;
     int64_t dd = obj->last_recv + obj->recv_interval;
@@ -193,7 +200,7 @@ retry:;
        dd = deadline;
        fail_on_deadline = 0;
     }
-    ssize_t sz = mrecv(obj->s, buf, len, dd);
+    ssize_t sz = mrecvmsg(obj->s, iov, iovlen, dd);
     if(dsock_slow(fail_on_deadline && sz < 0 && errno == ETIMEDOUT)) {
         errno = ECONNRESET; return -1;}
     if(dsock_fast(sz >= 0)) {
@@ -201,7 +208,11 @@ retry:;
         obj->last_recv = now();
         errno = err;
         /* Filter out keep alive messages. */
-        if(sz == obj->len && memcmp(buf, obj->buf, obj->len) == 0) goto retry;
+        if(sz == obj->len) {
+            /* TODO: fix this */
+            dsock_assert(iov[0].iov_len >= obj->len);
+            if(memcmp(iov[0].iov_base, obj->buf, obj->len) == 0) goto retry;
+        }
     }
     return sz;
 } 

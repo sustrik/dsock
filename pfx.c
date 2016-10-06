@@ -28,14 +28,17 @@
 
 #include "bsock.h"
 #include "dsock.h"
+#include "iovhelpers.h"
 #include "msock.h"
 #include "utils.h"
 
 static const int pfx_type_placeholder = 0;
 static const void *pfx_type = &pfx_type_placeholder;
 static void pfx_close(int s);
-static int pfx_msend(int s, const void *buf, size_t len, int64_t deadline);
-static ssize_t pfx_mrecv(int s, void *buf, size_t len, int64_t deadline);
+static int pfx_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+    int64_t deadline);
+static ssize_t pfx_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+    int64_t deadline);
 
 #define pfx_sock_PEERDONE 1
 
@@ -53,8 +56,8 @@ int pfx_start(int s) {
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = pfx_close;
     obj->vfptrs.type = pfx_type;
-    obj->vfptrs.msend = pfx_msend;
-    obj->vfptrs.mrecv = pfx_mrecv;
+    obj->vfptrs.msendmsg = pfx_msendmsg;
+    obj->vfptrs.mrecvmsg = pfx_mrecvmsg;
     obj->s = s;
     obj->flags = 0;
     /* Create the handle. */
@@ -78,9 +81,9 @@ int pfx_stop(int s, int64_t deadline) {
     int rc = bsend(obj->s, &sz, 8, deadline);
     if(dsock_slow(rc < 0)) {err = errno; goto error;}
     while(!obj->flags & pfx_sock_PEERDONE) {
-        int rc = pfx_mrecv(s, NULL, 0, deadline);
+        int rc = pfx_mrecvmsg(s, NULL, 0, deadline);
         if(rc < 0 && errno == EPIPE) break;
-        if(dsock_slow(rc < 0)) {err = errno; goto error;}
+        if(dsock_slow(rc < 0 && errno != EMSGSIZE)) {err = errno; goto error;}
     }
     int u = obj->s;
     free(obj);
@@ -93,18 +96,24 @@ error:
     return -1;
 }
 
-static int pfx_msend(int s, const void *buf, size_t len, int64_t deadline) {
+static int pfx_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
     struct pfx_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == pfx_type);
     uint8_t szbuf[8];
+    size_t len = iov_size(iov, iovlen);
     dsock_putll(szbuf, (uint64_t)len);
-    struct iovec iov[2] = {{szbuf, 8}, {(void*)buf, len}};
-    int rc = bsendmsg(obj->s, iov, 2, deadline);
+    struct iovec vec[iovlen + 1];
+    vec[0].iov_base = szbuf;
+    vec[0].iov_len = 8;
+    iov_copy(vec + 1, iov, iovlen);
+    int rc = bsendmsg(obj->s, vec, iovlen + 1, deadline);
     if(dsock_slow(rc < 0)) return -1;
     return 0;
 }
 
-static ssize_t pfx_mrecv(int s, void *buf, size_t len, int64_t deadline) {
+static ssize_t pfx_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+      int64_t deadline) {
     struct pfx_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == pfx_type);
     if(dsock_slow(obj->flags & pfx_sock_PEERDONE)) {errno = EPIPE; return -1;}
@@ -118,13 +127,17 @@ static ssize_t pfx_mrecv(int s, void *buf, size_t len, int64_t deadline) {
         errno = EPIPE;
         return -1;
     }
-    size_t torecv = (size_t)(len < sz ? len : sz);
-    rc = brecv(obj->s, buf, torecv, deadline);
-    if(dsock_slow(rc < 0)) return -1;
-    if(torecv < sz) {
-        rc = brecv(obj->s, NULL, sz - torecv, deadline);
+    size_t len = iov_size(iov, iovlen);
+    if(dsock_slow(len < sz)) {
+        rc = brecv(obj->s, NULL, sz, deadline);
         if(dsock_slow(rc < 0)) return -1;
+        errno = EMSGSIZE;
+        return -1;
     }
+    struct iovec vec[iovlen];
+    size_t veclen = iov_cut(iov, vec, iovlen, 0, sz);
+    rc = brecvmsg(obj->s, vec, veclen, deadline);
+    if(dsock_slow(rc < 0)) return -1;
     return sz;
 }
 
