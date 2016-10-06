@@ -76,9 +76,8 @@ int crlf_stop(int s, int64_t deadline) {
 static int crlf_msend(int s, const void *buf, size_t len, int64_t deadline) {
     struct crlf_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == crlf_type);
-    int rc = bsend(obj->s, buf, len, deadline);
-    if(dsock_slow(rc < 0)) return -1;
-    rc = bsend(obj->s, "\r\n", 2, deadline);
+    struct iovec iov[2] = {{(void*)buf, len}, {(void*)"\r\n", 2}};
+    int rc = bsendmsg(obj->s, iov, 2, deadline);
     if(dsock_slow(rc < 0)) return -1;
     return 0;
 }

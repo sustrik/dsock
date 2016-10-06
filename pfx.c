@@ -98,9 +98,8 @@ static int pfx_msend(int s, const void *buf, size_t len, int64_t deadline) {
     dsock_assert(obj->vfptrs.type == pfx_type);
     uint8_t szbuf[8];
     dsock_putll(szbuf, (uint64_t)len);
-    int rc = bsend(obj->s, szbuf, 8, deadline);
-    if(dsock_slow(rc < 0)) return -1;
-    rc = bsend(obj->s, buf, len, deadline);
+    struct iovec iov[2] = {{szbuf, 8}, {(void*)buf, len}};
+    int rc = bsendmsg(obj->s, iov, 2, deadline);
     if(dsock_slow(rc < 0)) return -1;
     return 0;
 }
