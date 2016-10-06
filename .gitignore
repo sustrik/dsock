@@ -43,3 +43,4 @@ tests/mlog
 tests/nacl
 tests/keepalive
 tests/fullstack
+tests/iovec
