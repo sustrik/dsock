@@ -22,8 +22,8 @@
 
 */
 
-#ifndef DSOCK_FDHELPERS_H_INCLUDED
-#define DSOCK_FDHELPERS_H_INCLUDED
+#ifndef DSOCK_FD_H_INCLUDED
+#define DSOCK_FD_H_INCLUDED
 
 #include <stdint.h>
 #include <sys/socket.h>

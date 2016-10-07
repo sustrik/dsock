@@ -37,8 +37,8 @@ libdsock_la_SOURCES = \
     bsock.c \
     bthrottler.c \
     crlf.c \
-    fdhelpers.h \
-    fdhelpers.c \
+    fd.h \
+    fd.c \
     iov.h \
     iov.c \
     ipaddr.c \

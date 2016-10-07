@@ -28,7 +28,7 @@
 
 #include "bsock.h"
 #include "dsock.h"
-#include "fdhelpers.h"
+#include "fd.h"
 #include "utils.h"
 
 static int tcpmakeconn(int fd);
