@@ -30,43 +30,43 @@
 #include <sys/types.h>
 
 #if defined MSG_NOSIGNAL
-#define DSOCK_NOSIGNAL MSG_NOSIGNAL
+#define FD_NOSIGNAL MSG_NOSIGNAL
 #else
-#define DSOCK_NOSIGNAL 0
+#define FD_NOSIGNAL 0
 #endif
 
-struct dsrxbuf {
+struct fdrxbuf {
     size_t len;
     size_t pos;
     uint8_t data[2000];
 };
 
-void dsinitrxbuf(
-    struct dsrxbuf *rxbuf);
-int dsunblock(
+void fdinitrxbuf(
+    struct fdrxbuf *rxbuf);
+int fdunblock(
     int s);
-int dsconnect(
+int fdconnect(
     int s,
     const struct sockaddr *addr,
     socklen_t addrlen,
     int64_t deadline);
-int dsaccept(
+int fdaccept(
     int s,
     struct sockaddr *addr,
     socklen_t *addrlen,
     int64_t deadline);
-int dssend(
+int fdsend(
     int s,
     const struct iovec *iov,
     size_t iovlen,
     int64_t deadline);
-int dsrecv(
+int fdrecv(
     int s,
-    struct dsrxbuf *rxbuf,
+    struct fdrxbuf *rxbuf,
     const struct iovec *iov,
     size_t iovlen,
     int64_t deadline);
-int dsclose(
+int fdclose(
     int s);
 
 #endif

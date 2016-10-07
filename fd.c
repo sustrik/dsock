@@ -31,13 +31,13 @@
 #include "iov.h"
 #include "utils.h"
 
-void dsinitrxbuf(struct dsrxbuf *rxbuf) {
+void fdinitrxbuf(struct fdrxbuf *rxbuf) {
     dsock_assert(rxbuf);
     rxbuf->len = 0;
     rxbuf->pos = 0;
 }
 
-int dsunblock(int s) {
+int fdunblock(int s) {
     /* Switch to non-blocking mode. */
     int opt = fcntl(s, F_GETFL, 0);
     if (opt == -1)
@@ -58,7 +58,7 @@ int dsunblock(int s) {
 
 }
 
-int dsconnect(int s, const struct sockaddr *addr, socklen_t addrlen,
+int fdconnect(int s, const struct sockaddr *addr, socklen_t addrlen,
       int64_t deadline) {
     /* Initiate connect. */
     int rc = connect(s, addr, addrlen);
@@ -76,7 +76,7 @@ int dsconnect(int s, const struct sockaddr *addr, socklen_t addrlen,
     return 0;
 }
 
-int dsaccept(int s, struct sockaddr *addr, socklen_t *addrlen,
+int fdaccept(int s, struct sockaddr *addr, socklen_t *addrlen,
       int64_t deadline) {
     int as;
     while(1) {
@@ -89,12 +89,12 @@ int dsaccept(int s, struct sockaddr *addr, socklen_t *addrlen,
         int rc = fdin(s, deadline);
         if(dsock_slow(rc < 0)) return -1;
     }
-    int rc = dsunblock(as);
+    int rc = fdunblock(as);
     dsock_assert(rc == 0);
     return as;
 }
 
-int dssend(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
+int fdsend(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
     if(dsock_slow(iovlen > 0 && !iov)) {errno = EINVAL; return -1;}
     struct msghdr hdr;
     memset(&hdr, 0, sizeof(hdr));
@@ -105,7 +105,7 @@ int dssend(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
         size_t veclen = iov_cut(iov, vec, iovlen, sent, len - sent);
         hdr.msg_iov = vec;
         hdr.msg_iovlen = veclen;
-        ssize_t sz = sendmsg(s, &hdr, DSOCK_NOSIGNAL);
+        ssize_t sz = sendmsg(s, &hdr, FD_NOSIGNAL);
         if(sz < 0) {
             if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) return -1;
             int rc = fdout(s, deadline);
@@ -117,7 +117,7 @@ int dssend(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
     return 0;
 }
 
-static ssize_t dsget(int s, struct iovec *iov, size_t iovlen, int block,
+static ssize_t fdget(int s, struct iovec *iov, size_t iovlen, int block,
       int64_t deadline) {
     struct msghdr hdr;
     memset(&hdr, 0, sizeof(hdr));
@@ -143,7 +143,7 @@ static ssize_t dsget(int s, struct iovec *iov, size_t iovlen, int block,
     }
 }
 
-int dsrecv(int s, struct dsrxbuf *rxbuf, const struct iovec *iov, size_t iovlen,
+int fdrecv(int s, struct fdrxbuf *rxbuf, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     dsock_assert(rxbuf);
     dsock_assert(iovlen);
@@ -163,7 +163,7 @@ int dsrecv(int s, struct dsrxbuf *rxbuf, const struct iovec *iov, size_t iovlen,
            and read it directly into user's buffer. */
         if(len >= sizeof(rxbuf->data)) {
             size_t veclen = iov_cut(iov, vec, iovlen, pos, len);
-            ssize_t sz = dsget(s, vec, veclen, 1, deadline);
+            ssize_t sz = fdget(s, vec, veclen, 1, deadline);
             if(dsock_slow(sz < 0)) return -1;
             return 0;
         }
@@ -171,14 +171,14 @@ int dsrecv(int s, struct dsrxbuf *rxbuf, const struct iovec *iov, size_t iovlen,
         dsock_assert(rxbuf->len == rxbuf->pos);
         vec[0].iov_base = rxbuf->data;
         vec[0].iov_len = sizeof(rxbuf->data);
-        ssize_t sz = dsget(s, vec, 1, 0, deadline);
+        ssize_t sz = fdget(s, vec, 1, 0, deadline);
         if(dsock_slow(sz < 0)) return -1;
         rxbuf->len = sz;
         rxbuf->pos = 0;
     }
 }
 
-int dsclose(int s) {
+int fdclose(int s) {
     fdclean(s);
     return close(s);
 }
