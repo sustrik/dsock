@@ -31,13 +31,13 @@
 #include "iov.h"
 #include "utils.h"
 
-void fdinitrxbuf(struct fdrxbuf *rxbuf) {
+void fd_initrxbuf(struct fd_rxbuf *rxbuf) {
     dsock_assert(rxbuf);
     rxbuf->len = 0;
     rxbuf->pos = 0;
 }
 
-int fdunblock(int s) {
+int fd_unblock(int s) {
     /* Switch to non-blocking mode. */
     int opt = fcntl(s, F_GETFL, 0);
     if (opt == -1)
@@ -58,7 +58,7 @@ int fdunblock(int s) {
 
 }
 
-int fdconnect(int s, const struct sockaddr *addr, socklen_t addrlen,
+int fd_connect(int s, const struct sockaddr *addr, socklen_t addrlen,
       int64_t deadline) {
     /* Initiate connect. */
     int rc = connect(s, addr, addrlen);
@@ -76,7 +76,7 @@ int fdconnect(int s, const struct sockaddr *addr, socklen_t addrlen,
     return 0;
 }
 
-int fdaccept(int s, struct sockaddr *addr, socklen_t *addrlen,
+int fd_accept(int s, struct sockaddr *addr, socklen_t *addrlen,
       int64_t deadline) {
     int as;
     while(1) {
@@ -89,12 +89,12 @@ int fdaccept(int s, struct sockaddr *addr, socklen_t *addrlen,
         int rc = fdin(s, deadline);
         if(dsock_slow(rc < 0)) return -1;
     }
-    int rc = fdunblock(as);
+    int rc = fd_unblock(as);
     dsock_assert(rc == 0);
     return as;
 }
 
-int fdsend(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
+int fd_send(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
     if(dsock_slow(iovlen > 0 && !iov)) {errno = EINVAL; return -1;}
     struct msghdr hdr;
     memset(&hdr, 0, sizeof(hdr));
@@ -143,7 +143,7 @@ static ssize_t fdget(int s, struct iovec *iov, size_t iovlen, int block,
     }
 }
 
-int fdrecv(int s, struct fdrxbuf *rxbuf, const struct iovec *iov, size_t iovlen,
+int fd_recv(int s, struct fd_rxbuf *rxbuf, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     dsock_assert(rxbuf);
     dsock_assert(iovlen);
@@ -178,7 +178,7 @@ int fdrecv(int s, struct fdrxbuf *rxbuf, const struct iovec *iov, size_t iovlen,
     }
 }
 
-int fdclose(int s) {
+int fd_close(int s) {
     fdclean(s);
     return close(s);
 }

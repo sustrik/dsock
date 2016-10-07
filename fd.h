@@ -35,38 +35,38 @@
 #define FD_NOSIGNAL 0
 #endif
 
-struct fdrxbuf {
+struct fd_rxbuf {
     size_t len;
     size_t pos;
     uint8_t data[2000];
 };
 
-void fdinitrxbuf(
-    struct fdrxbuf *rxbuf);
-int fdunblock(
+void fd_initrxbuf(
+    struct fd_rxbuf *rxbuf);
+int fd_unblock(
     int s);
-int fdconnect(
+int fd_connect(
     int s,
     const struct sockaddr *addr,
     socklen_t addrlen,
     int64_t deadline);
-int fdaccept(
+int fd_accept(
     int s,
     struct sockaddr *addr,
     socklen_t *addrlen,
     int64_t deadline);
-int fdsend(
+int fd_send(
     int s,
     const struct iovec *iov,
     size_t iovlen,
     int64_t deadline);
-int fdrecv(
+int fd_recv(
     int s,
-    struct fdrxbuf *rxbuf,
+    struct fd_rxbuf *rxbuf,
     const struct iovec *iov,
     size_t iovlen,
     int64_t deadline);
-int fdclose(
+int fd_close(
     int s);
 
 #endif

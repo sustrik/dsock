@@ -48,7 +48,7 @@ static int tcp_conn_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
 struct tcp_conn {
     struct bsock_vfptrs vfptrs;
     int fd;
-    struct fdrxbuf rxbuf;
+    struct fd_rxbuf rxbuf;
 };
 
 int tcp_connect(const ipaddr *addr, int64_t deadline) {
@@ -57,17 +57,17 @@ int tcp_connect(const ipaddr *addr, int64_t deadline) {
     int s = socket(ipaddr_family(addr), SOCK_STREAM, 0);
     if(dsock_slow(s < 0)) {err = errno; goto error1;}
     /* Set it to non-blocking mode. */
-    int rc = fdunblock(s);
+    int rc = fd_unblock(s);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Connect to the remote endpoint. */
-    rc = fdconnect(s, ipaddr_sockaddr(addr), ipaddr_len(addr), deadline);
+    rc = fd_connect(s, ipaddr_sockaddr(addr), ipaddr_len(addr), deadline);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Create the handle. */
     int h = tcpmakeconn(s);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}
     return h;
 error2:
-    rc = fdclose(s);
+    rc = fd_close(s);
     dsock_assert(rc == 0);
 error1:
     errno = err;
@@ -78,7 +78,7 @@ static int tcp_conn_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct tcp_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == tcp_conn_type);
-    ssize_t sz = fdsend(obj->fd, iov, iovlen, deadline);
+    ssize_t sz = fd_send(obj->fd, iov, iovlen, deadline);
     if(dsock_fast(sz >= 0)) return sz;
     if(errno == EPIPE) errno = ECONNRESET;
     return -1;
@@ -88,13 +88,13 @@ static int tcp_conn_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct tcp_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == tcp_conn_type);
-    return fdrecv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
+    return fd_recv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
 }
 
 static void tcp_conn_close(int s) {
     struct tcp_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj);
-    int rc = fdclose(obj->fd);
+    int rc = fd_close(obj->fd);
     dsock_assert(rc == 0);
     free(obj);
 }
@@ -120,7 +120,7 @@ int tcp_listen(ipaddr *addr, int backlog) {
     int s = socket(ipaddr_family(addr), SOCK_STREAM, 0);
     if(dsock_slow(s < 0)) {err = errno; goto error1;}
     /* Set it to non-blocking mode. */
-    int rc = fdunblock(s);
+    int rc = fd_unblock(s);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Start listening for incoming connections. */
     rc = bind(s, ipaddr_sockaddr(addr), ipaddr_len(addr));
@@ -160,17 +160,17 @@ int tcp_accept(int s, ipaddr *addr, int64_t deadline) {
     if(dsock_slow(!lst)) {err = errno; goto error1;}
     /* Try to get new connection in a non-blocking way. */
     socklen_t addrlen = sizeof(ipaddr);
-    int as = fdaccept(lst->fd, (struct sockaddr*)addr, &addrlen, deadline);
+    int as = fd_accept(lst->fd, (struct sockaddr*)addr, &addrlen, deadline);
     if(dsock_slow(as < 0)) {err = errno; goto error1;}
     /* Set it to non-blocking mode. */
-    int rc = fdunblock(as);
+    int rc = fd_unblock(as);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Create the handle. */
     int h = tcpmakeconn(as);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}
     return h;
 error2:
-    rc = fdclose(s);
+    rc = fd_close(s);
     dsock_assert(rc == 0);
 error1:
     errno = err;
@@ -180,7 +180,7 @@ error1:
 static void tcp_listener_close(int s) {
     struct tcp_listener *obj = hdata(s, tcp_listener_type);
     dsock_assert(obj);
-    int rc = fdclose(obj->fd);
+    int rc = fd_close(obj->fd);
     dsock_assert(rc == 0);
     free(obj);
 }
@@ -199,7 +199,7 @@ static int tcpmakeconn(int fd) {
     obj->vfptrs.bsendmsg = tcp_conn_bsendmsg;
     obj->vfptrs.brecvmsg = tcp_conn_brecvmsg;
     obj->fd = fd;
-    fdinitrxbuf(&obj->rxbuf);
+    fd_initrxbuf(&obj->rxbuf);
     /* Create the handle. */
     int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}

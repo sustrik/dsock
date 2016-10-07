@@ -51,7 +51,7 @@ static int unix_conn_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
 struct unix_conn {
     struct bsock_vfptrs vfptrs;
     int fd;
-    struct fdrxbuf rxbuf;
+    struct fd_rxbuf rxbuf;
 };
 
 int unix_connect(const char *addr, int64_t deadline) {
@@ -64,17 +64,17 @@ int unix_connect(const char *addr, int64_t deadline) {
     int s = socket(AF_UNIX, SOCK_STREAM, 0);
     if(dsock_slow(s < 0)) {err = errno; goto error1;}
     /* Set it to non-blocking mode. */
-    rc = fdunblock(s);
+    rc = fd_unblock(s);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Connect to the remote endpoint. */
-    rc = fdconnect(s, (struct sockaddr*)&su, sizeof(su), deadline);
+    rc = fd_connect(s, (struct sockaddr*)&su, sizeof(su), deadline);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Create the handle. */
     int h = unixmakeconn(s);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}
     return h;
 error2:
-    rc = fdclose(s);
+    rc = fd_close(s);
     dsock_assert(rc == 0);
 error1:
     errno = err;
@@ -85,7 +85,7 @@ static int unix_conn_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct unix_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == unix_conn_type);
-    ssize_t sz = fdsend(obj->fd, iov, iovlen, deadline);
+    ssize_t sz = fd_send(obj->fd, iov, iovlen, deadline);
     if(dsock_fast(sz >= 0)) return sz;
     if(errno == EPIPE) errno = ECONNRESET;
     return -1;
@@ -95,13 +95,13 @@ static int unix_conn_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct unix_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == unix_conn_type);
-    return fdrecv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
+    return fd_recv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
 }
 
 static void unix_conn_close(int s) {
     struct unix_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj);
-    int rc = fdclose(obj->fd);
+    int rc = fd_close(obj->fd);
     dsock_assert(rc == 0);
     free(obj);
 }
@@ -130,7 +130,7 @@ int unix_listen(const char *addr, int backlog) {
     int s = socket(AF_UNIX, SOCK_STREAM, 0);
     if(dsock_slow(s < 0)) {err = errno; goto error1;}
     /* Set it to non-blocking mode. */
-    rc = fdunblock(s);
+    rc = fd_unblock(s);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Start listening for incoming connections. */
     rc = bind(s, (struct sockaddr*)&su, sizeof(su));
@@ -160,17 +160,17 @@ int unix_accept(int s, int64_t deadline) {
     struct unix_listener *lst = hdata(s, unix_listener_type);
     if(dsock_slow(!lst)) {err = errno; goto error1;}
     /* Try to get new connection in a non-blocking way. */
-    int as = fdaccept(lst->fd, NULL, NULL, deadline);
+    int as = fd_accept(lst->fd, NULL, NULL, deadline);
     if(dsock_slow(as < 0)) {err = errno; goto error1;}
     /* Set it to non-blocking mode. */
-    int rc = fdunblock(as);
+    int rc = fd_unblock(as);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Create the handle. */
     int h = unixmakeconn(as);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}
     return h;
 error2:
-    rc = fdclose(s);
+    rc = fd_close(s);
     dsock_assert(rc == 0);
 error1:
     errno = err;
@@ -180,7 +180,7 @@ error1:
 static void unix_listener_close(int s) {
     struct unix_listener *obj = hdata(s, unix_listener_type);
     dsock_assert(obj);
-    int rc = fdclose(obj->fd);
+    int rc = fd_close(obj->fd);
     dsock_assert(rc == 0);
     free(obj);
 }
@@ -196,9 +196,9 @@ int unix_pair(int s[2]) {
     int rc = socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
     if(rc < 0) {err = errno; goto error1;}
     /* Set the sockets to non-blocking mode. */
-    rc = fdunblock(fds[0]);
+    rc = fd_unblock(fds[0]);
     if(dsock_slow(rc < 0)) {err = errno; goto error3;}
-    rc = fdunblock(fds[1]);
+    rc = fd_unblock(fds[1]);
     if(dsock_slow(rc < 0)) {err = errno; goto error3;}
     /* Create the handles. */
     s[0] = unixmakeconn(fds[0]);
@@ -210,10 +210,10 @@ error4:
     rc = hclose(s[0]);
     goto error2;
 error3:
-    rc = fdclose(fds[0]);
+    rc = fd_close(fds[0]);
     dsock_assert(rc == 0);
 error2:
-    rc = fdclose(fds[1]);
+    rc = fd_close(fds[1]);
     dsock_assert(rc == 0);
 error1:
     errno = err;
@@ -242,7 +242,7 @@ static int unixmakeconn(int fd) {
     obj->vfptrs.bsendmsg = unix_conn_bsendmsg;
     obj->vfptrs.brecvmsg = unix_conn_brecvmsg;
     obj->fd = fd;
-    fdinitrxbuf(&obj->rxbuf);
+    fd_initrxbuf(&obj->rxbuf);
     /* Create the handle. */
     int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}

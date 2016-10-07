@@ -60,7 +60,7 @@ int udp_socket(ipaddr *local, const ipaddr *remote) {
     int s = socket(family, SOCK_DGRAM, 0);
     if(s < 0) {err = errno; goto error1;}
     /* Set it to non-blocking mode. */
-    int rc = fdunblock(s);
+    int rc = fd_unblock(s);
     if(dsock_slow(rc < 0)) {err = errno; goto error2;}
     /* Start listening. */
     if(local) {
@@ -92,7 +92,7 @@ int udp_socket(ipaddr *local, const ipaddr *remote) {
 error3:
     free(obj);
 error2:
-    rc = fdclose(s);
+    rc = fd_close(s);
     dsock_assert(rc == 0);
 error1:
     errno = err;
@@ -165,7 +165,7 @@ static ssize_t udp_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
 static void udp_close(int s) {
     struct udp_sock *obj = hdata(s, msock_type);
     dsock_assert(obj && obj->vfptrs.type == udp_type);
-    int rc = fdclose(obj->fd);
+    int rc = fd_close(obj->fd);
     dsock_assert(rc == 0);
     free(obj);
 }
