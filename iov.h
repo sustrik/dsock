@@ -21,8 +21,8 @@
   IN THE SOFTWARE.
 
 */
-#ifndef DSOCK_IOVHELPERS_H_INCLUDED
-#define DSOCK_IOVHELPERS_H_INCLUDED
+#ifndef DSOCK_IOV_H_INCLUDED
+#define DSOCK_IOV_H_INCLUDED
 
 #include <stddef.h>
 #include <sys/uio.h>

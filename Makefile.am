@@ -39,8 +39,8 @@ libdsock_la_SOURCES = \
     crlf.c \
     fdhelpers.h \
     fdhelpers.c \
-    iovhelpers.h \
-    iovhelpers.c \
+    iov.h \
+    iov.c \
     ipaddr.c \
     keepalive.c \
     lz4.c \

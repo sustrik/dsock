@@ -25,7 +25,7 @@
 #include <string.h>
 
 #include "dsock.h"
-#include "iovhelpers.h"
+#include "iov.h"
 #include "utils.h"
 
 size_t iov_size(const struct iovec *iov, size_t iovlen) {
