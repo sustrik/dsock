@@ -33,9 +33,9 @@
 static const int mthrottler_type_placeholder = 0;
 static const void *mthrottler_type = &mthrottler_type_placeholder;
 static void mthrottler_close(int s);
-static int mthrottler_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int mthrottler_msendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static ssize_t mthrottler_mrecvmsg(int s, const struct iovec *iov,
+static ssize_t mthrottler_mrecvv(int s, const struct iovec *iov,
     size_t iovlen, int64_t deadline);
 
 struct mthrottler_sock {
@@ -65,8 +65,8 @@ int mthrottler_start(int s,
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = mthrottler_close;
     obj->vfptrs.type = mthrottler_type;
-    obj->vfptrs.msendmsg = mthrottler_msendmsg;
-    obj->vfptrs.mrecvmsg = mthrottler_mrecvmsg;
+    obj->vfptrs.msendv = mthrottler_msendv;
+    obj->vfptrs.mrecvv = mthrottler_mrecvv;
     obj->s = s;
     obj->send_full = 0;
     if(send_throughput > 0) {
@@ -102,12 +102,12 @@ int mthrottler_stop(int s) {
     return u;
 }
 
-static int mthrottler_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int mthrottler_msendv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct mthrottler_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == mthrottler_type);
     /* If send-throttling is off forward the call. */
-    if(obj->send_full == 0) return msendmsg(obj->s, iov, iovlen, deadline);
+    if(obj->send_full == 0) return msendv(obj->s, iov, iovlen, deadline);
     /* If there's no quota wait till it is renewed. */
     if(!obj->send_remaining) {
         int rc = msleep(obj->send_last + obj->send_interval);
@@ -116,18 +116,18 @@ static int mthrottler_msendmsg(int s, const struct iovec *iov, size_t iovlen,
         obj->send_last = now();
     }
     /* Send the message. */ 
-    int rc = msendmsg(obj->s, iov, iovlen, deadline);
+    int rc = msendv(obj->s, iov, iovlen, deadline);
     if(dsock_slow(rc < 0)) return -1;
     --obj->send_remaining;
     return 0;
 }
 
-static ssize_t mthrottler_mrecvmsg(int s, const struct iovec *iov,
+static ssize_t mthrottler_mrecvv(int s, const struct iovec *iov,
       size_t iovlen, int64_t deadline) {
     struct mthrottler_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == mthrottler_type);
     /* If recv-throttling is off forward the call. */
-    if(obj->recv_full == 0) return mrecvmsg(obj->s, iov, iovlen, deadline);
+    if(obj->recv_full == 0) return mrecvv(obj->s, iov, iovlen, deadline);
     /* If there's no quota wait till it is renewed. */
     if(!obj->recv_remaining) {
         int rc = msleep(obj->recv_last + obj->recv_interval);
@@ -136,7 +136,7 @@ static ssize_t mthrottler_mrecvmsg(int s, const struct iovec *iov,
         obj->recv_last = now();
     }
     /* Receive the message. */
-    int rc = mrecvmsg(obj->s, iov, iovlen, deadline);
+    int rc = mrecvv(obj->s, iov, iovlen, deadline);
     if(dsock_slow(rc < 0)) return -1;
     --obj->recv_remaining;
     return 0;

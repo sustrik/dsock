@@ -34,9 +34,9 @@
 static const int bthrottler_type_placeholder = 0;
 static const void *bthrottler_type = &bthrottler_type_placeholder;
 static void bthrottler_close(int s);
-static int bthrottler_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int bthrottler_bsendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static int bthrottler_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static int bthrottler_brecvv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 
 struct bthrottler_sock {
@@ -66,8 +66,8 @@ int bthrottler_start(int s,
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = bthrottler_close;
     obj->vfptrs.type = bthrottler_type;
-    obj->vfptrs.bsendmsg = bthrottler_bsendmsg;
-    obj->vfptrs.brecvmsg = bthrottler_brecvmsg;
+    obj->vfptrs.bsendv = bthrottler_bsendv;
+    obj->vfptrs.brecvv = bthrottler_brecvv;
     obj->s = s;
     obj->send_full = 0;
     if(send_throughput > 0) {
@@ -103,12 +103,12 @@ int bthrottler_stop(int s) {
     return u;
 }
 
-static int bthrottler_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int bthrottler_bsendv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct bthrottler_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == bthrottler_type);
     /* If send-throttling is off forward the call. */
-    if(obj->send_full == 0) return bsendmsg(obj->s, iov, iovlen, deadline);
+    if(obj->send_full == 0) return bsendv(obj->s, iov, iovlen, deadline);
     /* Get rid of the corner case. */
     size_t bytes = iov_size(iov, iovlen);
     if(dsock_slow(bytes == 0)) return 0;
@@ -120,7 +120,7 @@ static int bthrottler_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
                 bytes : obj->send_remaining;
             struct iovec vec[iovlen];
             size_t veclen = iov_cut(iov, vec, iovlen, pos, tosend);
-            int rc = bsendmsg(obj->s, vec, veclen, deadline);
+            int rc = bsendv(obj->s, vec, veclen, deadline);
             if(dsock_slow(rc < 0)) return -1;
             obj->send_remaining -= tosend;
             pos += tosend;
@@ -136,12 +136,12 @@ static int bthrottler_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
     }
 }
 
-static int bthrottler_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static int bthrottler_brecvv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct bthrottler_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == bthrottler_type);
     /* If recv-throttling is off forward the call. */
-    if(obj->recv_full == 0) return brecvmsg(obj->s, iov, iovlen, deadline);
+    if(obj->recv_full == 0) return brecvv(obj->s, iov, iovlen, deadline);
     /* Get rid of the corner case. */
     size_t bytes = iov_size(iov, iovlen);
     if(dsock_slow(bytes == 0)) return 0;
@@ -153,7 +153,7 @@ static int bthrottler_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
                 bytes : obj->recv_remaining;
             struct iovec vec[iovlen];
             size_t veclen = iov_cut(iov, vec, iovlen, pos, torecv);
-            int rc = brecvmsg(obj->s, vec, veclen, deadline);
+            int rc = brecvv(obj->s, vec, veclen, deadline);
             if(dsock_slow(rc < 0)) return -1;
             obj->recv_remaining -= torecv;
             pos += torecv;

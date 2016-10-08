@@ -29,14 +29,15 @@
 
 #include "bsock.h"
 #include "dsock.h"
+#include "iov.h"
 #include "utils.h"
 
 static const int blog_type_placeholder = 0;
 static const void *blog_type = &blog_type_placeholder;
 static void blog_close(int s);
-static int blog_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int blog_bsendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static int blog_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static int blog_brecvv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 
 struct blog_sock {
@@ -52,8 +53,8 @@ int blog_start(int s) {
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = blog_close;
     obj->vfptrs.type = blog_type;
-    obj->vfptrs.bsendmsg = blog_bsendmsg;
-    obj->vfptrs.brecvmsg = blog_brecvmsg;
+    obj->vfptrs.bsendv = blog_bsendv;
+    obj->vfptrs.brecvv = blog_brecvv;
     obj->s = s;
     /* Create the handle. */
     int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);
@@ -75,7 +76,7 @@ int blog_stop(int s) {
     return u;
 }
 
-static int blog_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int blog_bsendv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct blog_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == blog_type);
@@ -88,14 +89,14 @@ static int blog_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
         }
     }
     fprintf(stderr, "\n");
-    return bsendmsg(obj->s, iov, iovlen, deadline);
+    return bsendv(obj->s, iov, iovlen, deadline);
 }
 
-static int blog_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static int blog_brecvv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct blog_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == blog_type);
-    int rc = brecvmsg(obj->s, iov, iovlen, deadline);
+    int rc = brecvv(obj->s, iov, iovlen, deadline);
     if(dsock_slow(rc < 0)) return -1;
     size_t len = iov_size(iov, iovlen);
     size_t i, j;

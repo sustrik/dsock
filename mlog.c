@@ -35,9 +35,9 @@
 static const int mlog_type_placeholder = 0;
 static const void *mlog_type = &mlog_type_placeholder;
 static void mlog_close(int s);
-static int mlog_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int mlog_msendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static ssize_t mlog_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static ssize_t mlog_mrecvv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 
 struct mlog_sock {
@@ -53,8 +53,8 @@ int mlog_start(int s) {
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = mlog_close;
     obj->vfptrs.type = mlog_type;
-    obj->vfptrs.msendmsg = mlog_msendmsg;
-    obj->vfptrs.mrecvmsg = mlog_mrecvmsg;
+    obj->vfptrs.msendv = mlog_msendv;
+    obj->vfptrs.mrecvv = mlog_mrecvv;
     obj->s = s;
     /* Create the handle. */
     int h = handle(msock_type, obj, &obj->vfptrs.hvfptrs);
@@ -76,7 +76,7 @@ int mlog_stop(int s) {
     return u;
 }
 
-static int mlog_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int mlog_msendv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct mlog_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == mlog_type);
@@ -89,14 +89,14 @@ static int mlog_msendmsg(int s, const struct iovec *iov, size_t iovlen,
         }
     }
     fprintf(stderr, "\n");
-    return msendmsg(obj->s, iov, iovlen, deadline);
+    return msendv(obj->s, iov, iovlen, deadline);
 }
 
-static ssize_t mlog_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static ssize_t mlog_mrecvv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct mlog_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == mlog_type);
-    ssize_t sz = mrecvmsg(obj->s, iov, iovlen, deadline);
+    ssize_t sz = mrecvv(obj->s, iov, iovlen, deadline);
     if(dsock_slow(sz < 0)) return -1;
     size_t len = iov_size(iov, iovlen);
     size_t i, j;

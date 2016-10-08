@@ -35,9 +35,9 @@
 static const int nagle_type_placeholder = 0;
 static const void *nagle_type = &nagle_type_placeholder;
 static void nagle_close(int s);
-static int nagle_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int nagle_bsendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static int nagle_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static int nagle_brecvv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
     uint8_t *buf, int sendch, int ackch);
@@ -66,8 +66,8 @@ int nagle_start(int s, size_t batch, int64_t interval) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->vfptrs.hvfptrs.close = nagle_close;
     obj->vfptrs.type = nagle_type;
-    obj->vfptrs.bsendmsg = nagle_bsendmsg;
-    obj->vfptrs.brecvmsg = nagle_brecvmsg;
+    obj->vfptrs.bsendv = nagle_bsendv;
+    obj->vfptrs.brecvv = nagle_brecvv;
     obj->s = s;
     obj->buf = malloc(batch);
     if(dsock_slow(!obj->buf)) {errno = ENOMEM; goto error2;}
@@ -117,7 +117,7 @@ int nagle_stop(int s, int64_t deadline) {
     return u;
 }
 
-static int nagle_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int nagle_bsendv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct nagle_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == nagle_type);
@@ -182,7 +182,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         }
         /* This is a big chunk of data, no need to Nagle it.
            We'll send it straight away. */
-        rc = bsendmsg(s, vec.iov, vec.iovlen, -1);
+        rc = bsendv(s, vec.iov, vec.iovlen, -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         dsock_assert(rc == 0);
         last = now();
@@ -192,11 +192,11 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
     }
 }
 
-static int nagle_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static int nagle_brecvv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct nagle_sock *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == nagle_type);
-    return brecvmsg(obj->s, iov, iovlen, deadline);
+    return brecvv(obj->s, iov, iovlen, deadline);
 } 
 
 static void nagle_close(int s) {

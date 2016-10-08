@@ -36,9 +36,9 @@
 static const int lz4_type_placeholder = 0;
 static const void *lz4_type = &lz4_type_placeholder;
 static void lz4_close(int s);
-static int lz4_msendmsg(int s, const struct iovec *iov, size_t ioveln,
+static int lz4_msendv(int s, const struct iovec *iov, size_t ioveln,
     int64_t deadline);
-static ssize_t lz4_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static ssize_t lz4_mrecvv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 
 struct lz4_sock {
@@ -60,8 +60,8 @@ int lz4_start(int s) {
     if(dsock_slow(!obj)) {errno = ENOMEM; goto error1;}
     obj->vfptrs.hvfptrs.close = lz4_close;
     obj->vfptrs.type = lz4_type;
-    obj->vfptrs.msendmsg = lz4_msendmsg;
-    obj->vfptrs.mrecvmsg = lz4_mrecvmsg;
+    obj->vfptrs.msendv = lz4_msendv;
+    obj->vfptrs.mrecvv = lz4_mrecvv;
     obj->s = s;
     obj->outbuf = NULL;
     obj->outlen = 0;
@@ -96,7 +96,7 @@ int lz4_stop(int s, int64_t deadline) {
     return u;
 }
 
-static int lz4_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int lz4_msendv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct lz4_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == lz4_type);
@@ -125,7 +125,7 @@ static int lz4_msendmsg(int s, const struct iovec *iov, size_t iovlen,
     return msend(obj->s, obj->outbuf, dstlen, deadline);
 }
 
-static ssize_t lz4_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static ssize_t lz4_mrecvv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct lz4_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == lz4_type);

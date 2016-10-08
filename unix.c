@@ -43,9 +43,9 @@ static int unixmakeconn(int fd);
 static const int unix_conn_type_placeholder = 0;
 static const void *unix_conn_type = &unix_conn_type_placeholder;
 static void unix_conn_close(int s);
-static int unix_conn_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int unix_conn_bsendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static int unix_conn_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static int unix_conn_brecvv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 
 struct unix_conn {
@@ -81,7 +81,7 @@ error1:
     return -1;
 }
 
-static int unix_conn_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int unix_conn_bsendv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct unix_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == unix_conn_type);
@@ -91,7 +91,7 @@ static int unix_conn_bsendmsg(int s, const struct iovec *iov, size_t iovlen,
     return -1;
 }
 
-static int unix_conn_brecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static int unix_conn_brecvv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct unix_conn *obj = hdata(s, bsock_type);
     dsock_assert(obj->vfptrs.type == unix_conn_type);
@@ -239,8 +239,8 @@ static int unixmakeconn(int fd) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->vfptrs.hvfptrs.close = unix_conn_close;
     obj->vfptrs.type = unix_conn_type;
-    obj->vfptrs.bsendmsg = unix_conn_bsendmsg;
-    obj->vfptrs.brecvmsg = unix_conn_brecvmsg;
+    obj->vfptrs.bsendv = unix_conn_bsendv;
+    obj->vfptrs.brecvv = unix_conn_brecvv;
     obj->fd = fd;
     fd_initrxbuf(&obj->rxbuf);
     /* Create the handle. */

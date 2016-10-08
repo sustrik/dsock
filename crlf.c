@@ -35,9 +35,9 @@
 static const int crlf_type_placeholder = 0;
 static const void *crlf_type = &crlf_type_placeholder;
 static void crlf_close(int s);
-static int crlf_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int crlf_msendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static ssize_t crlf_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static ssize_t crlf_mrecvv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 
 struct crlf_sock {
@@ -53,8 +53,8 @@ int crlf_start(int s) {
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->vfptrs.hvfptrs.close = crlf_close;
     obj->vfptrs.type = crlf_type;
-    obj->vfptrs.msendmsg = crlf_msendmsg;
-    obj->vfptrs.mrecvmsg = crlf_mrecvmsg;
+    obj->vfptrs.msendv = crlf_msendv;
+    obj->vfptrs.mrecvv = crlf_mrecvv;
     obj->s = s;
     /* Create the handle. */
     int h = handle(msock_type, obj, &obj->vfptrs.hvfptrs);
@@ -76,7 +76,7 @@ int crlf_stop(int s, int64_t deadline) {
     return u;
 }
 
-static int crlf_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int crlf_msendv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct crlf_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == crlf_type);
@@ -84,12 +84,12 @@ static int crlf_msendmsg(int s, const struct iovec *iov, size_t iovlen,
     iov_copy(vec, iov, iovlen);
     vec[iovlen].iov_base = (void*)"\r\n";
     vec[iovlen].iov_len = 2;
-    int rc = bsendmsg(obj->s, vec, iovlen + 1, deadline);
+    int rc = bsendv(obj->s, vec, iovlen + 1, deadline);
     if(dsock_slow(rc < 0)) return -1;
     return 0;
 }
 
-static ssize_t crlf_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static ssize_t crlf_mrecvv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct crlf_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == crlf_type);

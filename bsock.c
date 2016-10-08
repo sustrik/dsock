@@ -33,27 +33,27 @@ int bsend(int s, const void *buf, size_t len, int64_t deadline) {
     struct iovec iov;
     iov.iov_base = (void*)buf;
     iov.iov_len = len;
-    return bsendmsg(s, &iov, 1, deadline);
+    return bsendv(s, &iov, 1, deadline);
 }
 
 int brecv(int s, void *buf, size_t len, int64_t deadline) {
     struct iovec iov;
     iov.iov_base = buf;
     iov.iov_len = len;
-    return brecvmsg(s, &iov, 1, deadline);
+    return brecvv(s, &iov, 1, deadline);
 }
 
-int bsendmsg(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
+int bsendv(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct hvfptr *h = hdata(s, bsock_type);
     if(dsock_slow(!h)) return -1;
     struct bsock_vfptrs *b = (struct bsock_vfptrs*)h;
-    return b->bsendmsg(s, iov, iovlen, deadline);
+    return b->bsendv(s, iov, iovlen, deadline);
 }
 
-int brecvmsg(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
+int brecvv(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct hvfptr *h = hdata(s, bsock_type);
     if(dsock_slow(!h)) return -1;
     struct bsock_vfptrs *b = (struct bsock_vfptrs*)h;
-    return b->brecvmsg(s, iov, iovlen, deadline);
+    return b->brecvv(s, iov, iovlen, deadline);
 }
 

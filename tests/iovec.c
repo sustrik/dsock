@@ -38,13 +38,13 @@ int main() {
     iov[1].iov_len = 2;
     iov[2].iov_base = "EF";
     iov[2].iov_len = 2;
-    rc = bsendmsg(h[0], iov, 3, -1);
+    rc = bsendv(h[0], iov, 3, -1);
     assert(rc == 0);
     iov[0].iov_base = "GH";
     iov[0].iov_len = 2;
     iov[1].iov_base = "IJ";
     iov[1].iov_len = 2;
-    rc = bsendmsg(h[0], iov, 2, -1);
+    rc = bsendv(h[0], iov, 2, -1);
     assert(rc == 0);
 
     char buf[10];
@@ -52,13 +52,13 @@ int main() {
     iov[0].iov_len = 2;
     iov[1].iov_base = buf + 2;
     iov[1].iov_len = 3;
-    rc = brecvmsg(h[1], iov, 2, -1);
+    rc = brecvv(h[1], iov, 2, -1);
     assert(rc == 0);
     iov[0].iov_base = buf + 5;
     iov[0].iov_len = 4;
     iov[1].iov_base = buf + 9;
     iov[1].iov_len = 1;
-    rc = brecvmsg(h[1], iov, 2, -1);
+    rc = brecvv(h[1], iov, 2, -1);
     assert(rc == 0);
     assert(memcmp(buf, "ABCDEFGHIJ", 10) == 0);
 

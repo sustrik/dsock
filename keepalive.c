@@ -35,9 +35,9 @@
 static const int keepalive_type_placeholder = 0;
 static const void *keepalive_type = &keepalive_type_placeholder;
 static void keepalive_close(int s);
-static int keepalive_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int keepalive_msendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static ssize_t keepalive_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static ssize_t keepalive_mrecvv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 static coroutine void keepalive_sender(int s, int64_t send_interval,
     const uint8_t *buf, size_t len, int sendch, int ackch);
@@ -74,8 +74,8 @@ int keepalive_start(int s, int64_t send_interval,
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->vfptrs.hvfptrs.close = keepalive_close;
     obj->vfptrs.type = keepalive_type;
-    obj->vfptrs.msendmsg = keepalive_msendmsg;
-    obj->vfptrs.mrecvmsg = keepalive_mrecvmsg;
+    obj->vfptrs.msendv = keepalive_msendv;
+    obj->vfptrs.mrecvv = keepalive_mrecvv;
     obj->s = s;
     obj->send_interval = send_interval;
     obj->recv_interval = recv_interval;
@@ -142,7 +142,7 @@ int keepalive_stop(int s) {
     return u;
 }
 
-static int keepalive_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int keepalive_msendv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct keepalive_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == keepalive_type);
@@ -175,7 +175,7 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
             continue;
         }
         dsock_assert(rc == 0);
-        rc = msendmsg(s, vec.iov, vec.iovlen, -1);
+        rc = msendv(s, vec.iov, vec.iovlen, -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         if(dsock_slow(rc < 0 && errno == ECONNRESET)) return;
         dsock_assert(rc == 0);
@@ -186,12 +186,12 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
     }
 }
 
-static ssize_t keepalive_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static ssize_t keepalive_mrecvv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct keepalive_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == keepalive_type);
     /* If receive mode is off, just forward the call. */
-    if(obj->recv_interval < 0) return mrecvmsg(obj->s, iov, iovlen, deadline);
+    if(obj->recv_interval < 0) return mrecvv(obj->s, iov, iovlen, deadline);
     /* Compute the deadline. Take keepalive interval into consideration. */
 retry:;
     int64_t dd = obj->last_recv + obj->recv_interval;
@@ -200,7 +200,7 @@ retry:;
        dd = deadline;
        fail_on_deadline = 0;
     }
-    ssize_t sz = mrecvmsg(obj->s, iov, iovlen, dd);
+    ssize_t sz = mrecvv(obj->s, iov, iovlen, dd);
     if(dsock_slow(fail_on_deadline && sz < 0 && errno == ETIMEDOUT)) {
         errno = ECONNRESET; return -1;}
     if(dsock_fast(sz >= 0)) {

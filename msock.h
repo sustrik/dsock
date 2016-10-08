@@ -30,9 +30,9 @@ const void *msock_type;
 struct msock_vfptrs {
     struct hvfptrs hvfptrs; /* type should be set to msock_type */
     const void *type;
-    int (*msendmsg)(int s, const struct iovec *iov, size_t iovlen,
+    int (*msendv)(int s, const struct iovec *iov, size_t iovlen,
         int64_t deadline);
-    ssize_t (*mrecvmsg)(int s, const struct iovec *iov, size_t iovlen,
+    ssize_t (*mrecvv)(int s, const struct iovec *iov, size_t iovlen,
         int64_t deadline);
 };
 

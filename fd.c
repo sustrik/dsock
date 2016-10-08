@@ -143,8 +143,8 @@ static ssize_t fdget(int s, struct iovec *iov, size_t iovlen, int block,
     }
 }
 
-int fd_recv(int s, struct fd_rxbuf *rxbuf, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
+int fd_recv(int s, struct fd_rxbuf *rxbuf, const struct iovec *iov,
+      size_t iovlen, int64_t deadline) {
     dsock_assert(rxbuf);
     dsock_assert(iovlen);
     struct iovec vec[iovlen];

@@ -38,9 +38,9 @@
 static const int nacl_type_placeholder = 0;
 static const void *nacl_type = &nacl_type_placeholder;
 static void nacl_close(int s);
-static int nacl_msendmsg(int s, const struct iovec *iov, size_t iovlen,
+static int nacl_msendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
-static ssize_t nacl_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static ssize_t nacl_mrecvv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
 
 #define NACL_MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -70,8 +70,8 @@ int nacl_start(int s, const void *key, size_t keylen, int64_t deadline) {
     if(dsock_slow(!obj)) {errno = ENOMEM; goto error1;}
     obj->vfptrs.hvfptrs.close = nacl_close;
     obj->vfptrs.type = nacl_type;
-    obj->vfptrs.msendmsg = nacl_msendmsg;
-    obj->vfptrs.mrecvmsg = nacl_mrecvmsg;
+    obj->vfptrs.msendv = nacl_msendv;
+    obj->vfptrs.mrecvv = nacl_mrecvv;
     obj->s = s;
     obj->buflen = 0;
     obj->buf1 = NULL;
@@ -114,7 +114,7 @@ static int nacl_resizebufs(struct nacl_sock *obj, size_t len) {
     return 0;
 }
 
-static int nacl_msendmsg(int s, const struct iovec *iov,
+static int nacl_msendv(int s, const struct iovec *iov,
       size_t iovlen, int64_t deadline) {
     struct nacl_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == nacl_type);
@@ -143,7 +143,7 @@ static int nacl_msendmsg(int s, const struct iovec *iov,
         crypto_secretbox_BOXZEROBYTES , deadline);
 }
 
-static ssize_t nacl_mrecvmsg(int s, const struct iovec *iov, size_t iovlen,
+static ssize_t nacl_mrecvv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct nacl_sock *obj = hdata(s, msock_type);
     dsock_assert(obj->vfptrs.type == nacl_type);
