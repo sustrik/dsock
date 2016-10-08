@@ -3,9 +3,9 @@
 
 
 Internet Engineering Task Force                          M. Sustrik, Ed.
-Internet-Draft                                           October 7, 2016
+Internet-Draft                                           October 8, 2016
 Intended status: Informational
-Expires: April 10, 2017
+Expires: April 11, 2017
 
 
                          BSD Socket API Revamp
@@ -32,7 +32,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on April 10, 2017.
+   This Internet-Draft will expire on April 11, 2017.
 
 Copyright Notice
 
@@ -53,7 +53,7 @@ Copyright Notice
 
 
 
-Sustrik                  Expires April 10, 2017                 [Page 1]
+Sustrik                  Expires April 11, 2017                 [Page 1]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
@@ -109,7 +109,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 
 
-Sustrik                  Expires April 10, 2017                 [Page 2]
+Sustrik                  Expires April 11, 2017                 [Page 2]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
@@ -165,7 +165,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 
 
-Sustrik                  Expires April 10, 2017                 [Page 3]
+Sustrik                  Expires April 11, 2017                 [Page 3]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
@@ -221,7 +221,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 
 
-Sustrik                  Expires April 10, 2017                 [Page 4]
+Sustrik                  Expires April 11, 2017                 [Page 4]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
@@ -277,7 +277,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 
 
-Sustrik                  Expires April 10, 2017                 [Page 5]
+Sustrik                  Expires April 11, 2017                 [Page 5]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
@@ -333,7 +333,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 
 
-Sustrik                  Expires April 10, 2017                 [Page 6]
+Sustrik                  Expires April 11, 2017                 [Page 6]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
@@ -389,7 +389,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 
 
-Sustrik                  Expires April 10, 2017                 [Page 7]
+Sustrik                  Expires April 11, 2017                 [Page 7]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
@@ -445,7 +445,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 
 
-Sustrik                  Expires April 10, 2017                 [Page 8]
+Sustrik                  Expires April 11, 2017                 [Page 8]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
@@ -469,9 +469,9 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    is needed return them to the caller.  The lowermost protocol in the
    stack reads the data from the network.
 
-   Both functions MUST be blocking and exhibit atomic behaviour.  I.e.
-   either all data are sent/received or none of them are.  In the later
-   case protocol MUST be marked as broken, errno MUST be set to
+   All the functions MUST be blocking and exhibit atomic behaviour.
+   I.e. either all data are sent/received or none of them are.  In the
+   later case protocol MUST be marked as broken, errno MUST be set to
    appropriate value and -1 MUST be returned to the user.  Any
    subsequent attempt to use the protocol MUST result in an error.
 
@@ -501,7 +501,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 
 
-Sustrik                  Expires April 10, 2017                 [Page 9]
+Sustrik                  Expires April 11, 2017                 [Page 9]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
@@ -527,8 +527,8 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    manipulation is needed return it to the caller.  The lowermost
    protocol in the stack reads the data from the network.
 
-   Both functions MUST be blocking and exhibit atomic behaviour.  I.e.
-   either entire message is sent/received or none of it is.  In the
+   All the functions MUST be blocking and exhibit atomic behaviour.
+   I.e. either entire message is sent/received or none of it is.  In the
    later case errno MUST be set to appropriate value and -1 MUST be
    returned to the user.  The protocol MAY be marked as broken and any
    subsequent attempt to use it will result in an error.
@@ -557,7 +557,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 
 
-Sustrik                  Expires April 10, 2017                [Page 10]
+Sustrik                  Expires April 11, 2017                [Page 10]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
@@ -613,7 +613,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 
 
-Sustrik                  Expires April 10, 2017                [Page 11]
+Sustrik                  Expires April 11, 2017                [Page 11]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
@@ -669,7 +669,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
 
 
-Sustrik                  Expires April 10, 2017                [Page 12]
+Sustrik                  Expires April 11, 2017                [Page 12]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
@@ -725,4 +725,4 @@ Author's Address
 
 
 
-Sustrik                  Expires April 10, 2017                [Page 13]
+Sustrik                  Expires April 11, 2017                [Page 13]

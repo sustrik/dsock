@@ -360,9 +360,9 @@
              read them from the underlying socket and after whetever
              manipulation is needed return them to the caller. The lowermost
              protocol in the stack reads the data from the network.</t>
-          <t>Both functions MUST be blocking and exhibit atomic behaviour. I.e.
-             either all data are sent/received or none of them are. In the later
-             case protocol MUST be marked as broken, errno MUST be set to
+          <t>All the functions MUST be blocking and exhibit atomic behaviour.
+             I.e. either all data are sent/received or none of them are. In the
+             later case protocol MUST be marked as broken, errno MUST be set to
              appropriate value and -1 MUST be returned to the user. Any
              subsequent attempt to use the protocol MUST result in an error.</t>
           <t>Expired deadline is considered to be an error and the protocol
@@ -406,10 +406,10 @@
              SHOULD read it from its underlying protocol and after whetever
              manipulation is needed return it to the caller. The lowermost
              protocol in the stack reads the data from the network.</t>
-          <t>Both functions MUST be blocking and exhibit atomic behaviour. I.e.
-             either entire message is sent/received or none of it is. In the
-             later case errno MUST be set to appropriate value and -1 MUST be
-             returned to the user. The protocol MAY be marked as broken and
+          <t>All the functions MUST be blocking and exhibit atomic behaviour.
+             I.e. either entire message is sent/received or none of it is. In
+             the later case errno MUST be set to appropriate value and -1 MUST
+             be returned to the user. The protocol MAY be marked as broken and
              any subsequent attempt to use it will result in an error.</t>
           <t>Note that unlike with bytestream sockets the buffer supplied to
              mrecv() doesn't have to be fully filled in, i.e. received messaged
