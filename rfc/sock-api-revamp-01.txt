@@ -535,9 +535,14 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    Note that unlike with bytestream sockets the buffer supplied to
    mrecv() doesn't have to be fully filled in, i.e. received messaged
-   may be smaller than the buffer.  If the message is larger than the
-   buffer, it is considered to be an error and the protocol must behave
-   as described above, setting errno to EMSGSIZE.
+   may be smaller than the buffer.
+
+   If the message is larger than the buffer, it is considered to be an
+   error and the protocol must behave as described above, setting errno
+   to EMSGSIZE.  If there's no way to discard the unread part of the
+   message in constant time it SHOULD also mark the protocol as broken
+   and refuse any further operations.  This behaviour prevents DoS
+   attack by sending very large messages.
 
    Expired deadline is considered to be an error and the protocol MUST
    behave as described above, setting errno to ETIMEDOUT.
@@ -550,17 +555,17 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    is unpredictable and using such data will result in undefined
    behaviour.
 
-   Functions msendv() and mrecvv() MUST behave in the same way as
-   msend() and mrecv().  The only difference is that buffers are passed
-   to the functions via scatter/gather arrays, same way as in POSIX
-   sendmsg() and recvmsg() functions.
-
 
 
 Sustrik                  Expires April 11, 2017                [Page 10]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
+
+   Functions msendv() and mrecvv() MUST behave in the same way as
+   msend() and mrecv().  The only difference is that buffers are passed
+   to the functions via scatter/gather arrays, same way as in POSIX
+   sendmsg() and recvmsg() functions.
 
 11.3.3.  Custom sending and receiving
 
@@ -606,17 +611,16 @@ Internet-Draft            BSD Socket API Revamp             October 2016
       throttler: imposes a limit of amount of data that can be sent and/
       or recevied per second
 
-      udp: wraps system implementation of UDP protocol
-
-      unix: wraps system implementation of UNIX domain sockets
-
-
 
 
 Sustrik                  Expires April 11, 2017                [Page 11]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
+
+      udp: wraps system implementation of UDP protocol
+
+      unix: wraps system implementation of UNIX domain sockets
 
    And here's an example of how the microprotocols can be combined to
    achieve complex functionality:
@@ -658,10 +662,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    it raises an error.  Finally, message is decrypted and authenticated
    at level 6 and decompressed at level 7.
 
-13.  IANA Considerations
-
-   This memo includes no request to IANA.
-
 
 
 
@@ -674,6 +674,10 @@ Sustrik                  Expires April 11, 2017                [Page 12]
 Internet-Draft            BSD Socket API Revamp             October 2016
 
 
+13.  IANA Considerations
+
+   This memo includes no request to IANA.
+
 14.  Security Considerations
 
    The security implications of the new API don't differ from security
@@ -685,10 +689,6 @@ Author's Address
    Martin Sustrik (editor)
 
    Email: sustrik@250bpm.com
-
-
-
-
 
 
 

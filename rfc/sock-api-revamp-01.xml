@@ -413,9 +413,13 @@
              any subsequent attempt to use it will result in an error.</t>
           <t>Note that unlike with bytestream sockets the buffer supplied to
              mrecv() doesn't have to be fully filled in, i.e. received messaged
-             may be smaller than the buffer. If the message is larger than
-             the buffer, it is considered to be an error and the protocol
-             must behave as described above, setting errno to EMSGSIZE.</t>
+             may be smaller than the buffer.</t>
+          <t>If the message is larger than the buffer, it is considered to be an
+             error and the protocol must behave as described above, setting
+             errno to EMSGSIZE. If there's no way to discard the unread part of
+             the message in constant time it SHOULD also mark the protocol as
+             broken and refuse any further operations. This behaviour prevents
+             DoS attack by sending very large messages.</t>
           <t>Expired deadline is considered to be an error and the protocol
              MUST behave as described above, setting errno to ETIMEDOUT.</t>
           <t>In case of success msend() function MUST return zero, mrecv()
