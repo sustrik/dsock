@@ -40,8 +40,8 @@ static int unixmakeconn(int fd);
 /*  UNIX connection socket                                                    */
 /******************************************************************************/
 
-static const int unix_conn_type_placeholder = 0;
-static const void *unix_conn_type = &unix_conn_type_placeholder;
+DSOCK_UNIQUE_ID(unix_conn_type);
+
 static void unix_conn_close(int s);
 static int unix_conn_bsendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
@@ -110,8 +110,8 @@ static void unix_conn_close(int s) {
 /*  UNIX listener socket                                                      */
 /******************************************************************************/
 
-static const int unix_listener_type_placeholder = 0;
-static const void *unix_listener_type = &unix_listener_type_placeholder;
+DSOCK_UNIQUE_ID(unix_listener_type);
+
 static void unix_listener_close(int s);
 static const struct hvfptrs unix_listener_vfptrs = {unix_listener_close};
 

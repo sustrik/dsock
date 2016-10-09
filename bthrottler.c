@@ -31,8 +31,8 @@
 #include "iov.h"
 #include "utils.h"
 
-static const int bthrottler_type_placeholder = 0;
-static const void *bthrottler_type = &bthrottler_type_placeholder;
+DSOCK_UNIQUE_ID(bthrottler_type);
+
 static void bthrottler_close(int s);
 static int bthrottler_bsendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);

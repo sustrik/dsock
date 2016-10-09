@@ -32,8 +32,8 @@
 #include "iov.h"
 #include "utils.h"
 
-static const int nagle_type_placeholder = 0;
-static const void *nagle_type = &nagle_type_placeholder;
+DSOCK_UNIQUE_ID(nagle_type);
+
 static void nagle_close(int s);
 static int nagle_bsendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);

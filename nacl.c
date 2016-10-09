@@ -35,8 +35,8 @@
 #include "dsock.h"
 #include "utils.h"
 
-static const int nacl_type_placeholder = 0;
-static const void *nacl_type = &nacl_type_placeholder;
+DSOCK_UNIQUE_ID(nacl_type);
+
 static void nacl_close(int s);
 static int nacl_msendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);

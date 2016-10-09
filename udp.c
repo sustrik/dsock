@@ -32,8 +32,8 @@
 #include "fd.h"
 #include "utils.h"
 
-static const int udp_type_placeholder = 0;
-static const void *udp_type = &udp_type_placeholder;
+DSOCK_UNIQUE_ID(udp_type);
+
 static void udp_close(int s);
 static int udp_msendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);

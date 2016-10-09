@@ -32,8 +32,8 @@
 #include "dsock.h"
 #include "utils.h"
 
-static const int mlog_type_placeholder = 0;
-static const void *mlog_type = &mlog_type_placeholder;
+DSOCK_UNIQUE_ID(mlog_type);
+
 static void mlog_close(int s);
 static int mlog_msendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);

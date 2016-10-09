@@ -32,8 +32,8 @@
 #include "dsock.h"
 #include "utils.h"
 
-static const int keepalive_type_placeholder = 0;
-static const void *keepalive_type = &keepalive_type_placeholder;
+DSOCK_UNIQUE_ID(keepalive_type);
+
 static void keepalive_close(int s);
 static int keepalive_msendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);

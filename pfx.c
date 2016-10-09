@@ -32,8 +32,8 @@
 #include "msock.h"
 #include "utils.h"
 
-static const int pfx_type_placeholder = 0;
-static const void *pfx_type = &pfx_type_placeholder;
+DSOCK_UNIQUE_ID(pfx_type);
+
 static void pfx_close(int s);
 static int pfx_msendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);

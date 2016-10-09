@@ -32,8 +32,8 @@
 #include "msock.h"
 #include "utils.h"
 
-static const int crlf_type_placeholder = 0;
-static const void *crlf_type = &crlf_type_placeholder;
+DSOCK_UNIQUE_ID(crlf_type);
+
 static void crlf_close(int s);
 static int crlf_msendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);

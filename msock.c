@@ -26,8 +26,7 @@
 #include "dsock.h"
 #include "utils.h"
 
-static const int msock_type_placeholder = 0;
-const void *msock_type = &msock_type_placeholder;
+DSOCK_UNIQUE_ID(msock_type);
 
 int msend(int s, const void *buf, size_t len, int64_t deadline) {
     struct iovec iov;

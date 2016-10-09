@@ -37,8 +37,8 @@ static int tcpmakeconn(int fd);
 /*  TCP connection socket                                                     */
 /******************************************************************************/
 
-static const int tcp_conn_type_placeholder = 0;
-static const void *tcp_conn_type = &tcp_conn_type_placeholder;
+DSOCK_UNIQUE_ID(tcp_conn_type);
+
 static void tcp_conn_close(int s);
 static int tcp_conn_bsendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
@@ -103,8 +103,8 @@ static void tcp_conn_close(int s) {
 /*  TCP listener socket                                                       */
 /******************************************************************************/
 
-static const int tcp_listener_type_placeholder = 0;
-static const void *tcp_listener_type = &tcp_listener_type_placeholder;
+DSOCK_UNIQUE_ID(tcp_listener_type);
+
 static void tcp_listener_close(int s);
 static const struct hvfptrs tcp_listener_vfptrs = {tcp_listener_close};
 

@@ -33,8 +33,8 @@
 #include "dsock.h"
 #include "utils.h"
 
-static const int lz4_type_placeholder = 0;
-static const void *lz4_type = &lz4_type_placeholder;
+DSOCK_UNIQUE_ID(lz4_type);
+
 static void lz4_close(int s);
 static int lz4_msendv(int s, const struct iovec *iov, size_t ioveln,
     int64_t deadline);

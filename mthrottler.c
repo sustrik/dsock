@@ -30,8 +30,8 @@
 #include "dsock.h"
 #include "utils.h"
 
-static const int mthrottler_type_placeholder = 0;
-static const void *mthrottler_type = &mthrottler_type_placeholder;
+DSOCK_UNIQUE_ID(mthrottler_type);
+
 static void mthrottler_close(int s);
 static int mthrottler_msendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);

@@ -32,8 +32,8 @@
 #include "iov.h"
 #include "utils.h"
 
-static const int blog_type_placeholder = 0;
-static const void *blog_type = &blog_type_placeholder;
+DSOCK_UNIQUE_ID(blog_type);
+
 static void blog_close(int s);
 static int blog_bsendv(int s, const struct iovec *iov, size_t iovlen,
     int64_t deadline);
