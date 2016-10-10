@@ -30,16 +30,18 @@
 #include "dsock.h"
 #include "utils.h"
 
-DSOCK_UNIQUE_ID(mthrottler_type);
+dsock_unique_id(mthrottler_type);
 
-static void mthrottler_close(int s);
-static int mthrottler_msendv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
-static ssize_t mthrottler_mrecvv(int s, const struct iovec *iov,
-    size_t iovlen, int64_t deadline);
+static void *mthrottler_hquery(struct hvfs *hvfs, const void *type);
+static void mthrottler_hclose(struct hvfs *hvfs);
+static int mthrottler_msendv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static ssize_t mthrottler_mrecvv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
 
 struct mthrottler_sock {
-    struct msock_vfptrs vfptrs;
+    struct hvfs hvfs;
+    struct msock_vfs mvfs;
     int s;
     size_t send_full;
     size_t send_remaining;
@@ -59,14 +61,14 @@ int mthrottler_start(int s,
     if(dsock_slow(recv_throughput != 0 && recv_interval <= 0 )) {
         errno = EINVAL; return -1;}
     /* Check whether underlying socket is message-based. */
-    if(dsock_slow(!hdata(s, msock_type))) return -1;
+    if(dsock_slow(!hquery(s, msock_type))) return -1;
     /* Create the object. */
     struct mthrottler_sock *obj = malloc(sizeof(struct mthrottler_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
-    obj->vfptrs.hvfptrs.close = mthrottler_close;
-    obj->vfptrs.type = mthrottler_type;
-    obj->vfptrs.msendv = mthrottler_msendv;
-    obj->vfptrs.mrecvv = mthrottler_mrecvv;
+    obj->hvfs.query = mthrottler_hquery;
+    obj->hvfs.close = mthrottler_hclose;
+    obj->mvfs.msendv = mthrottler_msendv;
+    obj->mvfs.mrecvv = mthrottler_mrecvv;
     obj->s = s;
     obj->send_full = 0;
     if(send_throughput > 0) {
@@ -83,7 +85,7 @@ int mthrottler_start(int s,
         obj->recv_last = now();
     }
     /* Create the handle. */
-    int h = handle(msock_type, obj, &obj->vfptrs.hvfptrs);
+    int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {
         int err = errno;
         free(obj);
@@ -94,18 +96,17 @@ int mthrottler_start(int s,
 }
 
 int mthrottler_stop(int s) {
-    struct mthrottler_sock *obj = hdata(s, msock_type);
-    if(dsock_slow(obj && obj->vfptrs.type != mthrottler_type)) {
-        errno = ENOTSUP; return -1;}
+    struct mthrottler_sock *obj = hquery(s, mthrottler_type);
+    if(dsock_slow(!obj)) return -1;
     int u = obj->s;
     free(obj);
     return u;
 }
 
-static int mthrottler_msendv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct mthrottler_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj->vfptrs.type == mthrottler_type);
+static int mthrottler_msendv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct mthrottler_sock *obj =
+        dsock_cont(mvfs, struct mthrottler_sock, mvfs);
     /* If send-throttling is off forward the call. */
     if(obj->send_full == 0) return msendv(obj->s, iov, iovlen, deadline);
     /* If there's no quota wait till it is renewed. */
@@ -122,10 +123,10 @@ static int mthrottler_msendv(int s, const struct iovec *iov, size_t iovlen,
     return 0;
 }
 
-static ssize_t mthrottler_mrecvv(int s, const struct iovec *iov,
-      size_t iovlen, int64_t deadline) {
-    struct mthrottler_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj->vfptrs.type == mthrottler_type);
+static ssize_t mthrottler_mrecvv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct mthrottler_sock *obj =
+        dsock_cont(mvfs, struct mthrottler_sock, mvfs);
     /* If recv-throttling is off forward the call. */
     if(obj->recv_full == 0) return mrecvv(obj->s, iov, iovlen, deadline);
     /* If there's no quota wait till it is renewed. */
@@ -140,11 +141,18 @@ static ssize_t mthrottler_mrecvv(int s, const struct iovec *iov,
     if(dsock_slow(rc < 0)) return -1;
     --obj->recv_remaining;
     return 0;
-} 
+}
 
-static void mthrottler_close(int s) {
-    struct mthrottler_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj && obj->vfptrs.type == mthrottler_type);
+static void *mthrottler_hquery(struct hvfs *hvfs, const void *type) {
+    struct mthrottler_sock *obj = (struct mthrottler_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == mthrottler_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
+static void mthrottler_hclose(struct hvfs *hvfs) {
+    struct mthrottler_sock *obj = (struct mthrottler_sock*)hvfs;
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);
     free(obj);

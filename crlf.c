@@ -32,32 +32,34 @@
 #include "msock.h"
 #include "utils.h"
 
-DSOCK_UNIQUE_ID(crlf_type);
+dsock_unique_id(crlf_type);
 
-static void crlf_close(int s);
-static int crlf_msendv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
-static ssize_t crlf_mrecvv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
+static void *crlf_hquery(struct hvfs *hvfs, const void *type);
+static void crlf_hclose(struct hvfs *hvfs);
+static int crlf_msendv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static ssize_t crlf_mrecvv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
 
 struct crlf_sock {
-    struct msock_vfptrs vfptrs;
+    struct hvfs hvfs;
+    struct msock_vfs mvfs;
     int s;
 };
 
 int crlf_start(int s) {
     /* Check whether underlying socket is a bytestream. */
-    if(dsock_slow(!hdata(s, bsock_type))) return -1;
+    if(dsock_slow(!hquery(s, bsock_type))) return -1;
     /* Create the object. */
     struct crlf_sock *obj = malloc(sizeof(struct crlf_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
-    obj->vfptrs.hvfptrs.close = crlf_close;
-    obj->vfptrs.type = crlf_type;
-    obj->vfptrs.msendv = crlf_msendv;
-    obj->vfptrs.mrecvv = crlf_mrecvv;
+    obj->hvfs.query = crlf_hquery;
+    obj->hvfs.close = crlf_hclose;
+    obj->mvfs.msendv = crlf_msendv;
+    obj->mvfs.mrecvv = crlf_mrecvv;
     obj->s = s;
     /* Create the handle. */
-    int h = handle(msock_type, obj, &obj->vfptrs.hvfptrs);
+    int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {
         int err = errno;
         free(obj);
@@ -68,18 +70,16 @@ int crlf_start(int s) {
 }
 
 int crlf_stop(int s, int64_t deadline) {
-    struct crlf_sock *obj = hdata(s, msock_type);
-    if(dsock_slow(obj && obj->vfptrs.type != crlf_type)) {
-        errno = ENOTSUP; return -1;}
+    struct crlf_sock *obj = hquery(s, crlf_type);
+    if(dsock_slow(!obj)) return -1;
     int u = obj->s;
     free(obj);
     return u;
 }
 
-static int crlf_msendv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct crlf_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj->vfptrs.type == crlf_type);
+static int crlf_msendv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct crlf_sock *obj = dsock_cont(mvfs, struct crlf_sock, mvfs);
     struct iovec vec[iovlen + 1];
     iov_copy(vec, iov, iovlen);
     vec[iovlen].iov_base = (void*)"\r\n";
@@ -89,10 +89,9 @@ static int crlf_msendv(int s, const struct iovec *iov, size_t iovlen,
     return 0;
 }
 
-static ssize_t crlf_mrecvv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct crlf_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj->vfptrs.type == crlf_type);
+static ssize_t crlf_mrecvv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct crlf_sock *obj = dsock_cont(mvfs, struct crlf_sock, mvfs);
     size_t row = 0;
     size_t column = 0;
     size_t sz = 0;
@@ -113,9 +112,16 @@ static ssize_t crlf_mrecvv(int s, const struct iovec *iov, size_t iovlen,
     }
 }
 
-static void crlf_close(int s) {
-    struct crlf_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj && obj->vfptrs.type == crlf_type);
+static void *crlf_hquery(struct hvfs *hvfs, const void *type) {
+    struct crlf_sock *obj = (struct crlf_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == crlf_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
+static void crlf_hclose(struct hvfs *hvfs) {
+    struct crlf_sock *obj = (struct crlf_sock*)hvfs;
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);
     free(obj);

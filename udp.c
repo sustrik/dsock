@@ -32,16 +32,18 @@
 #include "fd.h"
 #include "utils.h"
 
-DSOCK_UNIQUE_ID(udp_type);
+dsock_unique_id(udp_type);
 
-static void udp_close(int s);
-static int udp_msendv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
-static ssize_t udp_mrecvv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
+static void *udp_hquery(struct hvfs *hvfs, const void *type);
+static void udp_hclose(struct hvfs *hvfs);
+static int udp_msendv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static ssize_t udp_mrecvv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
 
 struct udp_sock {
-    struct msock_vfptrs vfptrs;
+    struct hvfs hvfs;
+    struct msock_vfs mvfs;
     int fd;
     int hasremote;
     ipaddr remote;
@@ -78,15 +80,15 @@ int udp_socket(ipaddr *local, const ipaddr *remote) {
     /* Create the object. */
     struct udp_sock *obj = malloc(sizeof(struct udp_sock));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error2;}
-    obj->vfptrs.hvfptrs.close = udp_close;
-    obj->vfptrs.type = udp_type;
-    obj->vfptrs.msendv = udp_msendv;
-    obj->vfptrs.mrecvv = udp_mrecvv;
+    obj->hvfs.query = udp_hquery;
+    obj->hvfs.close = udp_hclose;
+    obj->mvfs.msendv = udp_msendv;
+    obj->mvfs.mrecvv = udp_mrecvv;
     obj->fd = s;
     obj->hasremote = remote ? 1 : 0;
     if(remote) obj->remote = *remote;
     /* Create the handle. */
-    int h = handle(msock_type, obj, &obj->vfptrs.hvfptrs);
+    int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error3;}
     return h;
 error3:
@@ -99,11 +101,9 @@ error1:
     return -1;
 }
 
-int udp_sendv(int s, const ipaddr *addr, const struct iovec *iov,
-      size_t iovlen) {
-    struct udp_sock *obj = hdata(s, msock_type);
-    if(dsock_slow(!obj)) return -1;
-    if(dsock_slow(obj->vfptrs.type != udp_type)) {errno = ENOTSUP; return -1;}
+int udp_sendv_(struct msock_vfs *mvfs, const ipaddr *addr,
+      const struct iovec *iov, size_t iovlen) {
+    struct udp_sock *obj = dsock_cont(mvfs, struct udp_sock, mvfs);
     /* If no destination IP address is provided, fall back to the stored one. */
     const ipaddr *dstaddr = addr;
     if(!dstaddr) {
@@ -122,11 +122,9 @@ int udp_sendv(int s, const ipaddr *addr, const struct iovec *iov,
     return -1;
 }
 
-ssize_t udp_recvv(int s, ipaddr *addr, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct udp_sock *obj = hdata(s, msock_type);
-    if(dsock_slow(!obj)) return -1;
-    if(dsock_slow(obj->vfptrs.type != udp_type)) {errno = ENOTSUP; return -1;}
+ssize_t udp_recvv_(struct msock_vfs *mvfs, ipaddr *addr,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct udp_sock *obj = dsock_cont(mvfs, struct udp_sock, mvfs);
     while(1) {
         struct msghdr hdr;
         memset(&hdr, 0, sizeof(hdr));
@@ -143,28 +141,53 @@ ssize_t udp_recvv(int s, ipaddr *addr, const struct iovec *iov, size_t iovlen,
 }
 
 int udp_send(int s, const ipaddr *addr, const void *buf, size_t len) {
+    struct msock_vfs *m = hquery(s, msock_type);
+    if(dsock_slow(!m)) return -1;
     struct iovec iov = {(void*)buf, len};
-    return udp_sendv(s, addr, &iov, 1);
+    return udp_sendv_(m, addr, &iov, 1);
 }
 
 ssize_t udp_recv(int s, ipaddr *addr, void *buf, size_t len, int64_t deadline) {
+    struct msock_vfs *m = hquery(s, msock_type);
+    if(dsock_slow(!m)) return -1;
     struct iovec iov = {(void*)buf, len};
-    return udp_recvv(s, addr, &iov, 1, deadline);
+    return udp_recvv_(m, addr, &iov, 1, deadline);
 }
 
-static int udp_msendv(int s, const struct iovec *iov, size_t iovlen,
+int udp_sendv(int s, const ipaddr *addr, const struct iovec *iov,
+      size_t iovlen) {
+    struct msock_vfs *m = hquery(s, msock_type);
+    if(dsock_slow(!m)) return -1;
+    return udp_sendv_(m, addr, iov, iovlen);
+}
+
+ssize_t udp_recvv(int s, ipaddr *addr, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
-    return udp_sendv(s, NULL, iov, iovlen);
+    struct msock_vfs *m = hquery(s, msock_type);
+    if(dsock_slow(!m)) return -1;
+    return udp_recvv_(m, addr, iov, iovlen, deadline);
 }
 
-static ssize_t udp_mrecvv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    return udp_recvv(s, NULL, iov, iovlen, deadline);
+static int udp_msendv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    return udp_sendv_(mvfs, NULL, iov, iovlen);
 }
 
-static void udp_close(int s) {
-    struct udp_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj && obj->vfptrs.type == udp_type);
+static ssize_t udp_mrecvv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    return udp_recvv_(mvfs, NULL, iov, iovlen, deadline);
+}
+
+static void *udp_hquery(struct hvfs *hvfs, const void *type) {
+    struct udp_sock *obj = (struct udp_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == udp_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
+static void udp_hclose(struct hvfs *hvfs) {
+    struct udp_sock *obj = (struct udp_sock*)hvfs;
     int rc = fd_close(obj->fd);
     dsock_assert(rc == 0);
     free(obj);

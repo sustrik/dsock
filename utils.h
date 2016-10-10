@@ -30,6 +30,13 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#define dsock_concat(x,y) x##y
+
+/* Defines a unique identifier of type const void*. */
+#define dsock_unique_id(name) \
+    static const int dsock_concat(name, ___) = 0;\
+    const void *name = & dsock_concat(name, ___);
+
 /*  Takes a pointer to a member variable and computes pointer to the structure
     that contains it. 'type' is type of the structure, not the member. */
 #define dsock_cont(ptr, type, member) \

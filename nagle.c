@@ -32,13 +32,14 @@
 #include "iov.h"
 #include "utils.h"
 
-DSOCK_UNIQUE_ID(nagle_type);
+dsock_unique_id(nagle_type);
 
-static void nagle_close(int s);
-static int nagle_bsendv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
-static int nagle_brecvv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
+static void *nagle_hquery(struct hvfs *hvfs, const void *type);
+static void nagle_hclose(struct hvfs *hvfs);
+static int nagle_bsendv(struct bsock_vfs *bvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int nagle_brecvv(struct bsock_vfs *bvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
 static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
     uint8_t *buf, int sendch, int ackch);
 
@@ -48,7 +49,8 @@ struct nagle_vec {
 };
 
 struct nagle_sock {
-    struct bsock_vfptrs vfptrs;
+    struct hvfs hvfs;
+    struct bsock_vfs bvfs;
     int s;
     uint8_t *buf;
     int sendch;
@@ -60,14 +62,14 @@ int nagle_start(int s, size_t batch, int64_t interval) {
     int rc;
     int err;
     /* Check whether underlying socket is a bytestream. */
-    if(dsock_slow(!hdata(s, bsock_type))) {err = errno; goto error1;}
+    if(dsock_slow(!hquery(s, bsock_type))) {err = errno; goto error1;}
     /* Create the object. */
     struct nagle_sock *obj = malloc(sizeof(struct nagle_sock));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
-    obj->vfptrs.hvfptrs.close = nagle_close;
-    obj->vfptrs.type = nagle_type;
-    obj->vfptrs.bsendv = nagle_bsendv;
-    obj->vfptrs.brecvv = nagle_brecvv;
+    obj->hvfs.query = nagle_hquery;
+    obj->hvfs.close = nagle_hclose;
+    obj->bvfs.bsendv = nagle_bsendv;
+    obj->bvfs.brecvv = nagle_brecvv;
     obj->s = s;
     obj->buf = malloc(batch);
     if(dsock_slow(!obj->buf)) {errno = ENOMEM; goto error2;}
@@ -79,7 +81,7 @@ int nagle_start(int s, size_t batch, int64_t interval) {
         obj->buf, obj->sendch, obj->ackch));
     if(dsock_slow(obj->sender < 0)) {err = errno; goto error5;}
     /* Create the handle. */
-    int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);
+    int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error6;}
     return h;
 error6:
@@ -101,9 +103,8 @@ error1:
 }
 
 int nagle_stop(int s, int64_t deadline) {
-    struct nagle_sock *obj = hdata(s, bsock_type);
-    if(dsock_slow(obj && obj->vfptrs.type != nagle_type)) {
-        errno = ENOTSUP; return -1;}
+    struct nagle_sock *obj = hquery(s, nagle_type);
+    if(dsock_slow(!obj)) return -1;
     /* TODO: Flush the data from the buffer! */
     int rc = hclose(obj->sender);
     dsock_assert(rc == 0);
@@ -117,10 +118,9 @@ int nagle_stop(int s, int64_t deadline) {
     return u;
 }
 
-static int nagle_bsendv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct nagle_sock *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == nagle_type);
+static int nagle_bsendv(struct bsock_vfs *bvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct nagle_sock *obj = dsock_cont(bvfs, struct nagle_sock, bvfs);
     /* Send is done in a worker coroutine. */
     struct nagle_vec vec = {iov, iovlen};
     int rc = chsend(obj->sendch, &vec, sizeof(vec), deadline);
@@ -192,16 +192,22 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
     }
 }
 
-static int nagle_brecvv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct nagle_sock *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == nagle_type);
+static int nagle_brecvv(struct bsock_vfs *bvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct nagle_sock *obj = dsock_cont(bvfs, struct nagle_sock, bvfs);
     return brecvv(obj->s, iov, iovlen, deadline);
-} 
+}
 
-static void nagle_close(int s) {
-    struct nagle_sock *obj = hdata(s, bsock_type);
-    dsock_assert(obj && obj->vfptrs.type == nagle_type);
+static void *nagle_hquery(struct hvfs *hvfs, const void *type) {
+    struct nagle_sock *obj = (struct nagle_sock*)hvfs;
+    if(type == bsock_type) return &obj->bvfs;
+    if(type == nagle_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
+static void nagle_hclose(struct hvfs *hvfs) {
+    struct nagle_sock *obj = (struct nagle_sock*)hvfs;
     int rc = hclose(obj->sender);
     dsock_assert(rc == 0);
     rc = hclose(obj->ackch);

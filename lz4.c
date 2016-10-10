@@ -33,16 +33,18 @@
 #include "dsock.h"
 #include "utils.h"
 
-DSOCK_UNIQUE_ID(lz4_type);
+dsock_unique_id(lz4_type);
 
-static void lz4_close(int s);
-static int lz4_msendv(int s, const struct iovec *iov, size_t ioveln,
-    int64_t deadline);
-static ssize_t lz4_mrecvv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
+static void *lz4_hquery(struct hvfs *hvfs, const void *type);
+static void lz4_hclose(struct hvfs *hvfs);
+static int lz4_msendv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static ssize_t lz4_mrecvv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
 
 struct lz4_sock {
-    struct msock_vfptrs vfptrs;
+    struct hvfs hvfs;
+    struct msock_vfs mvfs;
     int s;
     uint8_t *outbuf;
     size_t outlen;
@@ -54,14 +56,14 @@ struct lz4_sock {
 int lz4_start(int s) {
     int err;
     /* Check whether underlying socket is a bytestream. */
-    if(dsock_slow(!hdata(s, msock_type))) {err = errno; goto error1;}
+    if(dsock_slow(!hquery(s, msock_type))) {err = errno; goto error1;}
     /* Create the object. */
     struct lz4_sock *obj = malloc(sizeof(struct lz4_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; goto error1;}
-    obj->vfptrs.hvfptrs.close = lz4_close;
-    obj->vfptrs.type = lz4_type;
-    obj->vfptrs.msendv = lz4_msendv;
-    obj->vfptrs.mrecvv = lz4_mrecvv;
+    obj->hvfs.query = lz4_hquery;
+    obj->hvfs.close = lz4_hclose;
+    obj->mvfs.msendv = lz4_msendv;
+    obj->mvfs.mrecvv = lz4_mrecvv;
     obj->s = s;
     obj->outbuf = NULL;
     obj->outlen = 0;
@@ -70,7 +72,7 @@ int lz4_start(int s) {
     size_t ec = LZ4F_createDecompressionContext(&obj->dctx, LZ4F_VERSION);
     if(dsock_slow(LZ4F_isError(ec))) {err = EFAULT; goto error2;}
     /* Create the handle. */
-    int h = handle(msock_type, obj, &obj->vfptrs.hvfptrs);
+    int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error3;}
     return h;
 error3:
@@ -84,9 +86,8 @@ error1:
 }
 
 int lz4_stop(int s, int64_t deadline) {
-    struct lz4_sock *obj = hdata(s, msock_type);
-    if(dsock_slow(obj && obj->vfptrs.type != lz4_type)) {
-        errno = ENOTSUP; return -1;}
+    struct lz4_sock *obj = hquery(s, lz4_type);
+    if(dsock_slow(!obj)) return -1;
     size_t ec = LZ4F_freeDecompressionContext(obj->dctx);
     dsock_assert(!LZ4F_isError(ec));
     free(obj->inbuf);
@@ -96,10 +97,9 @@ int lz4_stop(int s, int64_t deadline) {
     return u;
 }
 
-static int lz4_msendv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct lz4_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj->vfptrs.type == lz4_type);
+static int lz4_msendv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct lz4_sock *obj = dsock_cont(mvfs, struct lz4_sock, mvfs);
     /* Adjust the buffer size as needed. */
     size_t len = iov_size(iov, iovlen);
     size_t maxlen = LZ4F_compressFrameBound(len, NULL);
@@ -125,10 +125,9 @@ static int lz4_msendv(int s, const struct iovec *iov, size_t iovlen,
     return msend(obj->s, obj->outbuf, dstlen, deadline);
 }
 
-static ssize_t lz4_mrecvv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct lz4_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj->vfptrs.type == lz4_type);
+static ssize_t lz4_mrecvv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct lz4_sock *obj = dsock_cont(mvfs, struct lz4_sock, mvfs);
     /* Adjust the buffer size as needed. */
     size_t len = iov_size(iov, iovlen);
     size_t maxlen = LZ4F_compressFrameBound(len, NULL);
@@ -163,11 +162,18 @@ static ssize_t lz4_mrecvv(int s, const struct iovec *iov, size_t iovlen,
     iov_copyallto(iov, iovlen, buf);
     free(buf);
     return dstlen;
-} 
+}
 
-static void lz4_close(int s) {
-    struct lz4_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj && obj->vfptrs.type == lz4_type);
+static void *lz4_hquery(struct hvfs *hvfs, const void *type) {
+    struct lz4_sock *obj = (struct lz4_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == lz4_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
+static void lz4_hclose(struct hvfs *hvfs) {
+    struct lz4_sock *obj = (struct lz4_sock*)hvfs;
     size_t ec = LZ4F_freeDecompressionContext(obj->dctx);
     dsock_assert(!LZ4F_isError(ec));
     free(obj->inbuf);

@@ -26,33 +26,35 @@
 #include "dsock.h"
 #include "utils.h"
 
-DSOCK_UNIQUE_ID(bsock_type);
+dsock_unique_id(bsock_type);
 
 int bsend(int s, const void *buf, size_t len, int64_t deadline) {
+    struct bsock_vfs *b = hquery(s, bsock_type);
+    if(dsock_slow(!b)) return -1;
     struct iovec iov;
     iov.iov_base = (void*)buf;
     iov.iov_len = len;
-    return bsendv(s, &iov, 1, deadline);
+    return b->bsendv(b, &iov, 1, deadline);
 }
 
 int brecv(int s, void *buf, size_t len, int64_t deadline) {
+    struct bsock_vfs *b = hquery(s, bsock_type);
+    if(dsock_slow(!b)) return -1;
     struct iovec iov;
     iov.iov_base = buf;
     iov.iov_len = len;
-    return brecvv(s, &iov, 1, deadline);
+    return b->brecvv(b, &iov, 1, deadline);
 }
 
 int bsendv(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
-    struct hvfptr *h = hdata(s, bsock_type);
-    if(dsock_slow(!h)) return -1;
-    struct bsock_vfptrs *b = (struct bsock_vfptrs*)h;
-    return b->bsendv(s, iov, iovlen, deadline);
+    struct bsock_vfs *b = hquery(s, bsock_type);
+    if(dsock_slow(!b)) return -1;
+    return b->bsendv(b, iov, iovlen, deadline);
 }
 
 int brecvv(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
-    struct hvfptr *h = hdata(s, bsock_type);
-    if(dsock_slow(!h)) return -1;
-    struct bsock_vfptrs *b = (struct bsock_vfptrs*)h;
-    return b->brecvv(s, iov, iovlen, deadline);
+    struct bsock_vfs *b = hquery(s, bsock_type);
+    if(dsock_slow(!b)) return -1;
+    return b->brecvv(b, iov, iovlen, deadline);
 }
 

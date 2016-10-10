@@ -37,16 +37,18 @@ static int tcpmakeconn(int fd);
 /*  TCP connection socket                                                     */
 /******************************************************************************/
 
-DSOCK_UNIQUE_ID(tcp_conn_type);
+dsock_unique_id(tcp_conn_type);
 
-static void tcp_conn_close(int s);
-static int tcp_conn_bsendv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
-static int tcp_conn_brecvv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
+static void *tcp_conn_hquery(struct hvfs *hvfs, const void *type);
+static void tcp_conn_hclose(struct hvfs *hvfs);
+static int tcp_conn_bsendv(struct bsock_vfs *bvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int tcp_conn_brecvv(struct bsock_vfs *bvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
 
 struct tcp_conn {
-    struct bsock_vfptrs vfptrs;
+    struct hvfs hvfs;
+    struct bsock_vfs bvfs;
     int fd;
     struct fd_rxbuf rxbuf;
 };
@@ -74,26 +76,31 @@ error1:
     return -1;
 }
 
-static int tcp_conn_bsendv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct tcp_conn *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == tcp_conn_type);
+static int tcp_conn_bsendv(struct bsock_vfs *bvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct tcp_conn *obj = dsock_cont(bvfs, struct tcp_conn, bvfs);
     ssize_t sz = fd_send(obj->fd, iov, iovlen, deadline);
     if(dsock_fast(sz >= 0)) return sz;
     if(errno == EPIPE) errno = ECONNRESET;
     return -1;
 }
 
-static int tcp_conn_brecvv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct tcp_conn *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == tcp_conn_type);
+static int tcp_conn_brecvv(struct bsock_vfs *bvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct tcp_conn *obj = dsock_cont(bvfs, struct tcp_conn, bvfs);
     return fd_recv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
 }
 
-static void tcp_conn_close(int s) {
-    struct tcp_conn *obj = hdata(s, bsock_type);
-    dsock_assert(obj);
+static void *tcp_conn_hquery(struct hvfs *hvfs, const void *type) {
+    struct tcp_conn *obj = (struct tcp_conn*)hvfs;
+    if(type == bsock_type) return &obj->bvfs;
+    if(type == tcp_conn_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
+static void tcp_conn_hclose(struct hvfs *hvfs) {
+    struct tcp_conn *obj = (struct tcp_conn*)hvfs;
     int rc = fd_close(obj->fd);
     dsock_assert(rc == 0);
     free(obj);
@@ -103,13 +110,13 @@ static void tcp_conn_close(int s) {
 /*  TCP listener socket                                                       */
 /******************************************************************************/
 
-DSOCK_UNIQUE_ID(tcp_listener_type);
+dsock_unique_id(tcp_listener_type);
 
-static void tcp_listener_close(int s);
-static const struct hvfptrs tcp_listener_vfptrs = {tcp_listener_close};
+static void *tcp_listener_hquery(struct hvfs *hvfs, const void *type);
+static void tcp_listener_hclose(struct hvfs *hvfs);
 
 struct tcp_listener {
-    struct hvfptrs vfptrs;
+    struct hvfs hvfs;
     int fd;
     ipaddr addr;
 };
@@ -139,9 +146,11 @@ int tcp_listen(ipaddr *addr, int backlog) {
     /* Create the object. */
     struct tcp_listener *obj = malloc(sizeof(struct tcp_listener));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error2;}
+    obj->hvfs.query = tcp_listener_hquery;
+    obj->hvfs.close = tcp_listener_hclose;
     obj->fd = s;
     /* Create handle. */
-    int h = handle(tcp_listener_type, obj, &tcp_listener_vfptrs);
+    int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error3;}
     return h;
 error3:
@@ -156,7 +165,7 @@ error1:
 int tcp_accept(int s, ipaddr *addr, int64_t deadline) {
     int err;
     /* Retrieve the listener object. */
-    struct tcp_listener *lst = hdata(s, tcp_listener_type);
+    struct tcp_listener *lst = hquery(s, tcp_listener_type);
     if(dsock_slow(!lst)) {err = errno; goto error1;}
     /* Try to get new connection in a non-blocking way. */
     socklen_t addrlen = sizeof(ipaddr);
@@ -177,9 +186,15 @@ error1:
     return -1;
 }
 
-static void tcp_listener_close(int s) {
-    struct tcp_listener *obj = hdata(s, tcp_listener_type);
-    dsock_assert(obj);
+static void *tcp_listener_hquery(struct hvfs *hvfs, const void *type) {
+    struct tcp_listener *obj = (struct tcp_listener*)hvfs;
+    if(type == tcp_listener_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
+static void tcp_listener_hclose(struct hvfs *hvfs) {
+    struct tcp_listener *obj = (struct tcp_listener*)hvfs;
     int rc = fd_close(obj->fd);
     dsock_assert(rc == 0);
     free(obj);
@@ -194,14 +209,14 @@ static int tcpmakeconn(int fd) {
     /* Create the object. */
     struct tcp_conn *obj = malloc(sizeof(struct tcp_conn));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
-    obj->vfptrs.hvfptrs.close = tcp_conn_close;
-    obj->vfptrs.type = tcp_conn_type;
-    obj->vfptrs.bsendv = tcp_conn_bsendv;
-    obj->vfptrs.brecvv = tcp_conn_brecvv;
+    obj->hvfs.query = tcp_conn_hquery;
+    obj->hvfs.close = tcp_conn_hclose;
+    obj->bvfs.bsendv = tcp_conn_bsendv;
+    obj->bvfs.brecvv = tcp_conn_brecvv;
     obj->fd = fd;
     fd_initrxbuf(&obj->rxbuf);
     /* Create the handle. */
-    int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);
+    int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}
     return h;
 error2:

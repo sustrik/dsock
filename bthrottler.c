@@ -31,16 +31,18 @@
 #include "iov.h"
 #include "utils.h"
 
-DSOCK_UNIQUE_ID(bthrottler_type);
+dsock_unique_id(bthrottler_type);
 
-static void bthrottler_close(int s);
-static int bthrottler_bsendv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
-static int bthrottler_brecvv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
+static void *bthrottler_hquery(struct hvfs *hvfs, const void *type);
+static void bthrottler_hclose(struct hvfs *hvfs);
+static int bthrottler_bsendv(struct bsock_vfs *bvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int bthrottler_brecvv(struct bsock_vfs *bvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
 
 struct bthrottler_sock {
-    struct bsock_vfptrs vfptrs;
+    struct hvfs hvfs;
+    struct bsock_vfs bvfs;
     int s;
     size_t send_full;
     size_t send_remaining;
@@ -60,14 +62,14 @@ int bthrottler_start(int s,
     if(dsock_slow(recv_throughput != 0 && recv_interval <= 0 )) {
         errno = EINVAL; return -1;}
     /* Check whether underlying socket is a bytestream. */
-    if(dsock_slow(!hdata(s, bsock_type))) return -1;
+    if(dsock_slow(!hquery(s, bsock_type))) return -1;
     /* Create the object. */
     struct bthrottler_sock *obj = malloc(sizeof(struct bthrottler_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
-    obj->vfptrs.hvfptrs.close = bthrottler_close;
-    obj->vfptrs.type = bthrottler_type;
-    obj->vfptrs.bsendv = bthrottler_bsendv;
-    obj->vfptrs.brecvv = bthrottler_brecvv;
+    obj->hvfs.query = bthrottler_hquery;
+    obj->hvfs.close = bthrottler_hclose;
+    obj->bvfs.bsendv = bthrottler_bsendv;
+    obj->bvfs.brecvv = bthrottler_brecvv;
     obj->s = s;
     obj->send_full = 0;
     if(send_throughput > 0) {
@@ -84,7 +86,7 @@ int bthrottler_start(int s,
         obj->recv_last = now();
     }
     /* Create the handle. */
-    int h = handle(bsock_type, obj, &obj->vfptrs.hvfptrs);
+    int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {
         int err = errno;
         free(obj);
@@ -95,18 +97,17 @@ int bthrottler_start(int s,
 }
 
 int bthrottler_stop(int s) {
-    struct bthrottler_sock *obj = hdata(s, bsock_type);
-    if(dsock_slow(obj && obj->vfptrs.type != bthrottler_type)) {
-        errno = ENOTSUP; return -1;}
+    struct bthrottler_sock *obj = hquery(s, bthrottler_type);
+    if(dsock_slow(!obj)) return -1;
     int u = obj->s;
     free(obj);
     return u;
 }
 
-static int bthrottler_bsendv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct bthrottler_sock *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == bthrottler_type);
+static int bthrottler_bsendv(struct bsock_vfs *bvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct bthrottler_sock *obj =
+        dsock_cont(bvfs, struct bthrottler_sock, bvfs);
     /* If send-throttling is off forward the call. */
     if(obj->send_full == 0) return bsendv(obj->s, iov, iovlen, deadline);
     /* Get rid of the corner case. */
@@ -136,10 +137,10 @@ static int bthrottler_bsendv(int s, const struct iovec *iov, size_t iovlen,
     }
 }
 
-static int bthrottler_brecvv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct bthrottler_sock *obj = hdata(s, bsock_type);
-    dsock_assert(obj->vfptrs.type == bthrottler_type);
+static int bthrottler_brecvv(struct bsock_vfs *bvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct bthrottler_sock *obj =
+        dsock_cont(bvfs, struct bthrottler_sock, bvfs);
     /* If recv-throttling is off forward the call. */
     if(obj->recv_full == 0) return brecvv(obj->s, iov, iovlen, deadline);
     /* Get rid of the corner case. */
@@ -167,11 +168,18 @@ static int bthrottler_brecvv(int s, const struct iovec *iov, size_t iovlen,
         obj->recv_remaining = obj->recv_full;
         obj->recv_last = now();
     }
-} 
+}
 
-static void bthrottler_close(int s) {
-    struct bthrottler_sock *obj = hdata(s, bsock_type);
-    dsock_assert(obj && obj->vfptrs.type == bthrottler_type);
+static void *bthrottler_hquery(struct hvfs *hvfs, const void *type) {
+    struct bthrottler_sock *obj = (struct bthrottler_sock*)hvfs;
+    if(type == bsock_type) return &obj->bvfs;
+    if(type == bthrottler_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
+static void bthrottler_hclose(struct hvfs *hvfs) {
+    struct bthrottler_sock *obj = (struct bthrottler_sock*)hvfs; 
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);
     free(obj);

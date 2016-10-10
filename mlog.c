@@ -32,57 +32,61 @@
 #include "dsock.h"
 #include "utils.h"
 
-DSOCK_UNIQUE_ID(mlog_type);
+dsock_unique_id(mlog_type);
 
-static void mlog_close(int s);
-static int mlog_msendv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
-static ssize_t mlog_mrecvv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
+static void *mlog_hquery(struct hvfs *hvfs, const void *type);
+static void mlog_hclose(struct hvfs *hvfs);
+static int mlog_msendv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static ssize_t mlog_mrecvv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
 
 struct mlog_sock {
-    struct msock_vfptrs vfptrs;
+    struct hvfs hvfs;
+    struct msock_vfs mvfs;
+    /* Underlying socket. */
     int s;
+    /* This socket. */
+    int h;
 };
 
 int mlog_start(int s) {
     /* Check whether underlying socket is a bytestream. */
-    if(dsock_slow(!hdata(s, msock_type))) return -1;
+    if(dsock_slow(!hquery(s, msock_type))) return -1;
     /* Create the object. */
     struct mlog_sock *obj = malloc(sizeof(struct mlog_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
-    obj->vfptrs.hvfptrs.close = mlog_close;
-    obj->vfptrs.type = mlog_type;
-    obj->vfptrs.msendv = mlog_msendv;
-    obj->vfptrs.mrecvv = mlog_mrecvv;
+    obj->hvfs.query = mlog_hquery;
+    obj->hvfs.close = mlog_hclose;
+    obj->mvfs.msendv = mlog_msendv;
+    obj->mvfs.mrecvv = mlog_mrecvv;
     obj->s = s;
     /* Create the handle. */
-    int h = handle(msock_type, obj, &obj->vfptrs.hvfptrs);
+    int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {
         int err = errno;
         free(obj);
         errno = err;
         return -1;
     }
+    obj->h = h;
     return h;
 }
 
 int mlog_stop(int s) {
-    struct mlog_sock *obj = hdata(s, msock_type);
-    if(dsock_slow(obj && obj->vfptrs.type != mlog_type)) {
-        errno = ENOTSUP; return -1;}
+    struct mlog_sock *obj = hquery(s, mlog_type);
+    if(dsock_slow(!obj)) return -1;
     int u = obj->s;
     free(obj);
     return u;
 }
 
-static int mlog_msendv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct mlog_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj->vfptrs.type == mlog_type);
+static int mlog_msendv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct mlog_sock *obj = dsock_cont(mvfs, struct mlog_sock, mvfs);
     size_t len = iov_size(iov, iovlen);
     size_t i, j;
-    fprintf(stderr, "handle: %-4d send %8zuB: 0x", s, len);
+    fprintf(stderr, "handle: %-4d send %8zuB: 0x", obj->h, len);
     for(i = 0; i != iovlen; ++i) {
         for(j = 0; j != iov[i].iov_len; ++j) {
             fprintf(stderr, "%02x", (int)((uint8_t*)iov[i].iov_base)[j]);
@@ -92,15 +96,14 @@ static int mlog_msendv(int s, const struct iovec *iov, size_t iovlen,
     return msendv(obj->s, iov, iovlen, deadline);
 }
 
-static ssize_t mlog_mrecvv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct mlog_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj->vfptrs.type == mlog_type);
+static ssize_t mlog_mrecvv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct mlog_sock *obj = dsock_cont(mvfs, struct mlog_sock, mvfs);
     ssize_t sz = mrecvv(obj->s, iov, iovlen, deadline);
     if(dsock_slow(sz < 0)) return -1;
     size_t len = iov_size(iov, iovlen);
     size_t i, j;
-    fprintf(stderr, "handle: %-4d recv %8zuB: 0x", s, len);
+    fprintf(stderr, "handle: %-4d recv %8zuB: 0x", obj->h, len);
     for(i = 0; i != iovlen; ++i) {
         for(j = 0; j != iov[i].iov_len; ++j) {
             fprintf(stderr, "%02x", (int)((uint8_t*)iov[i].iov_base)[j]);
@@ -108,11 +111,18 @@ static ssize_t mlog_mrecvv(int s, const struct iovec *iov, size_t iovlen,
     }
     fprintf(stderr, "\n");
     return sz;
-} 
+}
 
-static void mlog_close(int s) {
-    struct mlog_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj && obj->vfptrs.type == mlog_type);
+static void *mlog_hquery(struct hvfs *hvfs, const void *type) {
+    struct mlog_sock *obj = (struct mlog_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == mlog_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
+static void mlog_hclose(struct hvfs *hvfs) {
+    struct mlog_sock *obj = (struct mlog_sock*)hvfs;
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);
     free(obj);

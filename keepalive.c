@@ -32,21 +32,20 @@
 #include "dsock.h"
 #include "utils.h"
 
-DSOCK_UNIQUE_ID(keepalive_type);
+dsock_unique_id(keepalive_type);
 
-static void keepalive_close(int s);
-static int keepalive_msendv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
-static ssize_t keepalive_mrecvv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
+static void *keepalive_hquery(struct hvfs *hvfs, const void *type);
+static void keepalive_hclose(struct hvfs *hvfs);
+static int keepalive_msendv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static ssize_t keepalive_mrecvv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
 static coroutine void keepalive_sender(int s, int64_t send_interval,
     const uint8_t *buf, size_t len, int sendch, int ackch);
 
-#define KEEPALIVE_SEND 1
-#define KEEPALIVE_RECV 2
-
 struct keepalive_sock {
-    struct msock_vfptrs vfptrs;
+    struct hvfs hvfs;
+    struct msock_vfs mvfs;
     int s;
     int64_t send_interval;
     int64_t recv_interval;
@@ -68,14 +67,14 @@ int keepalive_start(int s, int64_t send_interval,
     int rc;
     int err;
     /* Check whether underlying socket is a bytestream. */
-    if(dsock_slow(!hdata(s, msock_type))) {err = errno; goto error1;}
+    if(dsock_slow(!hquery(s, msock_type))) {err = errno; goto error1;}
     /* Create the object. */
     struct keepalive_sock *obj = malloc(sizeof(struct keepalive_sock));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
-    obj->vfptrs.hvfptrs.close = keepalive_close;
-    obj->vfptrs.type = keepalive_type;
-    obj->vfptrs.msendv = keepalive_msendv;
-    obj->vfptrs.mrecvv = keepalive_mrecvv;
+    obj->hvfs.query = keepalive_hquery;
+    obj->hvfs.close = keepalive_hclose;
+    obj->mvfs.msendv = keepalive_msendv;
+    obj->mvfs.mrecvv = keepalive_mrecvv;
     obj->s = s;
     obj->send_interval = send_interval;
     obj->recv_interval = recv_interval;
@@ -97,7 +96,7 @@ int keepalive_start(int s, int64_t send_interval,
     }
     obj->last_recv = now();
     /* Create the handle. */
-    int h = handle(msock_type, obj, &obj->vfptrs.hvfptrs);
+    int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error6;}
     return h;
 error6:
@@ -125,9 +124,8 @@ error1:
 }
 
 int keepalive_stop(int s) {
-    struct keepalive_sock *obj = hdata(s, msock_type);
-    if(dsock_slow(obj && obj->vfptrs.type != keepalive_type)) {
-        errno = ENOTSUP; return -1;}
+    struct keepalive_sock *obj = hquery(s, keepalive_type);
+    if(dsock_slow(!obj)) return -1;
     if(obj->send_interval >= 0) {
         int rc = hclose(obj->sender);
         dsock_assert(rc == 0);
@@ -142,10 +140,9 @@ int keepalive_stop(int s) {
     return u;
 }
 
-static int keepalive_msendv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct keepalive_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj->vfptrs.type == keepalive_type);
+static int keepalive_msendv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct keepalive_sock *obj = dsock_cont(mvfs, struct keepalive_sock, mvfs);
     /* Send is done in a worker coroutine. */
     struct keepalive_vec vec = {iov, iovlen};
     int rc = chsend(obj->sendch, &vec, sizeof(vec), deadline);
@@ -186,10 +183,9 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
     }
 }
 
-static ssize_t keepalive_mrecvv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct keepalive_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj->vfptrs.type == keepalive_type);
+static ssize_t keepalive_mrecvv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct keepalive_sock *obj = dsock_cont(mvfs, struct keepalive_sock, mvfs);
     /* If receive mode is off, just forward the call. */
     if(obj->recv_interval < 0) return mrecvv(obj->s, iov, iovlen, deadline);
     /* Compute the deadline. Take keepalive interval into consideration. */
@@ -215,11 +211,18 @@ retry:;
         }
     }
     return sz;
-} 
+}
 
-static void keepalive_close(int s) {
-    struct keepalive_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj && obj->vfptrs.type == keepalive_type);
+static void *keepalive_hquery(struct hvfs *hvfs, const void *type) {
+    struct keepalive_sock *obj = (struct keepalive_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == keepalive_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
+static void keepalive_hclose(struct hvfs *hvfs) {
+    struct keepalive_sock *obj = (struct keepalive_sock*)hvfs;
     if(obj->send_interval >= 0) {
         int rc = hclose(obj->sender);
         dsock_assert(rc == 0);

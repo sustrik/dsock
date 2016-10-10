@@ -26,36 +26,36 @@
 #include "dsock.h"
 #include "utils.h"
 
-DSOCK_UNIQUE_ID(msock_type);
+dsock_unique_id(msock_type);
 
 int msend(int s, const void *buf, size_t len, int64_t deadline) {
+    struct msock_vfs *m = hquery(s, msock_type);
+    if(dsock_slow(!m)) return -1;
     struct iovec iov;
     iov.iov_base = (void*)buf;
     iov.iov_len = len;
-    return msendv(s, &iov, 1, deadline);
+    return m->msendv(m, &iov, 1, deadline);
 }
 
 ssize_t mrecv(int s, void *buf, size_t len, int64_t deadline) {
+    struct msock_vfs *m = hquery(s, msock_type);
+    if(dsock_slow(!m)) return -1;
     struct iovec iov;
     iov.iov_base = buf;
     iov.iov_len = len;
-    return mrecvv(s, &iov, 1, deadline);
+    return m->mrecvv(m, &iov, 1, deadline);
 }
 
-int msendv(int s, const struct iovec *iov, size_t iovlen,
-        int64_t deadline) {
-    struct hvfptr *h = hdata(s, msock_type);
-    if(dsock_slow(!h)) return -1;
-    struct msock_vfptrs *m = (struct msock_vfptrs*)h;
-    return m->msendv(s, iov, iovlen, deadline);
+int msendv(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct msock_vfs *m = hquery(s, msock_type);
+    if(dsock_slow(!m)) return -1;
+    return m->msendv(m, iov, iovlen, deadline);
 }
 
 ssize_t mrecvv(int s, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
-    struct hvfptr *h = hdata(s, msock_type);
-    if(dsock_slow(!h)) return -1;
-    struct msock_vfptrs *m = (struct msock_vfptrs*)h;
-    return m->mrecvv(s, iov, iovlen, deadline);
+    struct msock_vfs *m = hquery(s, msock_type);
+    if(dsock_slow(!m)) return -1;
+    return m->mrecvv(m, iov, iovlen, deadline);
 }
-
 

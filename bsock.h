@@ -26,12 +26,10 @@
 
 const void *bsock_type;
 
-struct bsock_vfptrs {
-    struct hvfptrs hvfptrs; /* type should be set to bsock_type */
-    const void *type;
-    int (*bsendv)(int s, const struct iovec *iov, size_t iovlen,
+struct bsock_vfs {
+    int (*bsendv)(struct bsock_vfs *vfs, const struct iovec *iov, size_t iovlen,
         int64_t deadline);
-    int (*brecvv)(int s, const struct iovec *iov, size_t iovlen,
+    int (*brecvv)(struct bsock_vfs *vfs, const struct iovec *iov, size_t iovlen,
         int64_t deadline);
 };
 

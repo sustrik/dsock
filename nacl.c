@@ -35,21 +35,21 @@
 #include "dsock.h"
 #include "utils.h"
 
-DSOCK_UNIQUE_ID(nacl_type);
+dsock_unique_id(nacl_type);
 
-static void nacl_close(int s);
-static int nacl_msendv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
-static ssize_t nacl_mrecvv(int s, const struct iovec *iov, size_t iovlen,
-    int64_t deadline);
-
-#define NACL_MAX(a, b) ((a) > (b) ? (a) : (b))
+static void *nacl_hquery(struct hvfs *hvfs, const void *type);
+static void nacl_hclose(struct hvfs *hvfs);
+static int nacl_msendv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static ssize_t nacl_mrecvv(struct msock_vfs *mvfs,
+    const struct iovec *iov, size_t iovlen, int64_t deadline);
 
 #define NACL_EXTRABYTES \
     (crypto_secretbox_ZEROBYTES + crypto_secretbox_NONCEBYTES)
 
 struct nacl_sock {
-    struct msock_vfptrs vfptrs;
+    struct hvfs hvfs;
+    struct msock_vfs mvfs;
     int s;
     size_t buflen;
     uint8_t *buf1;
@@ -64,14 +64,14 @@ int nacl_start(int s, const void *key, size_t keylen, int64_t deadline) {
     if(dsock_slow(!key || keylen != crypto_secretbox_KEYBYTES)) {
         err = EINVAL; goto error2;}
     /* Check whether underlying socket is message-based. */
-    if(dsock_slow(!hdata(s, msock_type))) {err = errno; goto error1;}
+    if(dsock_slow(!hquery(s, msock_type))) {err = errno; goto error1;}
     /* Create the object. */
     struct nacl_sock *obj = malloc(sizeof(struct nacl_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; goto error1;}
-    obj->vfptrs.hvfptrs.close = nacl_close;
-    obj->vfptrs.type = nacl_type;
-    obj->vfptrs.msendv = nacl_msendv;
-    obj->vfptrs.mrecvv = nacl_mrecvv;
+    obj->hvfs.query = nacl_hquery;
+    obj->hvfs.close = nacl_hclose;
+    obj->mvfs.msendv = nacl_msendv;
+    obj->mvfs.mrecvv = nacl_mrecvv;
     obj->s = s;
     obj->buflen = 0;
     obj->buf1 = NULL;
@@ -82,7 +82,7 @@ int nacl_start(int s, const void *key, size_t keylen, int64_t deadline) {
         deadline); 
     if(dsock_slow(rc != 0)) {err = errno; goto error2;}
     /* Create the handle. */
-    int h = handle(msock_type, obj, &obj->vfptrs.hvfptrs);
+    int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}
     return h;
 error2:
@@ -93,9 +93,8 @@ error1:
 }
 
 int nacl_stop(int s) {
-    struct nacl_sock *obj = hdata(s, msock_type);
-    if(dsock_slow(obj && obj->vfptrs.type != nacl_type)) {
-        errno = ENOTSUP; return -1;}
+    struct nacl_sock *obj = hquery(s, nacl_type);
+    if(dsock_slow(!obj)) return -1;
     free(obj->buf1);
     free(obj->buf2);
     int u = obj->s;
@@ -114,10 +113,9 @@ static int nacl_resizebufs(struct nacl_sock *obj, size_t len) {
     return 0;
 }
 
-static int nacl_msendv(int s, const struct iovec *iov,
-      size_t iovlen, int64_t deadline) {
-    struct nacl_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj->vfptrs.type == nacl_type);
+static int nacl_msendv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct nacl_sock *obj = dsock_cont(mvfs, struct nacl_sock, mvfs);
     /* If needed, adjust the buffers. */
     size_t len = iov_size(iov, iovlen);
     int rc = nacl_resizebufs(obj, NACL_EXTRABYTES + len);
@@ -143,10 +141,9 @@ static int nacl_msendv(int s, const struct iovec *iov,
         crypto_secretbox_BOXZEROBYTES , deadline);
 }
 
-static ssize_t nacl_mrecvv(int s, const struct iovec *iov, size_t iovlen,
-      int64_t deadline) {
-    struct nacl_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj->vfptrs.type == nacl_type);
+static ssize_t nacl_mrecvv(struct msock_vfs *mvfs,
+      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+    struct nacl_sock *obj = dsock_cont(mvfs, struct nacl_sock, mvfs);
     /* If needed, adjust the buffers. */
     size_t len = iov_size(iov, iovlen);
     int rc = nacl_resizebufs(obj, NACL_EXTRABYTES + len);
@@ -170,11 +167,18 @@ static ssize_t nacl_mrecvv(int s, const struct iovec *iov, size_t iovlen,
     iov_copyto(iov, iovlen, obj->buf1 + crypto_secretbox_ZEROBYTES, 0,
         clen - crypto_secretbox_ZEROBYTES);
     return clen - crypto_secretbox_ZEROBYTES;
-} 
+}
 
-static void nacl_close(int s) {
-    struct nacl_sock *obj = hdata(s, msock_type);
-    dsock_assert(obj && obj->vfptrs.type == nacl_type);
+static void *nacl_hquery(struct hvfs *hvfs, const void *type) {
+    struct nacl_sock *obj = (struct nacl_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == nacl_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
+static void nacl_hclose(struct hvfs *hvfs) {
+    struct nacl_sock *obj = (struct nacl_sock*)hvfs;
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);
     free(obj->buf1);
