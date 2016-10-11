@@ -25,7 +25,7 @@
 #include <libdill.h>
 #include <sys/uio.h>
 
-const void *msock_type;
+extern const void *msock_type;
 
 struct msock_vfs {
     int (*msendv)(struct msock_vfs *vfs,
