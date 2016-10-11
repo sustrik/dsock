@@ -24,7 +24,7 @@
 
 #include "dsock.h"
 
-const void *bsock_type;
+extern const void *bsock_type;
 
 struct bsock_vfs {
     int (*bsendv)(struct bsock_vfs *vfs, const struct iovec *iov, size_t iovlen,
