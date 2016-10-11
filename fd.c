@@ -55,7 +55,7 @@ int fd_unblock(int s) {
     rc = setsockopt (s, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof (opt));
     dsock_assert (rc == 0 || errno == EINVAL);
 #endif
-
+    return 0;
 }
 
 int fd_connect(int s, const struct sockaddr *addr, socklen_t addrlen,
