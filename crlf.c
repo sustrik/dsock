@@ -123,11 +123,15 @@ static ssize_t crlf_mrecvv(struct msock_vfs *mvfs,
         pc = c;
         int rc = brecv(obj->s, &c, 1, deadline);
         if(dsock_slow(rc < 0)) return -1;
-        if(row >= 0 && iov && iov[row].iov_base) {
+        if(row < iovlen && iov && iov[row].iov_base) {
             ((char*)iov[row].iov_base)[column] = c;
             if(column == iov[row].iov_len) {
-                ++row; column = 0;}
-            ++column;
+                ++row;
+                column = 0;
+            }
+            else {
+                ++column;
+            }
         }
         ++sz;
         if(pc == '\r' && c == '\n') break;
