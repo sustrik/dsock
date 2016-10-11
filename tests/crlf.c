@@ -43,7 +43,9 @@ coroutine void client(void) {
     assert(buf[0] == 'G' && buf[1] == 'H' && buf[2] == 'I');
     rc = crlf_send(cs, "DEF", 3, -1);
     assert(rc == 0);
-    rc = hclose(cs);
+    s = crlf_stop(cs, -1);
+    assert(s >= 0);
+    rc = hclose(s);
     assert(rc == 0);
 }
 
