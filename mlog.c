@@ -103,10 +103,12 @@ static ssize_t mlog_mrecvv(struct msock_vfs *mvfs,
     if(dsock_slow(sz < 0)) return -1;
     size_t len = iov_size(iov, iovlen);
     size_t i, j;
-    fprintf(stderr, "handle: %-4d recv %8zuB: 0x", obj->h, len);
-    for(i = 0; i != iovlen; ++i) {
-        for(j = 0; j != iov[i].iov_len; ++j) {
+    fprintf(stderr, "handle: %-4d recv %8zuB: 0x", obj->h, sz);
+    size_t toprint = sz;
+    for(i = 0; i != iovlen && toprint; ++i) {
+        for(j = 0; j != iov[i].iov_len && toprint; ++j) {
             fprintf(stderr, "%02x", (int)((uint8_t*)iov[i].iov_base)[j]);
+            --toprint;
         }
     }
     fprintf(stderr, "\n");
