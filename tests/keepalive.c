@@ -38,11 +38,11 @@ static void keepalive_pair(int h[2], int both) {
     assert(mlog0 >= 0);
     int mlog1 = mlog_start(pfx1);
     assert(mlog1 >= 0);
-    h[0] = keepalive_start(mlog0, 50, 150, "KEEPALIVE", 9);
+    h[0] = keepalive_start(mlog0, 50, 150);
     assert(h[0] >= 0);
     h[1] = mlog1;
     if(both) {
-        h[1] = keepalive_start(mlog1, 50, 150, "KEEPALIVE", 9);
+        h[1] = keepalive_start(mlog1, 50, 150);
         assert(h[1] >= 0);
     }
 }
@@ -66,7 +66,7 @@ int main() {
     keepalive_pair(h, 0);
     start = now();
     sz = mrecv(h[1], buf, sizeof(buf), -1);
-    assert(sz == 9);
+    assert(sz == 1 && buf[0] == 'K');
     elapsed = now() - start;
     assert(elapsed > 40 && elapsed < 60);
     keepalive_pair_close(h);

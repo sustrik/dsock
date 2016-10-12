@@ -28,6 +28,7 @@
 #include <string.h>
 #include <sys/uio.h>
 
+#include "iov.h"
 #include "msock.h"
 #include "dsock.h"
 #include "utils.h"
@@ -41,7 +42,7 @@ static int keepalive_msendv(struct msock_vfs *mvfs,
 static ssize_t keepalive_mrecvv(struct msock_vfs *mvfs,
     const struct iovec *iov, size_t iovlen, int64_t deadline);
 static coroutine void keepalive_sender(int s, int64_t send_interval,
-    const uint8_t *buf, size_t len, int sendch, int ackch);
+    int sendch, int ackch);
 
 struct keepalive_sock {
     struct hvfs hvfs;
@@ -49,8 +50,6 @@ struct keepalive_sock {
     int s;
     int64_t send_interval;
     int64_t recv_interval;
-    uint8_t *buf;
-    size_t len;
     int sendch;
     int ackch;
     int sender;
@@ -62,8 +61,7 @@ struct keepalive_vec {
     size_t iovlen;
 };
 
-int keepalive_start(int s, int64_t send_interval,
-      int64_t recv_interval, const void *buf, size_t len) {
+int keepalive_start(int s, int64_t send_interval, int64_t recv_interval) {
     int rc;
     int err;
     /* Check whether underlying socket is a bytestream. */
@@ -78,44 +76,38 @@ int keepalive_start(int s, int64_t send_interval,
     obj->s = s;
     obj->send_interval = send_interval;
     obj->recv_interval = recv_interval;
-    obj->buf = malloc(len);
-    if(dsock_slow(!obj->buf)) {errno = ENOMEM; goto error2;}
-    memcpy(obj->buf, buf, len);
-    obj->len = len;
     obj->sendch = -1;
     obj->ackch = -1;
     obj->sender = -1;
     if(send_interval >= 0) {
         obj->sendch = channel(sizeof(struct keepalive_vec), 0);
-        if(dsock_slow(obj->sendch < 0)) {err = errno; goto error3;}
+        if(dsock_slow(obj->sendch < 0)) {err = errno; goto error2;}
         obj->ackch = channel(0, 0);
-        if(dsock_slow(obj->ackch < 0)) {err = errno; goto error4;}
-        obj->sender = go(keepalive_sender(s, send_interval, obj->buf, obj->len,
+        if(dsock_slow(obj->ackch < 0)) {err = errno; goto error3;}
+        obj->sender = go(keepalive_sender(s, send_interval,
             obj->sendch, obj->ackch));
-        if(dsock_slow(obj->sender < 0)) {err = errno; goto error5;}
+        if(dsock_slow(obj->sender < 0)) {err = errno; goto error4;}
     }
     obj->last_recv = now();
     /* Create the handle. */
     int h = hcreate(&obj->hvfs);
-    if(dsock_slow(h < 0)) {err = errno; goto error6;}
+    if(dsock_slow(h < 0)) {err = errno; goto error5;}
     return h;
-error6:
+error5:
     if(obj->sender >= 0) {
         rc = hclose(obj->sender);
         dsock_assert(rc == 0);
     }
-error5:
+error4:
     if(obj->ackch >= 0) {
         rc = hclose(obj->ackch);
         dsock_assert(rc == 0);
     }
-error4:
+error3:
     if(obj->sendch >= 0) {
         rc = hclose(obj->sendch);
         dsock_assert(rc == 0);
     }
-error3:
-    free(obj->buf);
 error2:
     free(obj);
 error1:
@@ -134,7 +126,6 @@ int keepalive_stop(int s) {
         rc = hclose(obj->sendch);
         dsock_assert(rc == 0);
     }
-    free(obj->buf);
     int u = obj->s;
     free(obj);
     return u;
@@ -154,7 +145,7 @@ static int keepalive_msendv(struct msock_vfs *mvfs,
 }
 
 static coroutine void keepalive_sender(int s, int64_t send_interval,
-      const uint8_t *buf, size_t len, int sendch, int ackch) {
+      int sendch, int ackch) {
     /* Last time something was sent. */
     int64_t last = now();
     while(1) {
@@ -164,7 +155,7 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         if(dsock_slow(rc < 0 && errno == ETIMEDOUT)) {
             /* Send a keepalive. */
-            rc = msend(s, buf, len, -1);
+            rc = msend(s, "K", 1, -1);
             if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
             if(dsock_slow(rc < 0 && errno == ECONNRESET)) return;
             dsock_assert(rc == 0);
@@ -172,7 +163,12 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
             continue;
         }
         dsock_assert(rc == 0);
-        rc = msendv(s, vec.iov, vec.iovlen, -1);
+        struct iovec iov[vec.iovlen + 1];
+        uint8_t c = 'D';
+        iov[0].iov_base = &c;
+        iov[0].iov_len = 1;
+        iov_copy(iov + 1, vec.iov, vec.iovlen);
+        rc = msendv(s, iov, vec.iovlen + 1, -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         if(dsock_slow(rc < 0 && errno == ECONNRESET)) return;
         dsock_assert(rc == 0);
@@ -196,21 +192,22 @@ retry:;
        dd = deadline;
        fail_on_deadline = 0;
     }
-    ssize_t sz = mrecvv(obj->s, iov, iovlen, dd);
+    struct iovec vec[iovlen + 1];
+    uint8_t c;
+    vec[0].iov_base = &c;
+    vec[0].iov_len = 1;
+    iov_copy(vec + 1, iov, iovlen);
+    ssize_t sz = mrecvv(obj->s, vec, iovlen + 1, dd);
     if(dsock_slow(fail_on_deadline && sz < 0 && errno == ETIMEDOUT)) {
         errno = ECONNRESET; return -1;}
     if(dsock_fast(sz >= 0)) {
         int err = errno;
         obj->last_recv = now();
         errno = err;
-        /* Filter out keep alive messages. */
-        if(sz == obj->len) {
-            /* TODO: fix this */
-            dsock_assert(iov[0].iov_len >= obj->len);
-            if(memcmp(iov[0].iov_base, obj->buf, obj->len) == 0) goto retry;
-        }
+        /* Filter out keepalive messages. */
+        if(dsock_slow(c == 'K')) goto retry;
     }
-    return sz;
+    return sz - 1;
 }
 
 static void *keepalive_hquery(struct hvfs *hvfs, const void *type) {
@@ -231,7 +228,6 @@ static void keepalive_hclose(struct hvfs *hvfs) {
         rc = hclose(obj->sendch);
         dsock_assert(rc == 0);
     }
-    free(obj->buf);
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);
     free(obj);

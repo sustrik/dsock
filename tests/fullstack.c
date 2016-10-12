@@ -51,9 +51,9 @@ int main() {
     assert(h5_0 >= 0);
     int h5_1 = pfx_start(h4_1);
     assert(h5_1 >= 0);
-    int h6_0 = keepalive_start(h5_0, 50, 150, "KEEPALIVE", 9);
+    int h6_0 = keepalive_start(h5_0, 50, 150);
     assert(h6_0 >= 0);
-    int h6_1 = keepalive_start(h5_1, 50, 150, "KEEPALIVE", 9);
+    int h6_1 = keepalive_start(h5_1, 50, 150);
     assert(h6_0 >= 0);
     int h7_0 = nacl_start(h6_0, key, 32, -1);
     assert(h7_0 >= 0);

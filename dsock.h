@@ -353,14 +353,15 @@ DSOCK_EXPORT int mthrottler_stop(
 
 /******************************************************************************/
 /*  Keep-alives.                                                              */
+/*  If there's no messages being sent a keep-alive is sent once every         */
+/*  send_interval milliseconds. If no message or keep-alive is received for   */
+/*  recv_interval milliseconds an error is reported.                          */
 /******************************************************************************/
 
 DSOCK_EXPORT int keepalive_start(
     int s,
     int64_t send_interval,
-    int64_t recv_interval,
-    const void *buf,
-    size_t len);
+    int64_t recv_interval);
 DSOCK_EXPORT int keepalive_stop(
     int s);
 
