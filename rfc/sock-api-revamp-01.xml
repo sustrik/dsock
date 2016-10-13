@@ -328,7 +328,7 @@
 
       <section title = "Transport protocols">
          <t>The term "transport protocol" in this memo has broader scope than
-            "OSI L4 protocol". By "reansport protocol" we mean anything capable
+            "OSI L4 protocol". By "transport protocol" we mean anything capable
             of sending and/or receiving unstructured data, be it TCP, IP or
             Ethernet.</t>
 
