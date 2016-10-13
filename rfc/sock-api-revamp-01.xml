@@ -234,7 +234,7 @@
          listen/connect/accept connection setup process. These protocols should
          use custom set of functions rather than try to shoehorn all the
          functionality into an all-purpose "start" function.</t>
-      <t>If protocol runs on top of an underlying protocol it takes of ownership
+      <t>If protocol runs on top of an underlying protocol it takes ownership
          of that protocol. Using the low level protocol while it is owned by a
          higher level protocol will result in undefined behaviour.</t>
       <t>Example of creating a stack of four protocols:</t>
