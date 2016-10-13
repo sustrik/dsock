@@ -46,13 +46,15 @@ static ssize_t crlf_mrecvv(struct msock_vfs *mvfs,
 struct crlf_sock {
     struct hvfs hvfs;
     struct msock_vfs mvfs;
-    int s;
+    int u;
+    /* Given that we are doing one recv call per byte, let's cache the pointer
+       to bsock interface of the underlying socket. */
+    struct bsock_vfs *uvfs;
     int flags;
 };
 
 int crlf_start(int s) {
-    /* Check whether underlying socket is a bytestream. */
-    if(dsock_slow(!hquery(s, bsock_type))) return -1;
+    int err;
     /* Create the object. */
     struct crlf_sock *obj = malloc(sizeof(struct crlf_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
@@ -60,17 +62,18 @@ int crlf_start(int s) {
     obj->hvfs.close = crlf_hclose;
     obj->mvfs.msendv = crlf_msendv;
     obj->mvfs.mrecvv = crlf_mrecvv;
-    obj->s = s;
+    obj->u = s;
+    obj->uvfs = hquery(s, bsock_type);
+    if(dsock_slow(!obj->uvfs)) {err = errno; goto error;}
     obj->flags = 0;
     /* Create the handle. */
     int h = hcreate(&obj->hvfs);
-    if(dsock_slow(h < 0)) {
-        int err = errno;
-        free(obj);
-        errno = err;
-        return -1;
-    }
+    if(dsock_slow(h < 0)) {err = errno; goto error;}
     return h;
+error:
+    free(obj);
+    errno = err;
+    return -1;
 }
 
 int crlf_stop(int s, int64_t deadline) {
@@ -78,18 +81,18 @@ int crlf_stop(int s, int64_t deadline) {
     struct crlf_sock *obj = hquery(s, crlf_type);
     if(dsock_slow(!obj)) return -1;
     /* Send termination message. */
-    int rc = bsend(obj->s, "\r\n", 2, deadline);
+    int rc = bsend(obj->u, "\r\n", 2, deadline);
     if(dsock_slow(rc < 0)) {err = errno; goto error;}
     while(!obj->flags & CRLF_SOCK_PEERDONE) {
         int rc = crlf_mrecvv(&obj->mvfs, NULL, 0, deadline);
         if(rc < 0 && errno == EPIPE) break;
         if(dsock_slow(rc < 0 && errno != EMSGSIZE)) {err = errno; goto error;}
     }
-    int u = obj->s;
+    int u = obj->u;
     free(obj);
     return u;
 error:
-    rc = hclose(obj->s);
+    rc = hclose(obj->u);
     dsock_assert(rc == 0);
     free(obj);
     errno = err;
@@ -105,7 +108,7 @@ static int crlf_msendv(struct msock_vfs *mvfs,
     iov_copy(vec, iov, iovlen);
     vec[iovlen].iov_base = (void*)"\r\n";
     vec[iovlen].iov_len = 2;
-    int rc = bsendv(obj->s, vec, iovlen + 1, deadline);
+    int rc = obj->uvfs->bsendv(obj->uvfs, vec, iovlen + 1, deadline);
     if(dsock_slow(rc < 0)) return -1;
     return 0;
 }
@@ -118,10 +121,11 @@ static ssize_t crlf_mrecvv(struct msock_vfs *mvfs,
     size_t column = 0;
     size_t sz = 0;
     char c = 0;
+    struct iovec vec = {&c, 1};
     char pc;
     while(1) {
         pc = c;
-        int rc = brecv(obj->s, &c, 1, deadline);
+        int rc = obj->uvfs->brecvv(obj->uvfs, &vec, 1, deadline);
         if(dsock_slow(rc < 0)) return -1;
         if(row < iovlen && iov && iov[row].iov_base) {
             ((char*)iov[row].iov_base)[column] = c;
@@ -155,7 +159,7 @@ static void *crlf_hquery(struct hvfs *hvfs, const void *type) {
 
 static void crlf_hclose(struct hvfs *hvfs) {
     struct crlf_sock *obj = (struct crlf_sock*)hvfs;
-    int rc = hclose(obj->s);
+    int rc = hclose(obj->u);
     dsock_assert(rc == 0);
     free(obj);
 }
