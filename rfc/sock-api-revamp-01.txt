@@ -308,7 +308,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    should use custom set of functions rather than try to shoehorn all
    the functionality into an all-purpose "start" function.
 
-   If protocol runs on top of an underlying protocol it takes of
+   If protocol runs on top of an underlying protocol it takes
    ownership of that protocol.  Using the low level protocol while it is
    owned by a higher level protocol will result in undefined behaviour.
 
@@ -424,7 +424,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 11.3.  Transport protocols
 
    The term "transport protocol" in this memo has broader scope than
-   "OSI L4 protocol".  By "reansport protocol" we mean anything capable
+   "OSI L4 protocol".  By "transport protocol" we mean anything capable
    of sending and/or receiving unstructured data, be it TCP, IP or
    Ethernet.
 
