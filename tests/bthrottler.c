@@ -39,7 +39,7 @@ int main() {
     rc = bsend(thr, buf, 95, -1);
     assert(rc == 0);
     int64_t elapsed = now() - start;
-    assert(elapsed > 80 && elapsed < 100);
+    assert(elapsed > 80 && elapsed < 110);
     rc = brecv(s[1], buf, 95, -1);
     assert(rc == 0);
     hclose(thr);
