@@ -102,7 +102,7 @@ int fd_send(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
     ssize_t sent = 0;
     while(sent < len) {
         struct iovec vec[iovlen];
-        size_t veclen = iov_cut(iov, vec, iovlen, sent, len - sent);
+        size_t veclen = iov_cut(vec, iov, iovlen, sent, len - sent);
         hdr.msg_iov = vec;
         hdr.msg_iovlen = veclen;
         ssize_t sz = sendmsg(s, &hdr, FD_NOSIGNAL);
@@ -125,7 +125,7 @@ static ssize_t fdget(int s, struct iovec *iov, size_t iovlen, int block,
     size_t len = iov_size(iov, iovlen);
     while(1) {
         struct iovec vec[iovlen];
-        size_t veclen = iov_cut(iov, vec, iovlen, pos, len);
+        size_t veclen = iov_cut(vec, iov, iovlen, pos, len);
         hdr.msg_iov = vec;
         hdr.msg_iovlen = veclen;
         ssize_t sz = recvmsg(s, &hdr, 0);
@@ -162,7 +162,7 @@ int fd_recv(int s, struct fd_rxbuf *rxbuf, const struct iovec *iov,
         /* If requested amount of data is large avoid the copy
            and read it directly into user's buffer. */
         if(len >= sizeof(rxbuf->data)) {
-            size_t veclen = iov_cut(iov, vec, iovlen, pos, len);
+            size_t veclen = iov_cut(vec, iov, iovlen, pos, len);
             ssize_t sz = fdget(s, vec, veclen, 1, deadline);
             if(dsock_slow(sz < 0)) return -1;
             return 0;

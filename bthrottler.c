@@ -120,7 +120,7 @@ static int bthrottler_bsendv(struct bsock_vfs *bvfs,
             size_t tosend = bytes < obj->send_remaining ?
                 bytes : obj->send_remaining;
             struct iovec vec[iovlen];
-            size_t veclen = iov_cut(iov, vec, iovlen, pos, tosend);
+            size_t veclen = iov_cut(vec, iov, iovlen, pos, tosend);
             int rc = bsendv(obj->s, vec, veclen, deadline);
             if(dsock_slow(rc < 0)) return -1;
             obj->send_remaining -= tosend;
@@ -153,7 +153,7 @@ static int bthrottler_brecvv(struct bsock_vfs *bvfs,
             size_t torecv = bytes < obj->recv_remaining ?
                 bytes : obj->recv_remaining;
             struct iovec vec[iovlen];
-            size_t veclen = iov_cut(iov, vec, iovlen, pos, torecv);
+            size_t veclen = iov_cut(vec, iov, iovlen, pos, torecv);
             int rc = brecvv(obj->s, vec, veclen, deadline);
             if(dsock_slow(rc < 0)) return -1;
             obj->recv_remaining -= torecv;

@@ -56,7 +56,7 @@ void iov_copy(struct iovec *dst, const struct iovec *src, size_t len) {
     for(i = 0; i != len; ++i) dst[i] = src[i];
 }
 
-size_t iov_cut(const struct iovec *src, struct iovec *dst, size_t iovlen,
+size_t iov_cut(struct iovec *dst, const struct iovec *src, size_t iovlen,
       size_t offset, size_t bytes) {
     /* Get rid of corner cases. */
     if(dsock_slow(bytes == 0)) return 0;
@@ -86,14 +86,14 @@ size_t iov_cut(const struct iovec *src, struct iovec *dst, size_t iovlen,
 void iov_copyfrom(void *dst, const struct iovec *src, size_t srclen,
       size_t offset, size_t bytes) {
     struct iovec vec[srclen];
-    size_t veclen = iov_cut(src, vec, srclen, offset, bytes);
+    size_t veclen = iov_cut(vec, src, srclen, offset, bytes);
     iov_copyallfrom(dst, vec, veclen);
 }
 
 void iov_copyto(const struct iovec *dst, size_t dstlen, const void *src,
       size_t offset, size_t bytes) {
     struct iovec vec[dstlen];
-    size_t veclen = iov_cut(dst, vec, dstlen, offset, bytes);
+    size_t veclen = iov_cut(vec, dst, dstlen, offset, bytes);
     iov_copyallto(vec, veclen, src);
 }
 

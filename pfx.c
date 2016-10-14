@@ -134,7 +134,7 @@ static ssize_t pfx_mrecvv(struct msock_vfs *mvfs,
         return -1;
     }
     struct iovec vec[iovlen];
-    size_t veclen = iov_cut(iov, vec, iovlen, 0, sz);
+    size_t veclen = iov_cut(vec, iov, iovlen, 0, sz);
     rc = brecvv(obj->s, vec, veclen, deadline);
     if(dsock_slow(rc < 0)) return -1;
     return sz;
