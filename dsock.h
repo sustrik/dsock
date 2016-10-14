@@ -363,7 +363,8 @@ DSOCK_EXPORT int keepalive_start(
     int64_t send_interval,
     int64_t recv_interval);
 DSOCK_EXPORT int keepalive_stop(
-    int s);
+    int s,
+    int64_t deadline);
 
 #endif
 
