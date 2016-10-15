@@ -107,8 +107,20 @@ static int crlf_msendv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct crlf_sock *obj = dsock_cont(mvfs, struct crlf_sock, mvfs);
     if(dsock_slow(obj->txerr)) {errno = obj->txerr; return -1;}
-    /* TODO: Make sure that message doesn't contain CRLF sequence. */
-    if(dsock_slow(iov_size(iov, iovlen) == 0)) {errno = EINVAL; return -1;}
+    /* Make sure that message doesn't contain CRLF sequence. */
+    uint8_t c = 0;
+    size_t sz = 0;
+    int i, j;
+    for(i = 0; i != iovlen; ++i) {
+        for(j = 0; j != iov[i].iov_len; ++j) {
+            uint8_t c2 = ((uint8_t*)iov[i].iov_base)[j];
+            if(dsock_slow(c == '\r' && c2 == '\n')) {errno = EINVAL; return -1;}
+            c = c2;
+        }
+        sz += iov[i].iov_len;
+    }
+    /* Can't send empty line. Empty line is used as protocol terminator. */
+    if(dsock_slow(sz == 0)) {errno = EINVAL; return -1;}
     struct iovec vec[iovlen + 1];
     iov_copy(vec, iov, iovlen);
     vec[iovlen].iov_base = (void*)"\r\n";
