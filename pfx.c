@@ -84,7 +84,6 @@ int pfx_stop(int s, int64_t deadline) {
     int rc = bsend(obj->s, &sz, 8, deadline);
     if(dsock_slow(rc < 0)) {err = errno; goto error;}
     while(1) {
-        /* TODO: What about oversized messages here? Possible DoS attack. */
         int rc = pfx_mrecvv(&obj->mvfs, NULL, 0, deadline);
         if(rc < 0 && errno == EPIPE) break;
         if(dsock_slow(rc < 0)) {err = errno; goto error;}

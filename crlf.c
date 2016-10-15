@@ -50,7 +50,8 @@ struct crlf_sock {
     /* Given that we are doing one recv call per byte, let's cache the pointer
        to bsock interface of the underlying socket. */
     struct bsock_vfs *uvfs;
-    int flags;
+    int txerr;
+    int rxerr;
 };
 
 int crlf_start(int s) {
@@ -65,7 +66,8 @@ int crlf_start(int s) {
     obj->u = s;
     obj->uvfs = hquery(s, bsock_type);
     if(dsock_slow(!obj->uvfs)) {err = errno; goto error;}
-    obj->flags = 0;
+    obj->txerr = 0;
+    obj->rxerr = 0;
     /* Create the handle. */
     int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error;}
@@ -80,13 +82,15 @@ int crlf_stop(int s, int64_t deadline) {
     int err;
     struct crlf_sock *obj = hquery(s, crlf_type);
     if(dsock_slow(!obj)) return -1;
+    if(dsock_slow(obj->rxerr)) {err = obj->rxerr; goto error;}
+    if(dsock_slow(obj->txerr)) {err = obj->txerr; goto error;}
     /* Send termination message. */
     int rc = bsend(obj->u, "\r\n", 2, deadline);
     if(dsock_slow(rc < 0)) {err = errno; goto error;}
-    while(!obj->flags & CRLF_SOCK_PEERDONE) {
+    while(1) {
         int rc = crlf_mrecvv(&obj->mvfs, NULL, 0, deadline);
         if(rc < 0 && errno == EPIPE) break;
-        if(dsock_slow(rc < 0 && errno != EMSGSIZE)) {err = errno; goto error;}
+        if(dsock_slow(rc < 0)) {err = errno; goto error;}
     }
     int u = obj->u;
     free(obj);
@@ -102,21 +106,22 @@ error:
 static int crlf_msendv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct crlf_sock *obj = dsock_cont(mvfs, struct crlf_sock, mvfs);
-    if(dsock_slow(iov_size(iov, iovlen) == 0)) {errno = EINVAL; return -1;}
+    if(dsock_slow(obj->txerr)) {errno = obj->txerr; return -1;}
     /* TODO: Make sure that message doesn't contain CRLF sequence. */
+    if(dsock_slow(iov_size(iov, iovlen) == 0)) {errno = EINVAL; return -1;}
     struct iovec vec[iovlen + 1];
     iov_copy(vec, iov, iovlen);
     vec[iovlen].iov_base = (void*)"\r\n";
     vec[iovlen].iov_len = 2;
     int rc = obj->uvfs->bsendv(obj->uvfs, vec, iovlen + 1, deadline);
-    if(dsock_slow(rc < 0)) return -1;
+    if(dsock_slow(rc < 0)) {obj->txerr= errno; return -1;}
     return 0;
 }
 
 static ssize_t crlf_mrecvv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct crlf_sock *obj = dsock_cont(mvfs, struct crlf_sock, mvfs);
-    if(dsock_slow(obj->flags & CRLF_SOCK_PEERDONE)) {errno = EPIPE; return -1;}
+    if(dsock_slow(obj->rxerr)) {errno = obj->rxerr; return -1;}
     size_t row = 0;
     size_t column = 0;
     size_t sz = 0;
@@ -126,7 +131,7 @@ static ssize_t crlf_mrecvv(struct msock_vfs *mvfs,
     while(1) {
         pc = c;
         int rc = obj->uvfs->brecvv(obj->uvfs, &vec, 1, deadline);
-        if(dsock_slow(rc < 0)) return -1;
+        if(dsock_slow(rc < 0)) {obj->rxerr = errno; return -1;}
         if(row < iovlen && iov && iov[row].iov_base) {
             ((char*)iov[row].iov_base)[column] = c;
             if(column == iov[row].iov_len) {
@@ -140,12 +145,8 @@ static ssize_t crlf_mrecvv(struct msock_vfs *mvfs,
         ++sz;
         if(pc == '\r' && c == '\n') break;
     }
-    if(dsock_slow(sz == 2)) {
-        /* Peer is terminating. */
-        obj->flags |= CRLF_SOCK_PEERDONE;
-        errno = EPIPE;
-        return -1;
-    }
+    /* Peer is terminating. */
+    if(dsock_slow(sz == 2)) {errno = obj->rxerr = EPIPE; return -1;}
     return sz - 2;
 }
 
