@@ -85,7 +85,7 @@ int keepalive_start(int s, int64_t send_interval, int64_t recv_interval) {
     if(send_interval >= 0) {
         obj->sendch = channel(sizeof(struct keepalive_vec), 0);
         if(dsock_slow(obj->sendch < 0)) {err = errno; goto error2;}
-        obj->ackch = channel(0, 0);
+        obj->ackch = channel(sizeof(int), 0);
         if(dsock_slow(obj->ackch < 0)) {err = errno; goto error3;}
         obj->sender = go(keepalive_sender(s, send_interval,
             obj->sendch, obj->ackch));
@@ -160,8 +160,10 @@ static int keepalive_msendv(struct msock_vfs *mvfs,
     int rc = chsend(obj->sendch, &vec, sizeof(vec), deadline);
     if(dsock_slow(rc < 0)) return -1;
     /* Wait till worker is done. */
-    rc = chrecv(obj->ackch, NULL, 0, deadline);
+    int err;
+    rc = chrecv(obj->ackch, &err, sizeof(err), deadline);
     if(dsock_slow(rc < 0)) return -1;
+    if(dsock_slow(err < 0)) {errno = err; return -1;}
     return 0;
 }
 
@@ -191,10 +193,17 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
         iov_copy(iov + 1, vec.iov, vec.iovlen);
         rc = msendv(s, iov, vec.iovlen + 1, -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
-        if(dsock_slow(rc < 0 && errno == ECONNRESET)) return;
-        dsock_assert(rc == 0);
+        /* Pass the error to the user. */
+        if(dsock_slow(rc < 0)) {
+            int err = errno;
+            rc = chsend(ackch, &err, sizeof(err), -1);
+            if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
+            dsock_assert(rc == 0);
+            return;
+        }
         last = now();
-        rc = chsend(ackch, NULL, 0, -1);
+        int err = 0;
+        rc = chsend(ackch, &err, sizeof(err), -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         dsock_assert(rc == 0);
     }
