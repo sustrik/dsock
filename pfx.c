@@ -41,13 +41,12 @@ static int pfx_msendv(struct msock_vfs *mvfs,
 static ssize_t pfx_mrecvv(struct msock_vfs *mvfs,
     const struct iovec *iov, size_t iovlen, int64_t deadline);
 
-#define PFX_SOCK_PEERDONE 1
-
 struct pfx_sock {
     struct hvfs hvfs;
     struct msock_vfs mvfs;
     int s;
-    int flags;
+    int txerr;
+    int rxerr;
 };
 
 int pfx_start(int s) {
@@ -61,7 +60,8 @@ int pfx_start(int s) {
     obj->mvfs.msendv = pfx_msendv;
     obj->mvfs.mrecvv = pfx_mrecvv;
     obj->s = s;
-    obj->flags = 0;
+    obj->txerr = 0;
+    obj->rxerr = 0;
     /* Create the handle. */
     int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {
@@ -77,14 +77,17 @@ int pfx_stop(int s, int64_t deadline) {
     int err;
     struct pfx_sock *obj = hquery(s, pfx_type);
     if(dsock_slow(!obj)) return -1;
+    if(dsock_slow(obj->rxerr)) {err = obj->rxerr; goto error;}
+    if(dsock_slow(obj->txerr)) {err = obj->txerr; goto error;}
     /* Send termination message. */
     uint64_t sz = 0xffffffffffffffff;
     int rc = bsend(obj->s, &sz, 8, deadline);
     if(dsock_slow(rc < 0)) {err = errno; goto error;}
-    while(!obj->flags & PFX_SOCK_PEERDONE) {
+    while(1) {
+        /* TODO: What about oversized messages here? Possible DoS attack. */
         int rc = pfx_mrecvv(&obj->mvfs, NULL, 0, deadline);
         if(rc < 0 && errno == EPIPE) break;
-        if(dsock_slow(rc < 0 && errno != EMSGSIZE)) {err = errno; goto error;}
+        if(dsock_slow(rc < 0)) {err = errno; goto error;}
     }
     int u = obj->s;
     free(obj);
@@ -100,6 +103,7 @@ error:
 static int pfx_msendv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct pfx_sock *obj = dsock_cont(mvfs, struct pfx_sock, mvfs);
+    if(dsock_slow(obj->txerr)) return obj->txerr;
     uint8_t szbuf[8];
     size_t len = iov_size(iov, iovlen);
     dsock_putll(szbuf, (uint64_t)len);
@@ -108,35 +112,27 @@ static int pfx_msendv(struct msock_vfs *mvfs,
     vec[0].iov_len = 8;
     iov_copy(vec + 1, iov, iovlen);
     int rc = bsendv(obj->s, vec, iovlen + 1, deadline);
-    if(dsock_slow(rc < 0)) return -1;
+    if(dsock_slow(rc < 0)) {obj->txerr = errno; return -1;}
     return 0;
 }
 
 static ssize_t pfx_mrecvv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct pfx_sock *obj = dsock_cont(mvfs, struct pfx_sock, mvfs);
-    if(dsock_slow(obj->flags & PFX_SOCK_PEERDONE)) {errno = EPIPE; return -1;}
+    if(dsock_slow(obj->rxerr)) return obj->rxerr;
     uint8_t szbuf[8];
     int rc = brecv(obj->s, szbuf, 8, deadline);
-    if(dsock_slow(rc < 0)) return -1;
+    if(dsock_slow(rc < 0)) {obj->rxerr = errno; return -1;}
     uint64_t sz = dsock_getll(szbuf);
+    /* Peer is terminating. */
     if(dsock_slow(sz == 0xffffffffffffffff)) {
-        /* Peer is terminating. */
-        obj->flags |= PFX_SOCK_PEERDONE;
-        errno = EPIPE;
-        return -1;
-    }
+        errno = obj->rxerr = EPIPE; return -1;}
     size_t len = iov_size(iov, iovlen);
-    if(dsock_slow(len < sz)) {
-        rc = brecv(obj->s, NULL, sz, deadline);
-        if(dsock_slow(rc < 0)) return -1;
-        errno = EMSGSIZE;
-        return -1;
-    }
+    if(dsock_slow(len < sz)) {errno = obj->rxerr = EMSGSIZE; return -1;}
     struct iovec vec[iovlen];
     size_t veclen = iov_cut(vec, iov, iovlen, 0, sz);
     rc = brecvv(obj->s, vec, veclen, deadline);
-    if(dsock_slow(rc < 0)) return -1;
+    if(dsock_slow(rc < 0)) {obj->rxerr = errno; return -1;}
     return sz;
 }
 
