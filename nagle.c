@@ -75,7 +75,7 @@ int nagle_start(int s, size_t batch, int64_t interval) {
     if(dsock_slow(!obj->buf)) {errno = ENOMEM; goto error2;}
     obj->sendch = channel(sizeof(struct nagle_vec), 0);
     if(dsock_slow(obj->sendch < 0)) {err = errno; goto error3;}
-    obj->ackch = channel(0, 0);
+    obj->ackch = channel(sizeof(int), 0);
     if(dsock_slow(obj->ackch < 0)) {err = errno; goto error4;}
     obj->sender = go(nagle_sender(s, batch, interval,
         obj->buf, obj->sendch, obj->ackch));
@@ -126,8 +126,10 @@ static int nagle_bsendv(struct bsock_vfs *bvfs,
     int rc = chsend(obj->sendch, &vec, sizeof(vec), deadline);
     if(dsock_slow(rc < 0)) return -1;
     /* Wait till worker is done. */
-    rc = chrecv(obj->ackch, NULL, 0, deadline);
+    int err;
+    rc = chrecv(obj->ackch, &err, sizeof(err), deadline);
     if(dsock_slow(rc < 0)) return -1;
+    if(dsock_slow(rc < 0)) {errno = err; return -1;}
     return 0;
 }
 
@@ -158,7 +160,8 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         if(len + bytes < batch) {
             iov_copyallfrom(buf + len, vec.iov, vec.iovlen);
             len += bytes;
-            rc = chsend(ackch, NULL, 0, -1);
+            int err = 0;
+            rc = chsend(ackch, &err, sizeof(err), -1);
             if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
             dsock_assert(rc == 0);
             continue;
@@ -167,7 +170,14 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
             /* Flush the buffer. */
             rc = bsend(s, buf, len, -1);
             if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
-            dsock_assert(rc == 0);
+            /* Pass the error to the user. */
+            if(dsock_slow(rc < 0)) {
+                int err = errno;
+                rc = chsend(ackch, &err, sizeof(err), -1);
+                if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
+                dsock_assert(rc == 0);
+                return;
+            }
             len = 0;
             last = now();
         }
@@ -175,7 +185,8 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         if(bytes < batch) {
             iov_copyallfrom(buf, vec.iov, vec.iovlen);
             len = bytes;
-            rc = chsend(ackch, NULL, 0, -1);
+            int err = 0;
+            rc = chsend(ackch, &err, sizeof(err), -1);
             if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
             dsock_assert(rc == 0);
             continue;
@@ -186,7 +197,8 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         dsock_assert(rc == 0);
         last = now();
-        rc = chsend(ackch, NULL, 0, -1);
+        int err = 0;
+        rc = chsend(ackch, &err, sizeof(err), -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         dsock_assert(rc == 0);
     }
