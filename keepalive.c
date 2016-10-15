@@ -44,8 +44,6 @@ static ssize_t keepalive_mrecvv(struct msock_vfs *mvfs,
 static coroutine void keepalive_sender(int s, int64_t send_interval,
     int sendch, int ackch);
 
-#define KEEPALIVE_SOCK_PEERDONE 1
-
 struct keepalive_sock {
     struct hvfs hvfs;
     struct msock_vfs mvfs;
@@ -56,7 +54,8 @@ struct keepalive_sock {
     int ackch;
     int sender;
     int64_t last_recv;
-    int flags;
+    int txerr;
+    int rxerr;
 };
 
 struct keepalive_vec {
@@ -92,7 +91,8 @@ int keepalive_start(int s, int64_t send_interval, int64_t recv_interval) {
         if(dsock_slow(obj->sender < 0)) {err = errno; goto error4;}
     }
     obj->last_recv = now();
-    obj->flags = 0;
+    obj->txerr = 0;
+    obj->rxerr = 0;
     /* Create the handle. */
     int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error5;}
@@ -139,10 +139,10 @@ int keepalive_stop(int s, int64_t deadline) {
     if(dsock_slow(!obj)) return -1;
     int rc = msend(obj->s, "T", 1, deadline);
     if(dsock_slow(rc <  0)) {err = errno; goto error;}
-    while(!obj->flags & KEEPALIVE_SOCK_PEERDONE) {
+    while(1) {
         int rc = keepalive_mrecvv(&obj->mvfs, NULL, 0, deadline);
         if(rc < 0 && errno == EPIPE) break;
-        if(dsock_slow(rc < 0 && errno != EMSGSIZE)) {err = errno; goto error;}
+        if(dsock_slow(rc < 0)) {err = errno; goto error;}
     }
     return keepalive_free(obj);
 error:
@@ -155,6 +155,7 @@ error:
 static int keepalive_msendv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct keepalive_sock *obj = dsock_cont(mvfs, struct keepalive_sock, mvfs);
+    if(dsock_slow(obj->txerr)) return obj->txerr;
     /* Send is done in a worker coroutine. */
     struct keepalive_vec vec = {iov, iovlen};
     int rc = chsend(obj->sendch, &vec, sizeof(vec), deadline);
@@ -212,8 +213,7 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
 static ssize_t keepalive_mrecvv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct keepalive_sock *obj = dsock_cont(mvfs, struct keepalive_sock, mvfs);
-    if(dsock_slow(obj->flags & KEEPALIVE_SOCK_PEERDONE)) {
-        errno = EPIPE; return -1;}
+    if(dsock_slow(obj->rxerr)) return obj->rxerr;
     /* If receive mode is off, just forward the call. */
     if(obj->recv_interval < 0) return mrecvv(obj->s, iov, iovlen, deadline);
     /* Compute the deadline. Take keepalive interval into consideration. */
@@ -231,19 +231,15 @@ retry:;
     iov_copy(vec + 1, iov, iovlen);
     ssize_t sz = mrecvv(obj->s, vec, iovlen + 1, dd);
     if(dsock_slow(fail_on_deadline && sz < 0 && errno == ETIMEDOUT)) {
-        errno = ECONNRESET; return -1;}
-    if(dsock_slow(sz < 0)) return -1;
+        obj->rxerr = errno = ECONNRESET; return -1;}
+    if(dsock_slow(sz < 0)) {obj->rxerr = errno; return -1;}
     obj->last_recv = now();
     /* TODO: Broken protocol. */
     dsock_assert(sz != 0);
     /* Filter out keepalive messages. */
     if(dsock_slow(c == 'K')) goto retry;
     /* Protocol termination. */
-    if(dsock_slow(c == 'T')) {
-        obj->flags |= KEEPALIVE_SOCK_PEERDONE;
-        errno = EPIPE;
-        return -1;
-    }
+    if(dsock_slow(c == 'T')) {obj->rxerr = errno = EPIPE; return -1;}
     return sz - 1;
 }
 
