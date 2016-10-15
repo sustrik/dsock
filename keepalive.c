@@ -213,9 +213,9 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
 static ssize_t keepalive_mrecvv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct keepalive_sock *obj = dsock_cont(mvfs, struct keepalive_sock, mvfs);
-    if(dsock_slow(obj->rxerr)) return obj->rxerr;
     /* If receive mode is off, just forward the call. */
     if(obj->recv_interval < 0) return mrecvv(obj->s, iov, iovlen, deadline);
+    if(dsock_slow(obj->rxerr)) return obj->rxerr;
     /* Compute the deadline. Take keepalive interval into consideration. */
 retry:;
     int64_t dd = obj->last_recv + obj->recv_interval;
