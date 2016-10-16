@@ -84,15 +84,16 @@ int mlog_stop(int s) {
 static int mlog_msendv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct mlog_sock *obj = dsock_cont(mvfs, struct mlog_sock, mvfs);
-    size_t len = iov_size(iov, iovlen);
+    size_t len = 0;
     size_t i, j;
-    fprintf(stderr, "handle: %-4d send %8zuB: 0x", obj->h, len);
+    fprintf(stderr, "msend(%d, 0x", obj->h);
     for(i = 0; i != iovlen; ++i) {
         for(j = 0; j != iov[i].iov_len; ++j) {
             fprintf(stderr, "%02x", (int)((uint8_t*)iov[i].iov_base)[j]);
+            ++len;
         }
     }
-    fprintf(stderr, "\n");
+    fprintf(stderr, ", %zu)\n", len);
     return msendv(obj->s, iov, iovlen, deadline);
 }
 
@@ -101,9 +102,8 @@ static ssize_t mlog_mrecvv(struct msock_vfs *mvfs,
     struct mlog_sock *obj = dsock_cont(mvfs, struct mlog_sock, mvfs);
     ssize_t sz = mrecvv(obj->s, iov, iovlen, deadline);
     if(dsock_slow(sz < 0)) return -1;
-    size_t len = iov_size(iov, iovlen);
     size_t i, j;
-    fprintf(stderr, "handle: %-4d recv %8zuB: 0x", obj->h, sz);
+    fprintf(stderr, "mrecv(%d, 0x", obj->h);
     size_t toprint = sz;
     for(i = 0; i != iovlen && toprint; ++i) {
         for(j = 0; j != iov[i].iov_len && toprint; ++j) {
@@ -111,7 +111,7 @@ static ssize_t mlog_mrecvv(struct msock_vfs *mvfs,
             --toprint;
         }
     }
-    fprintf(stderr, "\n");
+    fprintf(stderr, ", %zu)\n", (size_t)sz);
     return sz;
 }
 

@@ -84,15 +84,16 @@ int blog_stop(int s) {
 static int blog_bsendv(struct bsock_vfs *bvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct blog_sock *obj = dsock_cont(bvfs, struct blog_sock, bvfs);
-    size_t len = iov_size(iov, iovlen);
+    size_t len = 0;
     size_t i, j;
-    fprintf(stderr, "handle: %-4d send %8zuB: 0x", obj->h, len);
+    fprintf(stderr, "bsend(%d, 0x", obj->h);
     for(i = 0; i != iovlen; ++i) {
         for(j = 0; j != iov[i].iov_len; ++j) {
             fprintf(stderr, "%02x", (int)((uint8_t*)iov[i].iov_base)[j]);
+            ++len;
         }
     }
-    fprintf(stderr, "\n");
+    fprintf(stderr, ", %zu)\n", len);
     return bsendv(obj->s, iov, iovlen, deadline);
 }
 
@@ -101,15 +102,16 @@ static int blog_brecvv(struct bsock_vfs *bvfs,
     struct blog_sock *obj = dsock_cont(bvfs, struct blog_sock, bvfs);
     int rc = brecvv(obj->s, iov, iovlen, deadline);
     if(dsock_slow(rc < 0)) return -1;
-    size_t len = iov_size(iov, iovlen);
+    size_t len = 0;
     size_t i, j;
-    fprintf(stderr, "handle: %-4d recv %8zuB: 0x", obj->h, len);
+    fprintf(stderr, "brecv(%d, 0x", obj->h);
     for(i = 0; i != iovlen; ++i) {
         for(j = 0; j != iov[i].iov_len; ++j) {
             fprintf(stderr, "%02x", (int)((uint8_t*)iov[i].iov_base)[j]);
+            ++len;
         }
     }
-    fprintf(stderr, "\n");
+    fprintf(stderr, ", %zu)\n", len);
     return 0;
 }
 
