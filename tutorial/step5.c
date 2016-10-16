@@ -98,14 +98,16 @@ int main(int argc, char *argv[]) {
 
     int ch = channel(sizeof(int), 0);
     assert(ch >= 0);
-    go(statistics(ch));
+    int cr = go(statistics(ch));
+    assert(cr >= 0);
 
     while(1) {
         int s = tcp_accept(ls, NULL, -1);
         assert(s >= 0);
         s = crlf_start(s);
         assert(s >= 0);
-        go(dialogue(s, ch));
+        cr = go(dialogue(s, ch));
+        assert(cr >= 0);
     }
 }
 

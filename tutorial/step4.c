@@ -68,7 +68,8 @@ int main(int argc, char *argv[]) {
         assert(s >= 0);
         s = crlf_start(s);
         assert(s >= 0);
-        go(dialogue(s));
+        int cr = go(dialogue(s));
+        assert(cr >= 0);
     }
 }
 
