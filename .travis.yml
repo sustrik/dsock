@@ -6,6 +6,8 @@ os:
   - osx
   - linux
 
+sudo: required
+
 compiler:
   - gcc
   - clang
