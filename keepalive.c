@@ -164,8 +164,8 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
             /* Send a keepalive. */
             rc = msend(s, "K", 1, -1);
             if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
-            if(dsock_slow(rc < 0 && errno == ECONNRESET)) return;
-            dsock_assert(rc == 0);
+            /* We'll ignore other errors here, assuming they are temporary.
+               Temporary failure to send a keepalive should not cause errors. */
             last = now();
             continue;
         }
