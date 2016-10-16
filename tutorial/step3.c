@@ -35,7 +35,7 @@ coroutine void dialogue(int s) {
     int rc = msend(s, "What's your name?", 17, -1);
     if(rc != 0) goto cleanup;
     char inbuf[256];
-    size_t sz = mrecv(s, inbuf, sizeof(inbuf), -1);
+    ssize_t sz = mrecv(s, inbuf, sizeof(inbuf), -1);
     if(sz < 0) goto cleanup;
     inbuf[sz] = 0;
     char outbuf[256];
