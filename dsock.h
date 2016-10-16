@@ -261,8 +261,7 @@ DSOCK_EXPORT int nacl_stop(
 DSOCK_EXPORT int lz4_start(
     int s);
 DSOCK_EXPORT int lz4_stop(
-    int s,
-    int64_t deadline);
+    int s);
 
 /******************************************************************************/
 /*  Bytestream logging.                                                       */
@@ -343,8 +342,7 @@ DSOCK_EXPORT int keepalive_start(
     int64_t send_interval,
     int64_t recv_interval);
 DSOCK_EXPORT int keepalive_stop(
-    int s,
-    int64_t deadline);
+    int s);
 
 #endif
 

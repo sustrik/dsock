@@ -85,7 +85,7 @@ error1:
     return -1;
 }
 
-int lz4_stop(int s, int64_t deadline) {
+int lz4_stop(int s) {
     struct lz4_sock *obj = hquery(s, lz4_type);
     if(dsock_slow(!obj)) return -1;
     size_t ec = LZ4F_freeDecompressionContext(obj->dctx);

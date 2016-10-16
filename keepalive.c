@@ -131,7 +131,7 @@ static int keepalive_free(struct keepalive_sock *obj) {
     return u;
 }
 
-int keepalive_stop(int s, int64_t deadline) {
+int keepalive_stop(int s) {
     int err;
     struct keepalive_sock *obj = hquery(s, keepalive_type);
     if(dsock_slow(!obj)) return -1;
