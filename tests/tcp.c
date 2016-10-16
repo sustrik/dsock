@@ -38,11 +38,11 @@ coroutine void client(int port) {
     assert(rc == 0);
 
     char buf[3];
-    rc = tcp_recv(cs, buf, sizeof(buf), -1);
+    rc = brecv(cs, buf, sizeof(buf), -1);
     assert(rc == 0);
     assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
 
-    rc = tcp_send(cs, "456", 3, -1);
+    rc = bsend(cs, "456", 3, -1);
     assert(rc == 0);
 
     rc = hclose(cs);
@@ -77,16 +77,16 @@ int main() {
     /* Test deadline. */
     int64_t deadline = now() + 30;
     ssize_t sz = sizeof(buf);
-    rc = tcp_recv(as, buf, sizeof(buf), deadline);
+    rc = brecv(as, buf, sizeof(buf), deadline);
     assert(rc == -1 && errno == ETIMEDOUT);
     int64_t diff = now() - deadline;
     assert(diff > -20 && diff < 20);
 
-    rc = tcp_send(as, "ABC", 3, -1);
+    rc = bsend(as, "ABC", 3, -1);
     assert(rc == 0);
-    rc = tcp_recv(as, buf, 2, -1);
+    rc = brecv(as, buf, 2, -1);
     assert(rc == 0);
-    rc = tcp_recv(as, buf, sizeof(buf), -1);
+    rc = brecv(as, buf, sizeof(buf), -1);
     assert(rc == -1 && errno == ECONNRESET);
 
     rc = hclose(as);
@@ -101,7 +101,7 @@ int main() {
     assert(as >= 0);
     char buffer[2048];
     while(1) {
-        rc = tcp_send(as, buffer, 2048, -1);
+        rc = bsend(as, buffer, 2048, -1);
         if(rc == -1 && errno == ECONNRESET)
             break;
         assert(rc == 0);

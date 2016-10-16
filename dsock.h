@@ -172,11 +172,6 @@ DSOCK_EXPORT int tcp_connect(
     const ipaddr *addr,
     int64_t deadline);
 
-#define tcp_send bsend
-#define tcp_recv brecv
-#define tcp_sendv bsendv
-#define tcp_recvv brecvv
-
 /******************************************************************************/
 /*  UNIX protocol.                                                            */
 /******************************************************************************/
@@ -192,11 +187,6 @@ DSOCK_EXPORT int unix_connect(
     int64_t deadline);
 DSOCK_EXPORT int unix_pair(
     int s[2]);
-
-#define unix_send bsend
-#define unix_recv brecv
-#define unix_sendv bsendv
-#define unix_recvv brecvv
 
 /******************************************************************************/
 /*  UDP protocol.                                                             */
@@ -239,11 +229,6 @@ DSOCK_EXPORT int pfx_stop(
     int s,
     int64_t deadline);
 
-#define pfx_send msend
-#define pfx_recv mrecv
-#define pfx_sendv msendv
-#define pfx_recvv mrecvv
-
 /******************************************************************************/
 /*  CRLF protocol.                                                            */
 /*  Messages are delimited by CRLF (0x0d 0x0a) sequences.                     */
@@ -254,11 +239,6 @@ DSOCK_EXPORT int crlf_start(
 DSOCK_EXPORT int crlf_stop(
     int s,
     int64_t deadline);
-
-#define crlf_send msend
-#define crlf_recv mrecv
-#define crlf_sendv msendv
-#define crlf_recvv mrecvv
 
 /******************************************************************************/
 /*  NaCl encryption and authentication protocol.                              */

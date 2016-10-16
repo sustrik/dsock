@@ -35,13 +35,13 @@ coroutine void client(void) {
 
     int cs = crlf_start(s);
     assert(cs >= 0);
-    rc = crlf_send(cs, "ABC", 3, -1);
+    rc = msend(cs, "ABC", 3, -1);
     assert(rc == 0);
     char buf[3];
-    ssize_t sz = crlf_recv(cs, buf, 3, -1);
+    ssize_t sz = mrecv(cs, buf, 3, -1);
     assert(sz == 3);
     assert(buf[0] == 'G' && buf[1] == 'H' && buf[2] == 'I');
-    rc = crlf_send(cs, "DEF", 3, -1);
+    rc = msend(cs, "DEF", 3, -1);
     assert(rc == 0);
     s = crlf_stop(cs, -1);
     assert(s >= 0);
@@ -61,7 +61,7 @@ int main() {
     int cs = crlf_start(as);
     assert(cs >= 0);
     char buf[16];
-    ssize_t sz = crlf_recv(cs, buf, sizeof(buf), -1);
+    ssize_t sz = mrecv(cs, buf, sizeof(buf), -1);
     assert(sz == 3);
     assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
     rc = msend(cs, "GHI", 3, -1);

@@ -39,17 +39,17 @@ coroutine void client(void) {
 
     char buf[16];
     char buffer[2048];
-    rc = unix_recv(cs, buf, 3, -1);
+    rc = brecv(cs, buf, 3, -1);
     assert(rc == 0);
     assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
-    rc = unix_recv(cs, buf, 2, -1);
+    rc = brecv(cs, buf, 2, -1);
     assert(rc == 0);
-    rc = unix_recv(cs, buf, 1, -1);
+    rc = brecv(cs, buf, 1, -1);
     assert(rc == 0);
     assert(buf[0] == 'F');
-    rc = unix_recv(cs, buffer, sizeof(buffer), -1);
+    rc = brecv(cs, buffer, sizeof(buffer), -1);
     assert(rc == 0);
-    rc = unix_send(cs, "456", 3, -1);
+    rc = bsend(cs, "456", 3, -1);
     assert(rc == 0);
 
     rc = hclose(cs);
@@ -81,19 +81,19 @@ int main() {
 
     /* Test deadline. */
     int64_t deadline = now() + 30;
-    int rc = unix_recv(as, buf, sizeof(buf), deadline);
+    int rc = brecv(as, buf, sizeof(buf), deadline);
     assert(rc == -1 && errno == ETIMEDOUT);
     int64_t diff = now() - deadline;
     assert(diff > -20 && diff < 20);
 
     /* Test simple passing of data. */
-    rc = unix_send(as, "ABC", 3, -1);
+    rc = bsend(as, "ABC", 3, -1);
     assert(rc == 0);
-    rc = unix_send(as, "DEF", 3, -1);
+    rc = bsend(as, "DEF", 3, -1);
     assert(rc == 0);
-    rc = unix_send(as, buffer, sizeof(buffer), -1);
+    rc = bsend(as, buffer, sizeof(buffer), -1);
     assert(rc == 0);
-    rc = unix_recv(as, buf, 3, -1);
+    rc = brecv(as, buf, 3, -1);
     assert(rc == 0);
     assert(buf[0] == '4' && buf[1] == '5' && buf[2] == '6');
 
@@ -111,7 +111,7 @@ int main() {
     go(client2(hndls[1]));
     assert(rc == 0);
     while(1) {
-        rc = unix_send(hndls[0], buffer, 2048, -1);
+        rc = bsend(hndls[0], buffer, 2048, -1);
         if(rc == -1 && errno == ECONNRESET)
             break;
         assert(rc == 0);
