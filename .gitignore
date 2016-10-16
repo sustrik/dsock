@@ -25,6 +25,11 @@ dns/.dirstamp
 lz4/.dirstamp
 tweetnacl/.dirstamp
 libdsock.la
+tutorial/step1
+tutorial/step2
+tutorial/step3
+tutorial/step4
+tutorial/step5
 test-suite.log
 tests/.dirstamp
 tests/*.log
