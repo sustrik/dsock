@@ -54,6 +54,7 @@ struct keepalive_sock {
     int ackch;
     int sender;
     int64_t last_recv;
+    int err;
 };
 
 struct keepalive_vec {
@@ -89,6 +90,7 @@ int keepalive_start(int s, int64_t send_interval, int64_t recv_interval) {
         if(dsock_slow(obj->sender < 0)) {err = errno; goto error4;}
     }
     obj->last_recv = now();
+    obj->err = 0;
     /* Create the handle. */
     int h = hcreate(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error5;}
@@ -139,6 +141,7 @@ int keepalive_stop(int s, int64_t deadline) {
 static int keepalive_msendv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct keepalive_sock *obj = dsock_cont(mvfs, struct keepalive_sock, mvfs);
+    if(dsock_slow(obj->err)) {errno = obj->err; return -1;}
     /* Send is done in a worker coroutine. */
     struct keepalive_vec vec = {iov, iovlen};
     int rc = chsend(obj->sendch, &vec, sizeof(vec), deadline);
@@ -198,6 +201,7 @@ static ssize_t keepalive_mrecvv(struct msock_vfs *mvfs,
     struct keepalive_sock *obj = dsock_cont(mvfs, struct keepalive_sock, mvfs);
     /* If receive mode is off, just forward the call. */
     if(obj->recv_interval < 0) return mrecvv(obj->s, iov, iovlen, deadline);
+    if(dsock_slow(obj->err)) {errno = obj->err; return -1;}
 retry:;
     /* Compute the deadline. Take keepalive interval into consideration. */
     int64_t dd = obj->last_recv + obj->recv_interval;
@@ -213,7 +217,7 @@ retry:;
     iov_copy(vec + 1, iov, iovlen);
     ssize_t sz = mrecvv(obj->s, vec, iovlen + 1, dd);
     if(dsock_slow(fail_on_deadline && sz < 0 && errno == ETIMEDOUT)) {
-        errno = ECONNRESET; return -1;}
+        obj->err = errno = ECONNRESET; return -1;}
     if(dsock_slow(sz < 0)) return -1;
     obj->last_recv = now();
     if(dsock_slow(sz == 0)) {errno = EPROTO; return -1;}
