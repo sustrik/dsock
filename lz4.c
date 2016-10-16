@@ -144,9 +144,9 @@ static ssize_t lz4_mrecvv(struct msock_vfs *mvfs,
     LZ4F_frameInfo_t info;
     size_t infolen = sz;
     size_t ec = LZ4F_getFrameInfo(obj->dctx, &info, obj->inbuf, &infolen);
-    dsock_assert(!LZ4F_isError(ec));
+    if(dsock_slow(LZ4F_isError(ec))) {errno = EPROTO; return -1;}
     /* Size is a required field. */
-    if(dsock_slow(info.contentSize == 0)) {errno = ECONNRESET; return -1;}
+    if(dsock_slow(info.contentSize == 0)) {errno = EPROTO; return -1;}
     /* Decompressed message would exceed the buffer size. */
     if(dsock_slow(info.contentSize > len)) {errno = EMSGSIZE; return -1;}
     /* Decompress. */
@@ -157,7 +157,8 @@ static ssize_t lz4_mrecvv(struct msock_vfs *mvfs,
     size_t srclen = sz - infolen;
     ec = LZ4F_decompress(obj->dctx, buf, &dstlen,
         obj->inbuf + infolen, &srclen, NULL);
-    dsock_assert(ec == 0);
+    if(dsock_slow(LZ4F_isError(ec))) {errno = EPROTO; return -1;}
+    if(dsock_slow(ec != 0)) {errno = EPROTO; return -1;}
     dsock_assert(srclen == sz - infolen);
     iov_copyallto(iov, iovlen, buf);
     free(buf);
