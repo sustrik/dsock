@@ -1,11 +1,9 @@
-## dsock - revamp of socket BSD API
-
-A library of easily composable microprotocols.
+## dsock - A library of easily composable microprotocols
 
 Check documentation at:
 
 http://libdill.org/documentation.html
 
-Read the RFC here:
+Read the RFC "Revamp of BSD socket API"  here:
 
 https://raw.githubusercontent.com/sustrik/dsock/master/rfc/sock-api-revamp-01.txt
