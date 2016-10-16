@@ -84,6 +84,9 @@ int fd_accept(int s, struct sockaddr *addr, socklen_t *addrlen,
         as = accept(s, addr, addrlen);
         if(dsock_fast(as >= 0))
             break;
+        /* If connection was aborted by the peer grab the next one. */
+        if(dsock_slow(errno == ECONNABORTED)) continue;
+        /* Propagate other errors to the caller. */
         if(dsock_slow(errno != EAGAIN && errno != EWOULDBLOCK)) return -1;
         /* Operation is in progress. Wait till new connection is available. */
         int rc = fdin(s, deadline);
