@@ -32,10 +32,10 @@ dsockinclude_HEADERS = dsock.h
 lib_LTLIBRARIES = libdsock.la
 
 libdsock_la_SOURCES = \
-    btrace.c \
     bsock.h \
     bsock.c \
     bthrottler.c \
+    btrace.c \
     crlf.c \
     fd.h \
     fd.c \
@@ -44,10 +44,10 @@ libdsock_la_SOURCES = \
     ipaddr.c \
     keepalive.c \
     lz4.c \
-    mlog.c \
     msock.h \
     msock.c \
     mthrottler.c \
+    mtrace.c \
     nacl.c \
     nagle.c \
     pfx.c \
@@ -106,7 +106,7 @@ check_PROGRAMS = \
     tests/nagle \
     tests/lz4 \
     tests/btrace \
-    tests/mlog \
+    tests/mtrace \
     tests/nacl \
     tests/keepalive \
     tests/fullstack \

@@ -34,15 +34,15 @@ static void keepalive_pair(int h[2], int both) {
     assert(pfx0 >= 0);
     int pfx1 = pfx_start(s[1]);
     assert(pfx1 >= 0);
-    int mlog0 = mlog_start(pfx0);
-    assert(mlog0 >= 0);
-    int mlog1 = mlog_start(pfx1);
-    assert(mlog1 >= 0);
-    h[0] = keepalive_start(mlog0, 50, 150);
+    int mtrace0 = mtrace_start(pfx0);
+    assert(mtrace0 >= 0);
+    int mtrace1 = mtrace_start(pfx1);
+    assert(mtrace1 >= 0);
+    h[0] = keepalive_start(mtrace0, 50, 150);
     assert(h[0] >= 0);
-    h[1] = mlog1;
+    h[1] = mtrace1;
     if(both) {
-        h[1] = keepalive_start(mlog1, 50, 150);
+        h[1] = keepalive_start(mtrace1, 50, 150);
         assert(h[1] >= 0);
     }
 }

@@ -32,16 +32,16 @@
 #include "dsock.h"
 #include "utils.h"
 
-dsock_unique_id(mlog_type);
+dsock_unique_id(mtrace_type);
 
-static void *mlog_hquery(struct hvfs *hvfs, const void *type);
-static void mlog_hclose(struct hvfs *hvfs);
-static int mlog_msendv(struct msock_vfs *mvfs,
+static void *mtrace_hquery(struct hvfs *hvfs, const void *type);
+static void mtrace_hclose(struct hvfs *hvfs);
+static int mtrace_msendv(struct msock_vfs *mvfs,
     const struct iovec *iov, size_t iovlen, int64_t deadline);
-static ssize_t mlog_mrecvv(struct msock_vfs *mvfs,
+static ssize_t mtrace_mrecvv(struct msock_vfs *mvfs,
     const struct iovec *iov, size_t iovlen, int64_t deadline);
 
-struct mlog_sock {
+struct mtrace_sock {
     struct hvfs hvfs;
     struct msock_vfs mvfs;
     /* Underlying socket. */
@@ -50,16 +50,16 @@ struct mlog_sock {
     int h;
 };
 
-int mlog_start(int s) {
+int mtrace_start(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hquery(s, msock_type))) return -1;
     /* Create the object. */
-    struct mlog_sock *obj = malloc(sizeof(struct mlog_sock));
+    struct mtrace_sock *obj = malloc(sizeof(struct mtrace_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
-    obj->hvfs.query = mlog_hquery;
-    obj->hvfs.close = mlog_hclose;
-    obj->mvfs.msendv = mlog_msendv;
-    obj->mvfs.mrecvv = mlog_mrecvv;
+    obj->hvfs.query = mtrace_hquery;
+    obj->hvfs.close = mtrace_hclose;
+    obj->mvfs.msendv = mtrace_msendv;
+    obj->mvfs.mrecvv = mtrace_mrecvv;
     obj->s = s;
     /* Create the handle. */
     int h = hcreate(&obj->hvfs);
@@ -73,17 +73,17 @@ int mlog_start(int s) {
     return h;
 }
 
-int mlog_stop(int s) {
-    struct mlog_sock *obj = hquery(s, mlog_type);
+int mtrace_stop(int s) {
+    struct mtrace_sock *obj = hquery(s, mtrace_type);
     if(dsock_slow(!obj)) return -1;
     int u = obj->s;
     free(obj);
     return u;
 }
 
-static int mlog_msendv(struct msock_vfs *mvfs,
+static int mtrace_msendv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
-    struct mlog_sock *obj = dsock_cont(mvfs, struct mlog_sock, mvfs);
+    struct mtrace_sock *obj = dsock_cont(mvfs, struct mtrace_sock, mvfs);
     size_t len = 0;
     size_t i, j;
     fprintf(stderr, "msend(%d, 0x", obj->h);
@@ -97,9 +97,9 @@ static int mlog_msendv(struct msock_vfs *mvfs,
     return msendv(obj->s, iov, iovlen, deadline);
 }
 
-static ssize_t mlog_mrecvv(struct msock_vfs *mvfs,
+static ssize_t mtrace_mrecvv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
-    struct mlog_sock *obj = dsock_cont(mvfs, struct mlog_sock, mvfs);
+    struct mtrace_sock *obj = dsock_cont(mvfs, struct mtrace_sock, mvfs);
     ssize_t sz = mrecvv(obj->s, iov, iovlen, deadline);
     if(dsock_slow(sz < 0)) return -1;
     size_t i, j;
@@ -115,16 +115,16 @@ static ssize_t mlog_mrecvv(struct msock_vfs *mvfs,
     return sz;
 }
 
-static void *mlog_hquery(struct hvfs *hvfs, const void *type) {
-    struct mlog_sock *obj = (struct mlog_sock*)hvfs;
+static void *mtrace_hquery(struct hvfs *hvfs, const void *type) {
+    struct mtrace_sock *obj = (struct mtrace_sock*)hvfs;
     if(type == msock_type) return &obj->mvfs;
-    if(type == mlog_type) return obj;
+    if(type == mtrace_type) return obj;
     errno = ENOTSUP;
     return NULL;
 }
 
-static void mlog_hclose(struct hvfs *hvfs) {
-    struct mlog_sock *obj = (struct mlog_sock*)hvfs;
+static void mtrace_hclose(struct hvfs *hvfs) {
+    struct mtrace_sock *obj = (struct mtrace_sock*)hvfs;
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);
     free(obj);

@@ -35,9 +35,9 @@ int main() {
     assert(pfx0 >= 0);
     int pfx1 = pfx_start(s[1]);
     assert(pfx1 >= 0);
-    int m0 = mlog_start(pfx0);
+    int m0 = mtrace_start(pfx0);
     assert(m0 >= 0);
-    int m1 = mlog_start(pfx1);
+    int m1 = mtrace_start(pfx1);
     assert(m1 >= 0);
     rc = msend(m0, "\x03" "BC", 3, -1);
     assert(rc == 0);

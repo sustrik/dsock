@@ -274,13 +274,13 @@ DSOCK_EXPORT int btrace_stop(
     int s);
 
 /******************************************************************************/
-/*  Message logging.                                                          */
+/*  Message tracing.                                                          */
 /*  Logs both inbound and outbound messages into stderr.                      */
 /******************************************************************************/
 
-DSOCK_EXPORT int mlog_start(
+DSOCK_EXPORT int mtrace_start(
     int s);
-DSOCK_EXPORT int mlog_stop(
+DSOCK_EXPORT int mtrace_stop(
     int s);
 
 /******************************************************************************/

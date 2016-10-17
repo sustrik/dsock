@@ -44,7 +44,7 @@ tests/mthrottler
 tests/nagle
 tests/lz4
 tests/btrace
-tests/mlog
+tests/mtrace
 tests/nacl
 tests/keepalive
 tests/fullstack
