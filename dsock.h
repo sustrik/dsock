@@ -264,13 +264,13 @@ DSOCK_EXPORT int lz4_stop(
     int s);
 
 /******************************************************************************/
-/*  Bytestream logging.                                                       */
+/*  Bytestream tracing.                                                       */
 /*  Logs both inbound and outbound data into stderr.                          */
 /******************************************************************************/
 
-DSOCK_EXPORT int blog_start(
+DSOCK_EXPORT int btrace_start(
     int s);
-DSOCK_EXPORT int blog_stop(
+DSOCK_EXPORT int btrace_stop(
     int s);
 
 /******************************************************************************/

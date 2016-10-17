@@ -43,7 +43,7 @@ tests/bthrottler
 tests/mthrottler
 tests/nagle
 tests/lz4
-tests/blog
+tests/btrace
 tests/mlog
 tests/nacl
 tests/keepalive

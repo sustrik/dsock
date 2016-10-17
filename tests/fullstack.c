@@ -35,9 +35,9 @@ int main() {
     int h1[2];
     rc = unix_pair(h1);
     assert(rc == 0);
-    int h2_0 = blog_start(h1[0]);
+    int h2_0 = btrace_start(h1[0]);
     assert(h2_0 >= 0);
-    int h2_1 = blog_start(h1[1]);
+    int h2_1 = btrace_start(h1[1]);
     assert(h2_1 >= 0);
     int h3_0 = bthrottler_start(h2_0, 1000, 10, 1000, 10);
     assert(h3_0 >= 0);

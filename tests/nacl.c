@@ -35,9 +35,9 @@ int main() {
     int s[2];
     int rc = unix_pair(s);
     assert(rc == 0);
-    int log0 = blog_start(s[0]);
+    int log0 = btrace_start(s[0]);
     assert(log0 >= 0);
-    int log1 = blog_start(s[1]);
+    int log1 = btrace_start(s[1]);
     assert(log1 >= 0);
     int pfx0 = pfx_start(log0);
     assert(pfx0 >= 0);
@@ -71,9 +71,9 @@ int main() {
     /* Test communication with wrong key. */
     rc = unix_pair(s);
     assert(rc == 0);
-    log0 = blog_start(s[0]);
+    log0 = btrace_start(s[0]);
     assert(log0 >= 0);
-    log1 = blog_start(s[1]);
+    log1 = btrace_start(s[1]);
     assert(log1 >= 0);
     pfx0 = pfx_start(log0);
     assert(pfx0 >= 0);

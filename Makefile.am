@@ -32,7 +32,7 @@ dsockinclude_HEADERS = dsock.h
 lib_LTLIBRARIES = libdsock.la
 
 libdsock_la_SOURCES = \
-    blog.c \
+    btrace.c \
     bsock.h \
     bsock.c \
     bthrottler.c \
@@ -105,7 +105,7 @@ check_PROGRAMS = \
     tests/mthrottler \
     tests/nagle \
     tests/lz4 \
-    tests/blog \
+    tests/btrace \
     tests/mlog \
     tests/nacl \
     tests/keepalive \

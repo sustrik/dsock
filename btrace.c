@@ -32,16 +32,16 @@
 #include "iov.h"
 #include "utils.h"
 
-dsock_unique_id(blog_type);
+dsock_unique_id(btrace_type);
 
-static void *blog_hquery(struct hvfs *hvfs, const void *type);
-static void blog_hclose(struct hvfs *hvfs);
-static int blog_bsendv(struct bsock_vfs *bvfs,
+static void *btrace_hquery(struct hvfs *hvfs, const void *type);
+static void btrace_hclose(struct hvfs *hvfs);
+static int btrace_bsendv(struct bsock_vfs *bvfs,
     const struct iovec *iov, size_t iovlen, int64_t deadline);
-static int blog_brecvv(struct bsock_vfs *bvfs,
+static int btrace_brecvv(struct bsock_vfs *bvfs,
     const struct iovec *iov, size_t iovlen, int64_t deadline);
 
-struct blog_sock {
+struct btrace_sock {
     struct hvfs hvfs;
     struct bsock_vfs bvfs;
     /* Underlying socket. */
@@ -50,16 +50,16 @@ struct blog_sock {
     int h;
 };
 
-int blog_start(int s) {
+int btrace_start(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hquery(s, bsock_type))) return -1;
     /* Create the object. */
-    struct blog_sock *obj = malloc(sizeof(struct blog_sock));
+    struct btrace_sock *obj = malloc(sizeof(struct btrace_sock));
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
-    obj->hvfs.query = blog_hquery;
-    obj->hvfs.close = blog_hclose;
-    obj->bvfs.bsendv = blog_bsendv;
-    obj->bvfs.brecvv = blog_brecvv;
+    obj->hvfs.query = btrace_hquery;
+    obj->hvfs.close = btrace_hclose;
+    obj->bvfs.bsendv = btrace_bsendv;
+    obj->bvfs.brecvv = btrace_brecvv;
     obj->s = s;
     /* Create the handle. */
     int h = hcreate(&obj->hvfs);
@@ -73,17 +73,17 @@ int blog_start(int s) {
     return h;
 }
 
-int blog_stop(int s) {
-    struct blog_sock *obj = hquery(s, blog_type);
+int btrace_stop(int s) {
+    struct btrace_sock *obj = hquery(s, btrace_type);
     if(dsock_slow(!obj)) return -1;
     int u = obj->s;
     free(obj);
     return u;
 }
 
-static int blog_bsendv(struct bsock_vfs *bvfs,
+static int btrace_bsendv(struct bsock_vfs *bvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
-    struct blog_sock *obj = dsock_cont(bvfs, struct blog_sock, bvfs);
+    struct btrace_sock *obj = dsock_cont(bvfs, struct btrace_sock, bvfs);
     size_t len = 0;
     size_t i, j;
     fprintf(stderr, "bsend(%d, 0x", obj->h);
@@ -97,9 +97,9 @@ static int blog_bsendv(struct bsock_vfs *bvfs,
     return bsendv(obj->s, iov, iovlen, deadline);
 }
 
-static int blog_brecvv(struct bsock_vfs *bvfs,
+static int btrace_brecvv(struct bsock_vfs *bvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
-    struct blog_sock *obj = dsock_cont(bvfs, struct blog_sock, bvfs);
+    struct btrace_sock *obj = dsock_cont(bvfs, struct btrace_sock, bvfs);
     int rc = brecvv(obj->s, iov, iovlen, deadline);
     if(dsock_slow(rc < 0)) return -1;
     size_t len = 0;
@@ -115,16 +115,16 @@ static int blog_brecvv(struct bsock_vfs *bvfs,
     return 0;
 }
 
-static void *blog_hquery(struct hvfs *hvfs, const void *type) {
-    struct blog_sock *obj = (struct blog_sock*)hvfs;
+static void *btrace_hquery(struct hvfs *hvfs, const void *type) {
+    struct btrace_sock *obj = (struct btrace_sock*)hvfs;
     if(type == bsock_type) return &obj->bvfs;
-    if(type == blog_type) return obj;
+    if(type == btrace_type) return obj;
     errno = ENOTSUP;
     return NULL;
 }
 
-static void blog_hclose(struct hvfs *hvfs) {
-    struct blog_sock *obj = (struct blog_sock*)hvfs;
+static void btrace_hclose(struct hvfs *hvfs) {
+    struct btrace_sock *obj = (struct btrace_sock*)hvfs;
     int rc = hclose(obj->s);
     dsock_assert(rc == 0);
     free(obj);
