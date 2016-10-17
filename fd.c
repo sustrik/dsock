@@ -132,7 +132,7 @@ static ssize_t fdget(int s, struct iovec *iov, size_t iovlen, int block,
         hdr.msg_iov = vec;
         hdr.msg_iovlen = veclen;
         ssize_t sz = recvmsg(s, &hdr, 0);
-        if(dsock_fast(sz == len)) return len;
+        if(dsock_fast(sz == len)) return pos + sz;
         if(dsock_slow(sz == 0)) {errno = ECONNRESET; return -1;}
         if(dsock_slow(sz < 0 && errno != EWOULDBLOCK && errno != EAGAIN))
             return -1;
