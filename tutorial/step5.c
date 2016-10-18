@@ -36,8 +36,8 @@
 #define CONN_FAILED 3
 
 coroutine void statistics(int ch) {
-    int connections = 0;
     int active = 0;
+    int succeeded = 0;
     int failed = 0;
     
     while(1) {
@@ -45,16 +45,22 @@ coroutine void statistics(int ch) {
         int rc = chrecv(ch, &op, sizeof(op), -1);
         assert(rc == 0);
 
-        if(op == CONN_ESTABLISHED)
-            ++connections, ++active;
-        else
+        switch(op) {
+        case CONN_ESTABLISHED:
+            ++active;
+            break;
+        case CONN_SUCCEEDED:
             --active;
-        if(op == CONN_FAILED)
+            ++succeeded;
+            break;
+        case CONN_FAILED:
+            --active;
             ++failed;
+            break;
+        }
 
-        printf("Total number of connections: %d\n", connections);
-        printf("Active connections: %d\n", active);
-        printf("Failed connections: %d\n\n", failed);
+        printf("active: %-5d  succeeded: %-5d  failed: %-5d\n",
+            active, succeeded, failed);
     }
 }
 
