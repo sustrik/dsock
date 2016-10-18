@@ -52,6 +52,7 @@ coroutine void statistics(int ch) {
         if(op == CONN_FAILED)
             ++failed;
 
+        printf("Process ID: %d\n", (int)getpid());
         printf("Total number of connections: %d\n", connections);
         printf("Active connections: %d\n", active);
         printf("Failed connections: %d\n\n", failed);
@@ -66,7 +67,7 @@ coroutine void dialogue(int s, int ch) {
     rc = msend(s, "What's your name?", 17, deadline);
     if(rc != 0) goto cleanup;
     char inbuf[256];
-    size_t sz = mrecv(s, inbuf, sizeof(inbuf), deadline);
+    ssize_t sz = mrecv(s, inbuf, sizeof(inbuf), deadline);
     if(sz < 0) goto cleanup;
     inbuf[sz] = 0;
     char outbuf[256];
@@ -81,11 +82,25 @@ cleanup:
     assert(rc == 0);
 }
 
+coroutine void accepter(int ls, int ch) {
+    while(1) {
+        int s = tcp_accept(ls, NULL, -1);
+        assert(s >= 0);
+        s = crlf_start(s);
+        assert(s >= 0);
+        int cr = go(dialogue(s, ch));
+        assert(cr >= 0);
+    }
+}
+
 int main(int argc, char *argv[]) {
 
     int port = 5555;
+    int nproc = 1;
     if(argc > 1)
         port = atoi(argv[1]);
+    if(argc > 2)
+        nproc = atoi(argv[2]);
 
     ipaddr addr;
     int rc = ipaddr_local(&addr, NULL, port, 0);
@@ -98,14 +113,14 @@ int main(int argc, char *argv[]) {
 
     int ch = channel(sizeof(int), 0);
     assert(ch >= 0);
-    go(statistics(ch));
+    int cr = go(statistics(ch));
+    assert(cr >= 0);
 
-    while(1) {
-        int s = tcp_accept(ls, NULL, -1);
-        assert(s >= 0);
-        s = crlf_start(s);
-        assert(s >= 0);
-        go(dialogue(s, ch));
+    int i;
+    for (i = 0; i < nproc - 1; ++i) {
+        cr = proc(accepter(ls, ch));
+        assert(cr >= 0);
     }
+    accepter(ls, ch);
 }
 
