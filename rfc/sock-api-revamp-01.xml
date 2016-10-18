@@ -55,8 +55,8 @@
          a lot of time, often more than a single hobbyist programmer can
          realistically afford.</t>
       <t>This memo proposes to fix the reusability problem by revamping the
-         old BSD socket API and while doing so focusing on composability rather
-         than on completeness.</t>
+         old BSD socket API and while doing so strongly focusing on
+         composability of protocols.</t>
       <t>In short, the API proposed in this document doesn't try to virtualize
          all possible aspects of all possible protocols and provide a single set
          of functions to deal with all of them. Instead, it acknowledges how
@@ -146,14 +146,14 @@
     </section>
 
     <section title="Scheduling or rather lack of it">
-      <t>During the decades since BSD sockets were fisrt introduced the way they
+      <t>During the decades since BSD sockets were first introduced the way they
          are used have changed significantly. While in the beginning the user
          was supposed to fork a new process for each connection and do all the
          work using simple blocking calls nowadays the user is expected to keep
          a pool of connections, check them via functions like poll() or kqueue()
          and dispatch any work to be done to one of the worker threads in
-         a thread pool. In short, user is supposed to do both network and CPU
-         scheduling.</t>
+         a thread pool. In other words, user is supposed to do both network and
+         CPU scheduling.</t>
       <t>This change happened for performance reasons and haven't improved
          functionality or usability of BSD socket API in any way. On the
          contrary, by requiring every programmer, however junior or uninterested
@@ -170,7 +170,7 @@
          "one process per connection" way. There's no need for polling, thread
          pools, callbacks, explicit state machines and so on.</t>
       <t>This memo thus adheres to "let system programmers do system
-         programming" motto and doesn't address the problem of scheduling,
+         programming" maxim and doesn't address the problem of scheduling,
          be it CPU scheduling or network scheduling, at all.</t>
       <t>As a footnote, it should be metioned that this proposal makes couple of
          deliberate design choices that prevent the modern "schedule by hand"
@@ -213,12 +213,11 @@
       <t>For consistency's sake the function names SHOULD be in lowercase and
          SHOULD be composed of short protocol name and action name separated
          by underscore (e.g. "tcp_connect"). Of course, in non-C languages
-         the native naming convention should be followed, but still, the name
+         the native naming convention should be followed, but even then the name
          SHOULD contain both protocol name and action name.</t>
       <t>First argument of the function, where applicable, SHOULD be the file
          descriptor.</t>
-      <t>In all potentially blocking functions the last argument should be
-         deadline.</t>
+      <t>In all blocking functions the last argument should be the deadline.</t>
     </section>
 
     <section title="Protocol initialization">
@@ -249,10 +248,11 @@
     </section>
 
     <section title="Protocol termination">
-      <t>Protocol descriptor is closed by hclose() function. The protocol SHOULD
-         shut down immediately without even trying to do termination handshake
-         or similar. Note that this is different from how BSD sockets behave.
-         </t>
+      <t>Protocol descriptor is closed by hclose() function. In kernel-space
+         implementatios this function maps to standard POSIX close().
+         The protocol SHOULD shut down immediately without trying to do
+         termination handshake or similar. Note that this is different from how
+         BSD sockets behave.</t>
       <t>The protocol MUST also clean up all resources it owns including
          closing the underlying protocol. Given that the underlying protocol
          does the same operation, an entire stack of protocols can be shut down
@@ -266,14 +266,14 @@
     hclose(h3); /* baz, bar and foo are shut down */
         </artwork>
       </figure>
-      <t>To perform clean shut down there SHOULD be a protocol-specific
-         function called "stop". In addition to the file descriptor to close
+      <t>To perform an orderly shut down there SHOULD be a protocol-specific
+         function called "stop". In addition to the file descriptor
          the function can have arbitrary number of other arguments.</t>
       <t>If the shut down functionality is potentially blocking (e.g. if it
          requires a response from the peer) the last argument SHOULD be a
          deadline.</t>
       <t>If shut down function succeeds it SHOULD NOT close the underlying
-         protocol. Instead it should return its file descriptor. This is crucial
+         protocol. Instead it SHOULD return its file descriptor. This is crucial
          for horizontal composability of protocols:</t>
       <figure>
         <artwork>
@@ -289,16 +289,23 @@
     foo_stop(h1);
         </artwork>
       </figure>
-      <t>Some protocols are not capable of doing this. For example, they may not
-         have a termination sequence defined. In such cases the shut down
-         function SHOULD simply close the underlying protocol and return 0.</t>
-      <t>Also, if the protocol has no underlying protocol the function SHOULD
-         return zero on success.</t>
-      <t>In case of error shut down function SHOULD close the underying protocol
-         (and thus recursively all protocols beneath it), return -1 and set
-         errno to appropriate value.</t>
-      <t>Note that this design does away with BSD socket linger behaviour which
-         cannot be cleanly implemented in user space.</t>
+      <t>The protocol may live at the very bottom of the stack and have no
+         underlying protocol. It can also be incapable of cleaning up after
+         itself, i.e. a new protocol initiated on top of the same underlying
+         protocol would have to deal with random leftover chunks of data.</t>
+      <t>In these cases the stop function SHOULD simply close the underlying
+         protocol and return 0.</t>
+      <t>In the case of error stop function SHOULD forcibly close the underying
+         protocol (and thus recursively all protocols beneath it), return -1 and
+         set errno to the appropriate value.</t>
+      <t>Note that this design does away with BSD socket SO_LINGER behaviour
+         which cannot be cleanly implemented in user space.</t>
+      <t>If the protocol has terminal handshake stop function should initiate
+         the handshake and block until it is finished.</t>
+      <t>If the termination request is received from the peer the receive
+         function MUST return EPIPE error. At that point user can't receive
+         more data but is still capable of sending a reply. Afterwards it can
+         finish the terminal handshake by calling the stop function.</t>
     </section>
 
     <section title="Normal operation">
@@ -320,7 +327,7 @@
          <t>Presentation protocols add structure to data carried by transport
             protocols (e.g. ASN.1, JSON, XML). This proposal doesn't address
             them in any way. Either the protocol sends/receives binary data
-            that just happen to be in s structured format in which case its
+            that just happen to be in a structured format in which case it's
             a standard transport protocol. Or the protocol exposes special API
             to browse the structured data in which case it is an application
             protocol.</t>
@@ -335,7 +342,7 @@
         <section title="Bytestream protocols">
           <t>Byte stream protocols are transport protocols that define no
              message boundaries. One peer can send 10 bytes, then 8 bytes. The
-             other peer can read all 18 bytes at once or read first 12 bytes,
+             peer can read all 18 bytes at once or read first 12 bytes,
              then 6 bytes. Bytestream protocols are always reliable (no bytes
              can be lost) and ordered (bytes are received in the same order they
              were sent in). TCP is a classic example of bytestream protocol.</t>
