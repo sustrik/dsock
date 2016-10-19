@@ -65,7 +65,7 @@ struct keepalive_vec {
 int keepalive_start(int s, int64_t send_interval, int64_t recv_interval) {
     int rc;
     int err;
-    /* Check whether underlying socket is a bytestream. */
+    /* Check whether underlying socket is message-based. */
     if(dsock_slow(!hquery(s, msock_type))) {err = errno; goto error1;}
     /* Create the object. */
     struct keepalive_sock *obj = malloc(sizeof(struct keepalive_sock));

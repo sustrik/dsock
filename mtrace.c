@@ -51,7 +51,7 @@ struct mtrace_sock {
 };
 
 int mtrace_start(int s) {
-    /* Check whether underlying socket is a bytestream. */
+    /* Check whether underlying socket is message-based. */
     if(dsock_slow(!hquery(s, msock_type))) return -1;
     /* Create the object. */
     struct mtrace_sock *obj = malloc(sizeof(struct mtrace_sock));
