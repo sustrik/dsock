@@ -58,6 +58,14 @@ struct nagle_sock {
     int sender;
 };
 
+static void *nagle_hquery(struct hvfs *hvfs, const void *type) {
+    struct nagle_sock *obj = (struct nagle_sock*)hvfs;
+    if(type == bsock_type) return &obj->bvfs;
+    if(type == nagle_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
 int nagle_start(int s, size_t batch, int64_t interval) {
     int rc;
     int err;
@@ -208,14 +216,6 @@ static int nagle_brecvv(struct bsock_vfs *bvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct nagle_sock *obj = dsock_cont(bvfs, struct nagle_sock, bvfs);
     return brecvv(obj->s, iov, iovlen, deadline);
-}
-
-static void *nagle_hquery(struct hvfs *hvfs, const void *type) {
-    struct nagle_sock *obj = (struct nagle_sock*)hvfs;
-    if(type == bsock_type) return &obj->bvfs;
-    if(type == nagle_type) return obj;
-    errno = ENOTSUP;
-    return NULL;
 }
 
 static void nagle_hclose(struct hvfs *hvfs) {

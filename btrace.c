@@ -50,6 +50,14 @@ struct btrace_sock {
     int h;
 };
 
+static void *btrace_hquery(struct hvfs *hvfs, const void *type) {
+    struct btrace_sock *obj = (struct btrace_sock*)hvfs;
+    if(type == bsock_type) return &obj->bvfs;
+    if(type == btrace_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
 int btrace_start(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hquery(s, bsock_type))) return -1;
@@ -113,14 +121,6 @@ static int btrace_brecvv(struct bsock_vfs *bvfs,
     }
     fprintf(stderr, ", %zu)\n", len);
     return 0;
-}
-
-static void *btrace_hquery(struct hvfs *hvfs, const void *type) {
-    struct btrace_sock *obj = (struct btrace_sock*)hvfs;
-    if(type == bsock_type) return &obj->bvfs;
-    if(type == btrace_type) return obj;
-    errno = ENOTSUP;
-    return NULL;
 }
 
 static void btrace_hclose(struct hvfs *hvfs) {

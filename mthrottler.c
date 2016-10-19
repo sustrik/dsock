@@ -53,6 +53,14 @@ struct mthrottler_sock {
     int64_t recv_last;
 };
 
+static void *mthrottler_hquery(struct hvfs *hvfs, const void *type) {
+    struct mthrottler_sock *obj = (struct mthrottler_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == mthrottler_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
 int mthrottler_start(int s,
       uint64_t send_throughput, int64_t send_interval,
       uint64_t recv_throughput, int64_t recv_interval) {
@@ -141,14 +149,6 @@ static ssize_t mthrottler_mrecvv(struct msock_vfs *mvfs,
     if(dsock_slow(rc < 0)) return -1;
     --obj->recv_remaining;
     return 0;
-}
-
-static void *mthrottler_hquery(struct hvfs *hvfs, const void *type) {
-    struct mthrottler_sock *obj = (struct mthrottler_sock*)hvfs;
-    if(type == msock_type) return &obj->mvfs;
-    if(type == mthrottler_type) return obj;
-    errno = ENOTSUP;
-    return NULL;
 }
 
 static void mthrottler_hclose(struct hvfs *hvfs) {

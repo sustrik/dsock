@@ -49,6 +49,14 @@ struct udp_sock {
     ipaddr remote;
 };
 
+static void *udp_hquery(struct hvfs *hvfs, const void *type) {
+    struct udp_sock *obj = (struct udp_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == udp_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
 int udp_socket(ipaddr *local, const ipaddr *remote) {
     int err;
     /* Sanity checking. */
@@ -176,14 +184,6 @@ static int udp_msendv(struct msock_vfs *mvfs,
 static ssize_t udp_mrecvv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     return udp_recvv_(mvfs, NULL, iov, iovlen, deadline);
-}
-
-static void *udp_hquery(struct hvfs *hvfs, const void *type) {
-    struct udp_sock *obj = (struct udp_sock*)hvfs;
-    if(type == msock_type) return &obj->mvfs;
-    if(type == udp_type) return obj;
-    errno = ENOTSUP;
-    return NULL;
 }
 
 static void udp_hclose(struct hvfs *hvfs) {

@@ -59,6 +59,14 @@ struct nacl_sock {
     uint8_t recv_nonce[crypto_secretbox_NONCEBYTES];
 };
 
+static void *nacl_hquery(struct hvfs *hvfs, const void *type) {
+    struct nacl_sock *obj = (struct nacl_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == nacl_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
 int nacl_start(int s, const void *key, size_t keylen, int64_t deadline) {
     int err;
     if(dsock_slow(!key || keylen != crypto_secretbox_KEYBYTES)) {
@@ -167,14 +175,6 @@ static ssize_t nacl_mrecvv(struct msock_vfs *mvfs,
     iov_copyto(iov, iovlen, obj->buf1 + crypto_secretbox_ZEROBYTES, 0,
         clen - crypto_secretbox_ZEROBYTES);
     return clen - crypto_secretbox_ZEROBYTES;
-}
-
-static void *nacl_hquery(struct hvfs *hvfs, const void *type) {
-    struct nacl_sock *obj = (struct nacl_sock*)hvfs;
-    if(type == msock_type) return &obj->mvfs;
-    if(type == nacl_type) return obj;
-    errno = ENOTSUP;
-    return NULL;
 }
 
 static void nacl_hclose(struct hvfs *hvfs) {

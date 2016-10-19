@@ -54,6 +54,14 @@ struct bthrottler_sock {
     int64_t recv_last;
 };
 
+static void *bthrottler_hquery(struct hvfs *hvfs, const void *type) {
+    struct bthrottler_sock *obj = (struct bthrottler_sock*)hvfs;
+    if(type == bsock_type) return &obj->bvfs;
+    if(type == bthrottler_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
 int bthrottler_start(int s,
       uint64_t send_throughput, int64_t send_interval,
       uint64_t recv_throughput, int64_t recv_interval) {
@@ -168,14 +176,6 @@ static int bthrottler_brecvv(struct bsock_vfs *bvfs,
         obj->recv_remaining = obj->recv_full;
         obj->recv_last = now();
     }
-}
-
-static void *bthrottler_hquery(struct hvfs *hvfs, const void *type) {
-    struct bthrottler_sock *obj = (struct bthrottler_sock*)hvfs;
-    if(type == bsock_type) return &obj->bvfs;
-    if(type == bthrottler_type) return obj;
-    errno = ENOTSUP;
-    return NULL;
 }
 
 static void bthrottler_hclose(struct hvfs *hvfs) {

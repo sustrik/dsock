@@ -50,6 +50,14 @@ struct mtrace_sock {
     int h;
 };
 
+static void *mtrace_hquery(struct hvfs *hvfs, const void *type) {
+    struct mtrace_sock *obj = (struct mtrace_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == mtrace_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
 int mtrace_start(int s) {
     /* Check whether underlying socket is message-based. */
     if(dsock_slow(!hquery(s, msock_type))) return -1;
@@ -113,14 +121,6 @@ static ssize_t mtrace_mrecvv(struct msock_vfs *mvfs,
     }
     fprintf(stderr, ", %zu)\n", (size_t)sz);
     return sz;
-}
-
-static void *mtrace_hquery(struct hvfs *hvfs, const void *type) {
-    struct mtrace_sock *obj = (struct mtrace_sock*)hvfs;
-    if(type == msock_type) return &obj->mvfs;
-    if(type == mtrace_type) return obj;
-    errno = ENOTSUP;
-    return NULL;
 }
 
 static void mtrace_hclose(struct hvfs *hvfs) {

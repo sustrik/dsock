@@ -54,6 +54,14 @@ struct crlf_sock {
     int rxerr;
 };
 
+static void *crlf_hquery(struct hvfs *hvfs, const void *type) {
+    struct crlf_sock *obj = (struct crlf_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == crlf_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
 int crlf_start(int s) {
     int err;
     /* Create the object. */
@@ -160,14 +168,6 @@ static ssize_t crlf_mrecvv(struct msock_vfs *mvfs,
     /* Peer is terminating. */
     if(dsock_slow(sz == 2)) {errno = obj->rxerr = EPIPE; return -1;}
     return sz - 2;
-}
-
-static void *crlf_hquery(struct hvfs *hvfs, const void *type) {
-    struct crlf_sock *obj = (struct crlf_sock*)hvfs;
-    if(type == msock_type) return &obj->mvfs;
-    if(type == crlf_type) return obj;
-    errno = ENOTSUP;
-    return NULL;
 }
 
 static void crlf_hclose(struct hvfs *hvfs) {

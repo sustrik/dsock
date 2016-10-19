@@ -56,6 +56,14 @@ struct unix_conn {
     struct fd_rxbuf rxbuf;
 };
 
+static void *unix_conn_hquery(struct hvfs *hvfs, const void *type) {
+    struct unix_conn *obj = (struct unix_conn*)hvfs;
+    if(type == bsock_type) return &obj->bvfs;
+    if(type == unix_conn_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
 int unix_connect(const char *addr, int64_t deadline) {
     int err;
     /* Create a UNIX address out of the address string. */
@@ -98,14 +106,6 @@ static int unix_conn_brecvv(struct bsock_vfs *bvfs,
     return fd_recv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
 }
 
-static void *unix_conn_hquery(struct hvfs *hvfs, const void *type) {
-    struct unix_conn *obj = (struct unix_conn*)hvfs;
-    if(type == bsock_type) return &obj->bvfs;
-    if(type == unix_conn_type) return obj;
-    errno = ENOTSUP;
-    return NULL;
-}
-
 static void unix_conn_hclose(struct hvfs *hvfs) {
     struct unix_conn *obj = (struct unix_conn*)hvfs;
     int rc = fd_close(obj->fd);
@@ -126,6 +126,13 @@ struct unix_listener {
     struct hvfs hvfs;
     int fd;
 };
+
+static void *unix_listener_hquery(struct hvfs *hvfs, const void *type) {
+    struct unix_listener *obj = (struct unix_listener*)hvfs;
+    if(type == unix_listener_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
 
 int unix_listen(const char *addr, int backlog) {
     int err;
@@ -184,13 +191,6 @@ error2:
 error1:
     errno = err;
     return -1;
-}
-
-static void *unix_listener_hquery(struct hvfs *hvfs, const void *type) {
-    struct unix_listener *obj = (struct unix_listener*)hvfs;
-    if(type == unix_listener_type) return obj;
-    errno = ENOTSUP;
-    return NULL;
 }
 
 static void unix_listener_hclose(struct hvfs *hvfs) {

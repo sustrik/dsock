@@ -62,6 +62,14 @@ struct keepalive_vec {
     size_t iovlen;
 };
 
+static void *keepalive_hquery(struct hvfs *hvfs, const void *type) {
+    struct keepalive_sock *obj = (struct keepalive_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == keepalive_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
 int keepalive_start(int s, int64_t send_interval, int64_t recv_interval) {
     int rc;
     int err;
@@ -230,14 +238,6 @@ retry:;
         errno = EPROTO;
         return -1;
     }
-}
-
-static void *keepalive_hquery(struct hvfs *hvfs, const void *type) {
-    struct keepalive_sock *obj = (struct keepalive_sock*)hvfs;
-    if(type == msock_type) return &obj->mvfs;
-    if(type == keepalive_type) return obj;
-    errno = ENOTSUP;
-    return NULL;
 }
 
 static void keepalive_hclose(struct hvfs *hvfs) {

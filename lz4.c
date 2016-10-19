@@ -53,6 +53,14 @@ struct lz4_sock {
     LZ4F_decompressionContext_t dctx;
 };
 
+static void *lz4_hquery(struct hvfs *hvfs, const void *type) {
+    struct lz4_sock *obj = (struct lz4_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == lz4_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
 int lz4_start(int s) {
     int err;
     /* Check whether underlying socket is message-based. */
@@ -163,14 +171,6 @@ static ssize_t lz4_mrecvv(struct msock_vfs *mvfs,
     iov_copyallto(iov, iovlen, buf);
     free(buf);
     return dstlen;
-}
-
-static void *lz4_hquery(struct hvfs *hvfs, const void *type) {
-    struct lz4_sock *obj = (struct lz4_sock*)hvfs;
-    if(type == msock_type) return &obj->mvfs;
-    if(type == lz4_type) return obj;
-    errno = ENOTSUP;
-    return NULL;
 }
 
 static void lz4_hclose(struct hvfs *hvfs) {

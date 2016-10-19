@@ -49,6 +49,14 @@ struct pfx_sock {
     int rxerr;
 };
 
+static void *pfx_hquery(struct hvfs *hvfs, const void *type) {
+    struct pfx_sock *obj = (struct pfx_sock*)hvfs;
+    if(type == msock_type) return &obj->mvfs;
+    if(type == pfx_type) return obj;
+    errno = ENOTSUP;
+    return NULL;
+}
+
 int pfx_start(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hquery(s, bsock_type))) return -1;
@@ -133,14 +141,6 @@ static ssize_t pfx_mrecvv(struct msock_vfs *mvfs,
     rc = brecvv(obj->s, vec, veclen, deadline);
     if(dsock_slow(rc < 0)) {obj->rxerr = errno; return -1;}
     return sz;
-}
-
-static void *pfx_hquery(struct hvfs *hvfs, const void *type) {
-    struct pfx_sock *obj = (struct pfx_sock*)hvfs;
-    if(type == msock_type) return &obj->mvfs;
-    if(type == pfx_type) return obj;
-    errno = ENOTSUP;
-    return NULL;
 }
 
 static void pfx_hclose(struct hvfs *hvfs) {
