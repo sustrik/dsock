@@ -236,6 +236,9 @@ DSOCK_EXPORT int pfx_stop(
 
 DSOCK_EXPORT int crlf_start(
     int s);
+DSOCK_EXPORT int crlf_done(
+    int s,
+    int64_t deadline);
 DSOCK_EXPORT int crlf_stop(
     int s,
     int64_t deadline);

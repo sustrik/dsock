@@ -86,15 +86,29 @@ error:
     return -1;
 }
 
+int crlf_done(int s, int64_t deadline) {
+    struct crlf_sock *obj = hquery(s, crlf_type);
+    if(dsock_slow(!obj)) return -1;
+    if(dsock_slow(obj->txerr)) {errno = obj->txerr; return -1;}
+    /* Send termination message. */
+    int rc = bsend(obj->u, "\r\n", 2, deadline);
+    if(dsock_slow(rc < 0)) {obj->txerr = errno; return -1;}
+    obj->txerr = EPIPE;
+    return 0;
+}
+
 int crlf_stop(int s, int64_t deadline) {
     int err;
     struct crlf_sock *obj = hquery(s, crlf_type);
     if(dsock_slow(!obj)) return -1;
-    if(dsock_slow(obj->rxerr)) {err = obj->rxerr; goto error;}
-    if(dsock_slow(obj->txerr)) {err = obj->txerr; goto error;}
-    /* Send termination message. */
-    int rc = bsend(obj->u, "\r\n", 2, deadline);
-    if(dsock_slow(rc < 0)) {err = errno; goto error;}
+    /* Send the termination message. */
+    if(dsock_slow(obj->txerr != 0 && obj->txerr != EPIPE)) {
+        err = obj->txerr; goto error;}
+    if(obj->txerr == 0) {
+        int rc = bsend(obj->u, "\r\n", 2, deadline);
+        if(dsock_slow(rc < 0)) {err = errno; goto error;}
+    }
+    /* Drain incoming messages until termination message is received. */
     while(1) {
         int rc = crlf_mrecvv(&obj->mvfs, NULL, 0, deadline);
         if(rc < 0 && errno == EPIPE) break;
@@ -103,8 +117,8 @@ int crlf_stop(int s, int64_t deadline) {
     int u = obj->u;
     free(obj);
     return u;
-error:
-    rc = hclose(obj->u);
+error:;
+    int rc = hclose(obj->u);
     dsock_assert(rc == 0);
     free(obj);
     errno = err;
