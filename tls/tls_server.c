@@ -346,30 +346,6 @@ tls_accept_fds(struct tls *ctx, struct tls **cctx, int fd_read, int fd_write)
 }
 
 int
-tls_accept_cbs(struct tls *ctx, struct tls **cctx,
-    tls_read_cb read_cb, tls_write_cb write_cb, void *cb_arg)
-{
-	struct tls *conn_ctx;
-
-	if ((conn_ctx = tls_accept_common(ctx)) == NULL)
-		goto err;
-
-	if (tls_set_cbs(conn_ctx, read_cb, write_cb, cb_arg) != 0) {
-		tls_set_errorx(ctx, "callback registration failure");
-		goto err;
-	}
-
-	*cctx = conn_ctx;
-
-	return (0);
- err:
-	tls_free(conn_ctx);
-	*cctx = NULL;
-
-	return (-1);
-}
-
-int
 tls_handshake_server(struct tls *ctx)
 {
 	int ssl_ret;

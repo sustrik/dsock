@@ -121,10 +121,6 @@ struct tls {
 	X509 *ssl_peer_cert;
 
 	struct tls_conninfo *conninfo;
-
-	tls_read_cb read_cb;
-	tls_write_cb write_cb;
-	void *cb_arg;
 };
 
 struct tls_sni_ctx *tls_sni_ctx_new(void);
@@ -147,9 +143,6 @@ int tls_handshake_server(struct tls *ctx);
 int tls_config_load_file(struct tls_error *error, const char *filetype,
     const char *filename, char **buf, size_t *len);
 int tls_host_port(const char *hostport, char **host, char **port);
-
-int tls_set_cbs(struct tls *ctx,
-    tls_read_cb read_cb, tls_write_cb write_cb, void *cb_arg);
 
 int tls_error_set(struct tls_error *error, const char *fmt, ...)
     __attribute__((__format__ (printf, 2, 3)))

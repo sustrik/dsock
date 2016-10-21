@@ -75,7 +75,6 @@ libdsock_la_SOURCES += \
     btls.c \
     tls/tls.h \
     tls/tls.c \
-    tls/tls_bio_cb.c \
     tls/tls_client.c \
     tls/tls_config.c \
     tls/tls_conninfo.c \

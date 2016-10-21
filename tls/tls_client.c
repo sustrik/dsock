@@ -260,26 +260,6 @@ tls_connect_fds(struct tls *ctx, int fd_read, int fd_write,
 }
 
 int
-tls_connect_cbs(struct tls *ctx, tls_read_cb read_cb,
-    tls_write_cb write_cb, void *cb_arg, const char *servername)
-{
-	int rv = -1;
-
-	if (tls_connect_common(ctx, servername) != 0)
-		goto err;
-
-	if (tls_set_cbs(ctx, read_cb, write_cb, cb_arg) != 0) {
-		tls_set_errorx(ctx, "callback registration failure");
-		goto err;
-	}
-
-	rv = 0;
-
- err:
-	return (rv);
-}
-
-int
 tls_handshake_client(struct tls *ctx)
 {
 	X509 *cert = NULL;

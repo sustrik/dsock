@@ -450,10 +450,6 @@ tls_reset(struct tls *ctx)
 		tls_sni_ctx_free(sni);
 	}
 	ctx->sni_ctx = NULL;
-
-	ctx->read_cb = NULL;
-	ctx->write_cb = NULL;
-	ctx->cb_arg = NULL;
 }
 
 int
