@@ -15,3 +15,9 @@ William Ahern <william@25thandClement.com>
 Copyrights for LZ4 compression library in lz4 subdirectory are owned by:
 
 Yann Collet <cyan@fb.com> 
+
+Copyrights for TLS network library in tls subdirectory are listed in tls/AUTHORS.
+
+Copyrights for the m4 macro m4/check-libc.m4 is owned by:
+
+Brent Cook <bcook@openbsd.org>

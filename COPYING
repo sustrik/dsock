@@ -19,3 +19,6 @@ IN THE SOFTWARE.
 
 LZ4 compression library incorporated into this project is licensed under
 BSD 2-Clause license. See lz4/LICENSE.
+
+libtls library incorporated into this project is licensed under
+ISC license. See tls/LICENSE.

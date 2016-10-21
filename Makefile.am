@@ -70,12 +70,29 @@ libdsock_la_SOURCES = \
     tweetnacl/tweetnacl.h \
     tweetnacl/tweetnacl.c
 
+if HAVE_TLS
+libdsock_la_SOURCES += \
+    btls.c \
+    tls/tls.h \
+    tls/tls.c \
+    tls/tls_bio_cb.c \
+    tls/tls_client.c \
+    tls/tls_config.c \
+    tls/tls_conninfo.c \
+    tls/tls_internal.h \
+    tls/tls_peer.c \
+    tls/tls_server.c \
+    tls/tls_util.c \
+    tls/tls_verify.c
+endif
+
 libdsock_la_LDFLAGS = -no-undefined -version-info \
     @DSOCK_LIBTOOL_VERSION@
 
 libdsock_la_CFLAGS = \
     -fvisibility=hidden\
-    -DDSOCK_EXPORTS
+    -DDSOCK_EXPORTS \
+    -I$(top_srcdir)/tls
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = dsock.pc
@@ -91,6 +108,43 @@ noinst_PROGRAMS = \
     tutorial/step4 \
     tutorial/step5 \
     tutorial/step6
+
+################################################################################
+#  compatibility functions for internal libtls                                 #
+################################################################################
+
+if HAVE_TLS
+
+libdsock_la_SOURCES += tls/compat/openssl.c
+
+if !HAVE_EXPLICIT_BZERO
+libdsock_la_SOURCES += tls/compat/explicit_bzero.c
+endif
+
+if !HAVE_STRLCPY
+libdsock_la_SOURCES += tls/compat/strlcpy.c
+endif
+
+if !HAVE_REALLOCARRAY
+libdsock_la_SOURCES += tls/compat/reallocarray.c
+endif
+
+if !HAVE_ARC4RANDOM_BUF
+libdsock_la_SOURCES += tls/compat/arc4random.c
+libdsock_la_SOURCES += tls/compat/getentropy.c
+libdsock_la_SOURCES += tls/compat/arc4random_uniform.c
+endif
+
+noinst_HEADERS =
+	tls/tls.h \
+	tls/tls_internal.h \
+	tls/compat/arc4random.h \
+	tls/compat/arc4random_freebsd.h \
+	tls/compat/arc4random_linux.h \
+	tls/compat/arc4random_osx.h \
+	tls/compat/chacha_private.h
+
+endif
 
 ################################################################################
 #  automated tests                                                             #
@@ -112,6 +166,13 @@ check_PROGRAMS = \
     tests/keepalive \
     tests/fullstack \
     tests/iovec
+
+if HAVE_TLS
+
+check_PROGRAMS += \
+    tests/btls
+
+endif
 
 LDADD = libdsock.la
 

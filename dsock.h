@@ -312,7 +312,7 @@ DSOCK_EXPORT int nagle_stop(
 
 DSOCK_EXPORT int bthrottler_start(
     int s,
-    uint64_t send_throughput, 
+    uint64_t send_throughput,
     int64_t send_interval,
     uint64_t recv_throughput,
     int64_t recv_interval);
@@ -329,7 +329,7 @@ DSOCK_EXPORT int bthrottler_stop(
 
 DSOCK_EXPORT int mthrottler_start(
     int s,
-    uint64_t send_throughput, 
+    uint64_t send_throughput,
     int64_t send_interval,
     uint64_t recv_throughput,
     int64_t recv_interval);
@@ -348,6 +348,202 @@ DSOCK_EXPORT int keepalive_start(
     int64_t send_interval,
     int64_t recv_interval);
 DSOCK_EXPORT int keepalive_stop(
+    int s);
+
+/******************************************************************************/
+/*  TLS sockets                                                               */
+/******************************************************************************/
+
+#define DSOCK_BTLS_PROTO_BTLSV1_0         (1 << 1)
+#define DSOCK_BTLS_PROTO_BTLSV1_1         (1 << 2)
+#define DSOCK_BTLS_PROTO_BTLSV1_2         (1 << 3)
+#define DSOCK_BTLS_PROTO_BTLSV1 \
+	(DSOCK_BTLS_PROTO_BTLSV1_0|DSOCK_BTLS_PROTO_BTLSV1_1|DSOCK_BTLS_PROTO_BTLSV1_2)
+
+#define DSOCK_BTLS_PROTO_ALL     DSOCK_BTLS_PROTO_BTLSV1
+#define DSOCK_BTLS_PROTO_DEFAULT DSOCK_BTLS_PROTO_BTLSV1_2
+#define DSOCK_BTLS_PROTO_VALUE(x)         (x & 0xf)
+
+#define DSOCK_BTLS_FLAGS_RESERVED_0       (0 << 4) /* new TLS 1.3 */
+#define DSOCK_BTLS_FLAGS_RESERVED_1       (0 << 5) /* new TLS ver? */
+
+#define DSOCK_BTLS_PREFER_CIPHERS_CLIENT  (0 << 6) /* default */
+#define DSOCK_BTLS_PREFER_CIPHERS_SERVER  (1 << 6)
+#define DSOCK_BTLS_NO_VERIFY_CERT         (1 << 7)
+#define DSOCK_BTLS_NO_VERIFY_NAME         (1 << 8)
+#define DSOCK_BTLS_NO_VERIFY_TIME         (1 << 9)
+#define DSOCK_BTLS_VERIFY_CLIENT          (1 << 10)
+#define DSOCK_BTLS_VERIFY_CLIENT_OPTIONAL (1 << 11)
+#define DSOCK_BTLS_CLEAR_KEYS             (1 << 12)
+
+#define DSOCK_BTLS_DHEPARAMS_NONE         (0 << 13) /* default */
+#define DSOCK_BTLS_DHEPARAMS_AUTO         (1 << 13)
+#define DSOCK_BTLS_DHEPARAMS_LEGACY       (2 << 13)
+#define DSOCK_BTLS_DHEPARAMS_VALUE(x)     ((x >> 13) & 0x3)
+
+#define DSOCK_BTLS_ECDHECURVE_NONE        (1 << 15)
+#define DSOCK_BTLS_ECDHECURVE_AUTO        (0 << 15) /* default */
+#define DSOCK_BTLS_ECDHECURVE_SECP192R1   (2 << 15)
+#define DSOCK_BTLS_ECDHECURVE_SECP224R1   (3 << 15)
+#define DSOCK_BTLS_ECDHECURVE_SECP224K1   (4 << 15)
+#define DSOCK_BTLS_ECDHECURVE_SECP256R1   (5 << 15)
+#define DSOCK_BTLS_ECDHECURVE_SECP256K1   (6 << 15)
+#define DSOCK_BTLS_ECDHECURVE_SECP384R1   (7 << 15)
+#define DSOCK_BTLS_ECDHECURVE_SECP521R1   (8 << 15)
+#define DSOCK_BTLS_ECDHECURVE_VALUE(x)    ((x >> 15) & 0xf)
+
+#define DSOCK_BTLS_CIPHERS_DEFAULT        (1 << 19)
+#define DSOCK_BTLS_CIPHERS_SECURE         (1 << 19) /* default */
+#define DSOCK_BTLS_CIPHERS_COMPAT         (2 << 19)
+#define DSOCK_BTLS_CIPHERS_LEGACY         (3 << 19)
+#define DSOCK_BTLS_CIPHERS_INSECURE       (4 << 19)
+#define DSOCK_BTLS_CIPHERS_SPECIFIC       (5 << 19) /* see list below */
+#define DSOCK_BTLS_CIPHERS_VALUE(x)       ((x >> 19) & 0x7)
+
+#define DSOCK_BTLS_VERIFY_DEPTH_DEFAULT   (9 << 22)
+#define DSOCK_BTLS_VERIFY_DEPTH(X)        (X << 22)
+#define DSOCK_BTLS_VERIFY_DEPTH_MAX       (1 << 27)
+#define DSOCK_BTLS_CIPHERS_VALUE(x)       ((x >> 19) & 0x7)
+
+/* BTLS v1.2 ciphers */
+#define DSOCK_BTLS_CIPHERS_ECDHE_RSA_AES256_GCM_SHA384       (1ull <<  0)
+#define DSOCK_BTLS_CIPHERS_ECDHE_ECDSA_AES256_GCM_SHA384     (1ull <<  1)
+#define DSOCK_BTLS_CIPHERS_ECDHE_RSA_AES256_SHA384           (1ull <<  2)
+#define DSOCK_BTLS_CIPHERS_ECDHE_ECDSA_AES256_SHA384         (1ull <<  3)
+#define DSOCK_BTLS_CIPHERS_DHE_DSS_AES256_GCM_SHA384         (1ull <<  4)
+#define DSOCK_BTLS_CIPHERS_DHE_RSA_AES256_GCM_SHA384         (1ull <<  5)
+#define DSOCK_BTLS_CIPHERS_DHE_RSA_AES256_SHA256             (1ull <<  6)
+#define DSOCK_BTLS_CIPHERS_DHE_DSS_AES256_SHA256             (1ull <<  7)
+#define DSOCK_BTLS_CIPHERS_ECDHE_ECDSA_CHACHA20_POLY1305     (1ull <<  8)
+#define DSOCK_BTLS_CIPHERS_ECDHE_RSA_CHACHA20_POLY1305       (1ull <<  9)
+#define DSOCK_BTLS_CIPHERS_DHE_RSA_CHACHA20_POLY1305         (1ull << 10)
+#define DSOCK_BTLS_CIPHERS_ECDHE_ECDSA_CHACHA20_POLY1305_OLD (1ull << 11)
+#define DSOCK_BTLS_CIPHERS_ECDHE_RSA_CHACHA20_POLY1305_OLD   (1ull << 12)
+#define DSOCK_BTLS_CIPHERS_DHE_RSA_CHACHA20_POLY1305_OLD     (1ull << 13)
+#define DSOCK_BTLS_CIPHERS_DHE_RSA_CAMELLIA256_SHA256        (1ull << 14)
+#define DSOCK_BTLS_CIPHERS_DHE_DSS_CAMELLIA256_SHA256        (1ull << 15)
+#define DSOCK_BTLS_CIPHERS_ECDH_RSA_AES256_GCM_SHA384        (1ull << 16)
+#define DSOCK_BTLS_CIPHERS_ECDH_ECDSA_AES256_GCM_SHA384      (1ull << 17)
+#define DSOCK_BTLS_CIPHERS_ECDH_RSA_AES256_SHA384            (1ull << 18)
+#define DSOCK_BTLS_CIPHERS_ECDH_ECDSA_AES256_SHA384          (1ull << 18)
+#define DSOCK_BTLS_CIPHERS_AES256_GCM_SHA384                 (1ull << 19)
+#define DSOCK_BTLS_CIPHERS_AES256_SHA256                     (1ull << 20)
+#define DSOCK_BTLS_CIPHERS_CAMELLIA256_SHA256                (1ull << 21)
+#define DSOCK_BTLS_CIPHERS_ECDHE_RSA_AES128_GCM_SHA256       (1ull << 22)
+#define DSOCK_BTLS_CIPHERS_ECDHE_ECDSA_AES128_GCM_SHA256     (1ull << 23)
+#define DSOCK_BTLS_CIPHERS_ECDHE_RSA_AES128_SHA256           (1ull << 24)
+#define DSOCK_BTLS_CIPHERS_ECDHE_ECDSA_AES128_SHA256         (1ull << 25)
+#define DSOCK_BTLS_CIPHERS_DHE_DSS_AES128_GCM_SHA256         (1ull << 26)
+#define DSOCK_BTLS_CIPHERS_DHE_RSA_AES128_GCM_SHA256         (1ull << 27)
+#define DSOCK_BTLS_CIPHERS_DHE_RSA_AES128_SHA256             (1ull << 28)
+#define DSOCK_BTLS_CIPHERS_DHE_DSS_AES128_SHA256             (1ull << 29)
+#define DSOCK_BTLS_CIPHERS_DHE_RSA_CAMELLIA128_SHA256        (1ull << 30)
+#define DSOCK_BTLS_CIPHERS_DHE_DSS_CAMELLIA128_SHA256        (1ull << 31)
+#define DSOCK_BTLS_CIPHERS_ECDH_RSA_AES128_GCM_SHA256        (1ull << 32)
+#define DSOCK_BTLS_CIPHERS_ECDH_ECDSA_AES128_GCM_SHA256      (1ull << 33)
+#define DSOCK_BTLS_CIPHERS_ECDH_RSA_AES128_SHA256            (1ull << 34)
+#define DSOCK_BTLS_CIPHERS_ECDH_ECDSA_AES128_SHA256          (1ull << 35)
+#define DSOCK_BTLS_CIPHERS_AES128_GCM_SHA256                 (1ull << 36)
+#define DSOCK_BTLS_CIPHERS_AES128_SHA256                     (1ull << 37)
+#define DSOCK_BTLS_CIPHERS_CAMELLIA128_SHA256                (1ull << 38)
+
+#define DSOCK_BTLS_DEFAULT \
+    (DSOCK_BTLS_PROTO_DEFAULT| \
+     DSOCK_BTLS_DHEPARAMS_NONE| \
+     DSOCK_BTLS_ECDHECURVE_AUTO| \
+     DSOCK_BTLS_CIPHERS_DEFAULT| \
+     DSOCK_BTLS_VERIFY_DEPTH_DEFAULT| \
+     DSOCK_BTLS_PREFER_CIPHERS_SERVER| \
+     DSOCK_BTLS_CLEAR_KEYS)
+
+struct btls_kp {
+	const uint8_t *certmem;
+	size_t certlen;
+	const uint8_t *keymem;
+	size_t keylen;
+};
+
+struct btls_ca {
+    const char *path, *file;
+    const uint8_t *mem;
+    size_t len;
+};
+
+DSOCK_EXPORT uint8_t *btls_loadfile(
+    const char *file,
+    size_t *len,
+    char *password);
+DSOCK_EXPORT int btls_ca(
+    struct btls_ca *c,
+    const char *file,
+    const char *path,
+    const uint8_t *mem,
+    size_t len);
+DSOCK_EXPORT int btls_kp(
+    struct btls_kp *kp,
+    const uint8_t *cert,
+    size_t certlen,
+    const uint8_t *key,
+    size_t keylen);
+DSOCK_EXPORT const char *btls_error(
+    int s);
+DSOCK_EXPORT int btls_start_server(
+    int s,
+    uint64_t flags,
+    uint64_t ciphers,
+    struct btls_kp *kp,
+    size_t kplen,
+    struct btls_ca *ca,
+    const char *alpn);
+DSOCK_EXPORT int btls_start_accept(
+    int s,
+    int l);
+DSOCK_EXPORT int btls_start_client(
+    int s,
+    uint64_t flags,
+    uint64_t ciphers,
+    struct btls_ca *ca,
+    const char *alpn,
+    const char *servername);
+DSOCK_EXPORT int btls_start_client_kp(
+    int s,
+    uint64_t flags,
+    uint64_t ciphers,
+    struct btls_kp *kp,
+    size_t kplen,
+    struct btls_ca *ca,
+    const char *alpn,
+    const char *servername);
+DSOCK_EXPORT int btls_stop(
+    int s,
+    int64_t deadline);
+DSOCK_EXPORT void btls_reset(
+    int s);
+DSOCK_EXPORT int btls_handshake(
+    int s,
+    int64_t deadline);
+DSOCK_EXPORT int btls_peercertprovided(
+    int s);
+DSOCK_EXPORT int btls_peercertcontainsname(
+    int s,
+    const char *name);
+DSOCK_EXPORT const char *btls_peercerthash(
+    int s);
+DSOCK_EXPORT const char *btls_peercertissuer(
+    int s);
+DSOCK_EXPORT const char *btls_peercertsubject(
+    int s);
+DSOCK_EXPORT time_t btls_peercertnotbefore(
+    int s);
+DSOCK_EXPORT time_t btls_peercertnotafter(
+    int s);
+DSOCK_EXPORT const char *btls_connalpnselected(
+    int s);
+DSOCK_EXPORT const char *btls_conncipher(
+    int s);
+DSOCK_EXPORT const char *btls_connservername(
+    int s);
+DSOCK_EXPORT const char *btls_connversion(
     int s);
 
 #endif

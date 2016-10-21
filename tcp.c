@@ -30,6 +30,7 @@
 #include "dsock.h"
 #include "fd.h"
 #include "utils.h"
+#include "tcp.h"
 
 static int tcpmakeconn(int fd);
 
@@ -190,6 +191,14 @@ error2:
     dsock_assert(rc == 0);
 error1:
     errno = err;
+    return -1;
+}
+
+int tcp_fd(int s) {
+    struct tcp_listener *lst = hquery(s, tcp_listener_type);
+    if(lst) return lst->fd;
+    struct tcp_conn *conn = hquery(s, tcp_conn_type);
+    if(conn) return conn->fd;
     return -1;
 }
 
