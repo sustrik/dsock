@@ -23,6 +23,7 @@
 */
 
 #include <assert.h>
+#include <string.h>
 
 #include "../dsock.h"
 
@@ -72,6 +73,48 @@ int main() {
     int ts = pfx_stop(cs, -1);
     assert(ts >= 0);
     rc = hclose(ts);
+    assert(rc == 0);
+
+    int h[2];
+    rc = unix_pair(h);
+    assert(rc == 0);
+    int s0 = pfx_start(h[0]);
+    assert(s0 >= 0);
+    int s1 = pfx_start(h[1]);
+    assert(s1 >= 0);
+    rc = msend(s0, "First", 5, -1);
+    assert(rc == 0);
+    rc = msend(s0, "Second", 6, -1);
+    assert(rc == 0);
+    rc = msend(s0, "Third", 5, -1);
+    assert(rc == 0);
+    rc = pfx_done(s0, -1);
+    assert(rc == 0);
+    sz = mrecv(s1, buf, sizeof(buf), -1);
+    assert(sz == 5 && memcmp(buf, "First", 5) == 0);
+    sz = mrecv(s1, buf, sizeof(buf), -1);
+    assert(sz == 6 && memcmp(buf, "Second", 5) == 0);
+    sz = mrecv(s1, buf, sizeof(buf), -1);
+    assert(sz == 5 && memcmp(buf, "Third", 5) == 0);
+    sz = mrecv(s1, buf, sizeof(buf), -1);
+    assert(sz < 0 && errno == EPIPE);
+    rc = msend(s1, "Red", 3, -1);
+    assert(rc == 0);
+    rc = msend(s1, "Blue", 4, -1);
+    assert(rc == 0);
+    rc = pfx_stop(s1, -1);
+    assert(rc == h[1]);
+    sz = mrecv(s0, buf, sizeof(buf), -1);
+    assert(sz == 3 && memcmp(buf, "Red", 3) == 0);
+    sz = mrecv(s0, buf, sizeof(buf), -1);
+    assert(sz == 4 && memcmp(buf, "Blue", 4) == 0);
+    sz = mrecv(s0, buf, sizeof(buf), -1);
+    assert(sz < 0 && errno == EPIPE);
+    rc = pfx_stop(s0, -1);
+    assert(rc == h[0]);
+    rc = hclose(h[1]);
+    assert(rc == 0);
+    rc = hclose(h[0]);
     assert(rc == 0);
 
     return 0;

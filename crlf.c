@@ -110,9 +110,9 @@ int crlf_stop(int s, int64_t deadline) {
     }
     /* Drain incoming messages until termination message is received. */
     while(1) {
-        int rc = crlf_mrecvv(&obj->mvfs, NULL, 0, deadline);
-        if(rc < 0 && errno == EPIPE) break;
-        if(dsock_slow(rc < 0)) {err = errno; goto error;}
+        ssize_t sz = crlf_mrecvv(&obj->mvfs, NULL, 0, deadline);
+        if(sz < 0 && errno == EPIPE) break;
+        if(dsock_slow(sz < 0)) {err = errno; goto error;}
     }
     int u = obj->u;
     free(obj);
