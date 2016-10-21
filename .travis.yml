@@ -26,6 +26,7 @@ addons:
       - gcc-4.9
       - clang
       - openssl
+      - libssl-dev
 
 branches:
   only:
