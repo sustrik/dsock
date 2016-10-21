@@ -25,7 +25,7 @@ addons:
     packages:
       - gcc-4.9
       - clang
-      - openssl-1.0.2j
+      - openssl
 
 branches:
   only:
