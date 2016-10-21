@@ -70,10 +70,17 @@ AC_ARG_ENABLE([tls], [AS_HELP_STRING([--enable-tls],
 AM_CONDITIONAL([HAVE_TLS], [test "x$enable_tls" = xyes])
 if test "x$enable_tls" = "xyes"; then
     AC_DEFINE(HAVE_TLS)
-    AC_CHECK_LIB([ssl], [SSL_ctrl], [],
+    AC_CHECK_LIB([ssl], [SSL_ctrl ], [],
         AC_MSG_ERROR([libssl not found; install OpenSSL]))
     AC_CHECK_LIB([crypto], [BIO_read], [],
         AC_MSG_ERROR([libcrypto not found; install OpenSSL]))
+    # Compatibility checks for libtls integration
+    CHECK_LIBC_COMPAT
+    CHECK_CRYPTO_COMPAT
+
+    # Compatibility checks with OpenSSL implementation
+    AC_CHECK_FUNCS([SSL_CTX_set_alpn_protos SSL_get0_alpn_selected], [],
+        AC_MSG_ERROR([Incompatible OpenSSL; install OpenSSL>=1.0.2 or LibreSSL]))
 fi
 
 ################################################################################
@@ -97,11 +104,6 @@ AC_CHECK_FUNCS([dill_prologue])
 
 # SunOS has sockets in a separate library.
 AC_CHECK_LIB([socket], [socket])
-
-# Compatibility checks for libtls integration
-#CHECK_OS_OPTIONS
-CHECK_LIBC_COMPAT
-CHECK_CRYPTO_COMPAT
 
 ################################################################################
 #  Libtool                                                                     #
