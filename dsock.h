@@ -400,10 +400,10 @@ DSOCK_EXPORT int keepalive_stop(
 #define DSOCK_BTLS_CIPHERS_SPECIFIC       (5 << 19) /* see list below */
 #define DSOCK_BTLS_CIPHERS_VALUE(x)       ((x >> 19) & 0x7)
 
-#define DSOCK_BTLS_VERIFY_DEPTH_DEFAULT   (9 << 22)
+#define DSOCK_BTLS_VERIFY_DEPTH_DEFAULT   (6 << 22)
 #define DSOCK_BTLS_VERIFY_DEPTH(X)        (X << 22)
 #define DSOCK_BTLS_VERIFY_DEPTH_MAX       (1 << 27)
-#define DSOCK_BTLS_CIPHERS_VALUE(x)       ((x >> 19) & 0x7)
+#define DSOCK_BTLS_VERIFY_VALUE(x)        ((x >> 22) & 0x1f)
 
 /* BTLS v1.2 ciphers */
 #define DSOCK_BTLS_CIPHERS_ECDHE_RSA_AES256_GCM_SHA384       (1ull <<  0)

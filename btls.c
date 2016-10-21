@@ -675,7 +675,7 @@ static struct tls_config *btls_configure(uint64_t flags, uint64_t ciphers,
     }
     if(DSOCK_BTLS_VERIFY_DEPTH(flags) == 0)
         flags |= DSOCK_BTLS_VERIFY_DEPTH_DEFAULT;
-    tls_config_set_verify_depth(c, DSOCK_BTLS_VERIFY_DEPTH(flags));
+    tls_config_set_verify_depth(c, DSOCK_BTLS_VERIFY_VALUE(flags));
     if(flags & DSOCK_BTLS_PREFER_CIPHERS_SERVER)
         tls_config_prefer_ciphers_server(c);
     else
