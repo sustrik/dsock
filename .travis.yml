@@ -21,9 +21,11 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
+      - sourceline: 'ppa:ondrej/php'
     packages:
       - gcc-4.9
       - clang
+      - openssl-1.0.2j
 
 branches:
   only:
