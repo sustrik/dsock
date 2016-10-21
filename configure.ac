@@ -79,8 +79,8 @@ if test "x$enable_tls" = "xyes"; then
     CHECK_CRYPTO_COMPAT
 
     # Compatibility checks with OpenSSL implementation
-    AC_CHECK_FUNCS([SSL_CTX_set_alpn_protos SSL_get0_alpn_selected], [],
-        AC_MSG_ERROR([Incompatible OpenSSL; install OpenSSL>=1.0.2 or LibreSSL]))
+    # AC_CHECK_FUNCS([SSL_CTX_set_alpn_protos SSL_get0_alpn_selected], [],
+    #     AC_MSG_ERROR([Incompatible OpenSSL; install OpenSSL>=1.0.2 or LibreSSL]))
 fi
 
 ################################################################################
