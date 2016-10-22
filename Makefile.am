@@ -39,6 +39,7 @@ libdsock_la_SOURCES = \
     crlf.c \
     fd.h \
     fd.c \
+    http.c \
     iov.h \
     iov.c \
     ipaddr.c \
@@ -164,7 +165,8 @@ check_PROGRAMS = \
     tests/nacl \
     tests/keepalive \
     tests/fullstack \
-    tests/iovec
+    tests/iovec \
+    tests/http
 
 if HAVE_TLS
 

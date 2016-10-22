@@ -247,6 +247,53 @@ DSOCK_EXPORT int crlf_stop(
     int64_t deadline);
 
 /******************************************************************************/
+/*  HTTP                                                                      */
+/******************************************************************************/
+
+DSOCK_EXPORT int http_start(
+    int s);
+DSOCK_EXPORT int http_done(
+    int s,
+    int64_t deadline);
+DSOCK_EXPORT int http_stop(
+    int s,
+    int64_t deadline);
+DSOCK_EXPORT int http_sendrequest(
+    int s,
+    const char *command,
+    const char *resource,
+    int64_t deadline);
+DSOCK_EXPORT int http_recvrequest(
+    int s,
+    char *command,
+    size_t commandlen,
+    char *resource,
+    size_t resourcelen,
+    int64_t deadline);
+DSOCK_EXPORT int http_sendstatus(
+    int s,
+    int status,
+    const char *reason,
+    int64_t deadline);
+DSOCK_EXPORT int http_recvstatus(
+    int s,
+    char *reason,
+    size_t reasonlen,
+    int64_t deadline);
+DSOCK_EXPORT int http_sendfield(
+    int s,
+    const char *name,
+    const char *value,
+    int64_t deadline);
+DSOCK_EXPORT int http_recvfield(
+    int s,
+    char *name,
+    size_t namelen,
+    char *value,
+    size_t valuelen,
+    int64_t deadline);
+
+/******************************************************************************/
 /*  NaCl encryption and authentication protocol.                              */
 /*  Uses crypto_secretbox_xsalsa20poly1305 algorithm. Key is 32B long.        */
 /******************************************************************************/
