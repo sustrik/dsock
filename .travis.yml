@@ -21,9 +21,12 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
+      - sourceline: 'ppa:ondrej/php'
     packages:
       - gcc-4.9
       - clang
+      - openssl
+      - libssl-dev
 
 branches:
   only:
@@ -33,8 +36,8 @@ install:
   - wget http://libdill.org/libdill-0.8-beta.tar.gz
   - tar -xzf libdill-0.8-beta.tar.gz
   - pushd libdill-0.8-beta && ./configure --prefix=/usr && make && sudo make install && popd
-  - if [[ $CONF == "shared" ]]; then ./autogen.sh && ./configure && make; fi
-  - if [[ $CONF == "static" ]]; then ./autogen.sh && ./configure --disable-shared && make; fi
+  - if [[ $CONF == "shared" ]]; then ./autogen.sh && ./configure --enable-tls && make; fi
+  - if [[ $CONF == "static" ]]; then ./autogen.sh && ./configure --enable-tls --disable-shared && make; fi
 
 script:
   - make check

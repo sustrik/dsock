@@ -60,6 +60,30 @@ AC_PROG_CC_C99
 AM_PROG_CC_C_O
 
 ################################################################################
+#  --enable-tls                                                                #
+################################################################################
+
+AC_ARG_ENABLE([tls], [AS_HELP_STRING([--enable-tls],
+    [Enable TLS sockets [default=no]])])
+
+# TODO: check version
+AM_CONDITIONAL([HAVE_TLS], [test "x$enable_tls" = xyes])
+if test "x$enable_tls" = "xyes"; then
+    AC_DEFINE(HAVE_TLS)
+    AC_CHECK_LIB([ssl], [SSL_ctrl ], [],
+        AC_MSG_ERROR([libssl not found; install OpenSSL]))
+    AC_CHECK_LIB([crypto], [BIO_read], [],
+        AC_MSG_ERROR([libcrypto not found; install OpenSSL]))
+    # Compatibility checks for libtls integration
+    CHECK_LIBC_COMPAT
+    CHECK_CRYPTO_COMPAT
+
+    # Compatibility checks with OpenSSL implementation
+    AC_CHECK_FUNCS([SSL_CTX_set_alpn_protos SSL_get0_alpn_selected], [],
+        AC_MSG_ERROR([Incompatible OpenSSL; install OpenSSL>=1.0.2 or LibreSSL]))
+fi
+
+################################################################################
 #  --enable-debug                                                              #
 ################################################################################
 
