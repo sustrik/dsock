@@ -63,6 +63,10 @@ AM_PROG_CC_C_O
 #  --enable-tls                                                                #
 ################################################################################
 
+# Compatibility checks for libtls integration
+CHECK_LIBC_COMPAT
+CHECK_CRYPTO_COMPAT
+
 AC_ARG_ENABLE([tls], [AS_HELP_STRING([--enable-tls],
     [Enable TLS sockets [default=no]])])
 
@@ -74,9 +78,6 @@ if test "x$enable_tls" = "xyes"; then
         AC_MSG_ERROR([libssl not found; install OpenSSL]))
     AC_CHECK_LIB([crypto], [BIO_read], [],
         AC_MSG_ERROR([libcrypto not found; install OpenSSL]))
-    # Compatibility checks for libtls integration
-    CHECK_LIBC_COMPAT
-    CHECK_CRYPTO_COMPAT
 
     # Compatibility checks with OpenSSL implementation
     AC_CHECK_FUNCS([SSL_CTX_set_alpn_protos SSL_get0_alpn_selected], [],
