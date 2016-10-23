@@ -458,7 +458,53 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    between peers at 100ms, the entire initiation sequence would take one
    second.
 
-   TODO
+   To deal with this problem most protocols are not supposed to have
+   initial or terminal handshake of their own.  Instead, all parameters
+   the would be otherwise negotiated with the peer are passed as
+   arguments to the start function.  The stop function, on the other
+   hand, just flushes any unsent data and returns the underlying socket.
+
+   Note that this is exactly how unconnected protocols work.  There is
+   no difference between "unconnected sockets" and "sockets with a
+   conflated handshake".
+
+   The unconnected protocol should then live on top of the connected
+   protocol.  Parameter negotiation is performed before the top protocol
+   is initialized:
+
+       int tcps = tcp_connect("192.168.0.111:80");
+       /* Websockets is a connected protocol. */
+       int ws = websock_connect(tcps);
+       uint16_t compression_algoritm;
+       mrecv(ws, &compression_algorithm, 2, -1);
+       /* Compression socket is unconnected. */
+       int cs = compress_start(ws, compression_algorithm);
+
+   When one of the peers decides to close the connection it stops the
+   unconnected protocol on top.  That flushes any unsent data to the
+   underlying protocol.  Then it stops the connected protocol on the
+   bottom which performs the final handshake:
+
+       int ws = compress_stop(cs, -1);
+       int tcps = websock_stop(ws, -1);
+
+   On the side of the connection that haven't triggered the shutdown the
+   code looks very much the same, except that it is triggered by getting
+   EPIPE error from a receive function.
+
+   Important thing to note is that at this point both peers are in sync
+   with respect to where the protocol ends.  They can start a new
+   protocol on top of the same TCP connection without having to deal
+   with leftover data from previous communication.
+
+
+
+
+
+Sustrik                  Expires April 26, 2017                 [Page 9]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
 
 12.  Normal operation
 
@@ -495,17 +541,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    of sending and/or receiving unstructured data, be it TCP, IP or
    Ethernet.
 
-
-
-
-
-
-
-Sustrik                  Expires April 26, 2017                 [Page 9]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
 12.3.1.  Bytestream protocols
 
    Byte stream protocols are transport protocols that define no message
@@ -516,6 +551,16 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    TCP is a classic example of bytestream protocol.
 
    Bytestream protocols can be used via following four functions:
+
+
+
+
+
+
+Sustrik                  Expires April 26, 2017                [Page 10]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
 
        int bsend(int h, const void *buf, size_t len,
            int64_t deadline);
@@ -554,14 +599,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    Functions bsendv() and brecvv() MUST behave in the same way as
    bsend() and brecv(), the only difference being that buffers are
-
-
-
-Sustrik                  Expires April 26, 2017                [Page 10]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
    passed to the functions via scatter/gather arrays, same way as in
    POSIX sendmsg() and recvmsg() functions.
 
@@ -573,6 +610,13 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    different order than they were sent in) they are always atomic.  User
    will receive either complete message or no message.  IP, UDP and
    WebSockets are examples of message protocols.
+
+
+
+Sustrik                  Expires April 26, 2017                [Page 11]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
 
    Message protocols can be used via following four functions:
 
@@ -609,15 +653,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    error and the protocol must behave as described above, setting errno
    to EMSGSIZE.  If there's no way to discard the unread part of the
    message in constant time it SHOULD also mark the protocol as broken
-
-
-
-
-Sustrik                  Expires April 26, 2017                [Page 11]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
    and refuse any further operations.  This behaviour prevents DoS
    attack by sending very large messages.
 
@@ -631,6 +666,13 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    even in case of error.  However, what will be written into the buffer
    is unpredictable and using such data will result in undefined
    behaviour.
+
+
+
+Sustrik                  Expires April 26, 2017                [Page 12]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
 
    Functions msendv() and mrecvv() MUST behave in the same way as
    msend() and mrecv().  The only difference is that buffers are passed
@@ -665,15 +707,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    o  EMSGSIZE: Message is too large to fit into the supplied buffer.
       Only applies to mrecv() and mrecvv().
 
-
-
-
-
-Sustrik                  Expires April 26, 2017                [Page 12]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
    o  ENOTSUP: The socket does not support the function.  For example,
       msend() was called on a bytestream socket.
 
@@ -688,6 +721,14 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    protocols such as UDP.  However, a protocol that is agnostic about
    whether it is connected or not may get these errors from the
    underlying connection-based protocol and pass them to the user.
+
+
+
+
+Sustrik                  Expires April 26, 2017                [Page 13]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
 
    Connection-based protocols MAY treat some of the errors as
    unrecoverable.  In these cases any subsequent operation on the socket
@@ -721,15 +762,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
       nagle: batches outgoing data to improve performance
 
-
-
-
-
-Sustrik                  Expires April 26, 2017                [Page 13]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
       pfx: turns a bytestream protocol into message-based protocol by
       prefixing each message by its size
 
@@ -744,6 +776,15 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    And here's an example of how the microprotocols can be combined to
    achieve complex functionality:
+
+
+
+
+
+Sustrik                  Expires April 26, 2017                [Page 14]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
 
        /* Create a TCP connection. */
        h1 = tcp_connect(addr, -1);
@@ -778,23 +819,53 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    passed through it.  Nagle doesn't do anything with incoming data.
    Then, the bytes are parsed and converted into a message.  Keepalive
    layer doesn't do anything with the message itself, but it checks
-
-
-
-Sustrik                  Expires April 26, 2017                [Page 14]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
    whether there have been any messages in last 4 seconds and if not so
    it raises an error.  Finally, message is decrypted and authenticated
    at level 6 and decompressed at level 7.
 
-14.  IANA Considerations
+14.  Unresolved issues
+
+   This is a draft specification.  It still contains some unresolved
+   problems:
+
+   o  End users prefer to create full protocol stacks using a single
+      function.  For example, they would like websock_start() to create
+      a TCP connection and the WebSocket protocol on top of that.
+      Protocol designers, on the other hand, would prefer to split the
+      operation into two steps, so that they can layer WebSockets on top
+      of any bytestream protocol.  This can be solved by having two
+
+
+
+Sustrik                  Expires April 26, 2017                [Page 15]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
+      different protocols (TCP+WebSockets vs. stand-alone-WebSockets),
+      but that is likely to cause naming clashing and confuse the users.
+
+   o  Conflated protocol handshakes don't play well with two-phase
+      protocol shutdown (done+stop). "done" function on the underlying
+      connected protocol cannot be invoked because the socket in
+      question is still owned by the top level unconnected protocol.
+
+   o  There are bandwidth optimizations that can be made in unconnected
+      protocols if we knew that it's actually running on the top of a
+      connected protocol.  For example, unconnected encryption protocol
+      may have to put a nonce to every message.  However, if it knew it
+      was being used on top of a reliable transport protocol, such as
+      TPC, it could send the nonce once at the beginning of the
+      connection and then increment it by one for every message.  It is
+      not clear whether such optimization is worth doing given that with
+      bandwidth we are not facing any hard physical limits -- unlike
+      with latency which is limited by the speed of light.
+
+15.  IANA Considerations
 
    This memo includes no request to IANA.
 
-15.  Security Considerations
+16.  Security Considerations
 
    The security implications of the new API don't differ from security
    implications of classic BSD socket API.  Still, it may be worth
@@ -822,19 +893,4 @@ Author's Address
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Sustrik                  Expires April 26, 2017                [Page 15]
+Sustrik                  Expires April 26, 2017                [Page 16]

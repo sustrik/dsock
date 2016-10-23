@@ -360,7 +360,45 @@
          prohibitive. For example, with 10-layered stack of protocols
          and RTT between peers at 100ms, the entire initiation sequence would
          take one second.</t>
-      <t>TODO</t>
+      <t>To deal with this problem most protocols are not supposed to have
+         initial or terminal handshake of their own. Instead, all parameters
+         the would be otherwise negotiated with the peer are passed as arguments
+         to the start function. The stop function, on the other hand, just
+         flushes any unsent data and returns the underlying socket.</t>
+      <t>Note that this is exactly how unconnected protocols work. There is
+         no difference between "unconnected sockets" and "sockets with
+         a conflated handshake".</t>
+      <t>The unconnected protocol should then live on top of the connected
+         protocol. Parameter negotiation is performed before the top protocol
+         is initialized:</t>
+      <figure>
+        <artwork>
+    int tcps = tcp_connect("192.168.0.111:80");
+    /* Websockets is a connected protocol. */
+    int ws = websock_connect(tcps);
+    uint16_t compression_algoritm;
+    mrecv(ws, &amp;compression_algorithm, 2, -1);
+    /* Compression socket is unconnected. */
+    int cs = compress_start(ws, compression_algorithm);
+        </artwork>
+      </figure>
+      <t>When one of the peers decides to close the connection it stops the
+         unconnected protocol on top. That flushes any unsent data to the
+         underlying protocol. Then it stops the connected protocol on the bottom
+         which performs the final handshake:</t>
+      <figure>
+        <artwork>
+    int ws = compress_stop(cs, -1);
+    int tcps = websock_stop(ws, -1);
+        </artwork>
+      </figure>
+      <t>On the side of the connection that haven't triggered the shutdown
+         the code looks very much the same, except that it is triggered by
+         getting EPIPE error from a receive function.</t>
+      <t>Important thing to note is that at this point both peers are in sync
+         with respect to where the protocol ends. They can start a new protocol
+         on top of the same TCP connection without having to deal with leftover
+         data from previous communication.</t>
     </section>
 
     <section title="Normal operation">
@@ -609,6 +647,37 @@
          whether there have been any messages in last 4 seconds and if not so
          it raises an error. Finally, message is decrypted and authenticated at
          level 6 and decompressed at level 7.</t>
+    </section>
+
+    <section title="Unresolved issues">
+      <t>This is a draft specification. It still contains some unresolved
+         problems:
+        <list style="symbols">
+          <t>End users prefer to create full protocol stacks using a single
+             function. For example, they would like websock_start() to create
+             a TCP connection and the WebSocket protocol on top of that.
+             Protocol designers, on the other hand, would prefer to split the
+             operation into two steps, so that they can layer WebSockets on
+             top of any bytestream protocol. This can be solved by having two
+             different protocols (TCP+WebSockets vs. stand-alone-WebSockets),
+             but that is likely to cause naming clashing and confuse the users.
+             </t> 
+          <t>Conflated protocol handshakes don't play well with two-phase
+             protocol shutdown (done+stop). "done" function on the underlying
+             connected protocol cannot be invoked because the socket in question
+             is still owned by the top level unconnected protocol.</t>
+          <t>There are bandwidth optimizations that can be made in unconnected
+             protocols if we knew that it's actually running on the top of a
+             connected protocol. For example, unconnected encryption protocol
+             may have to put a nonce to every message. However, if it knew it
+             was being used on top of a reliable transport protocol, such as
+             TPC, it could send the nonce once at the beginning of the
+             connection and then increment it by one for every message.
+             It is not clear whether such optimization is worth doing given that
+             with bandwidth we are not facing any hard physical limits -- unlike
+             with latency which is limited by the speed of light.</t>
+        </list>
+      </t>
     </section>
 
     <section anchor="IANA" title="IANA Considerations">
