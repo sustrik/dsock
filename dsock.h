@@ -294,6 +294,21 @@ DSOCK_EXPORT int http_recvfield(
     int64_t deadline);
 
 /******************************************************************************/
+/*  WebSocket protocol.                                                       */
+/******************************************************************************/
+
+DSOCK_EXPORT int websock_client(
+    int s);
+DSOCK_EXPORT int websock_server(
+    int s);
+DSOCK_EXPORT int websock_done(
+    int s,
+    int64_t deadline);
+DSOCK_EXPORT int websock_stop(
+    int s,
+    int64_t deadline);
+
+/******************************************************************************/
 /*  NaCl encryption and authentication protocol.                              */
 /*  Uses crypto_secretbox_xsalsa20poly1305 algorithm. Key is 32B long.        */
 /******************************************************************************/

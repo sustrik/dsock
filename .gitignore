@@ -53,3 +53,4 @@ tests/keepalive
 tests/fullstack
 tests/iovec
 tests/http
+tests/websock

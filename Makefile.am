@@ -57,6 +57,7 @@ libdsock_la_SOURCES = \
     unix.c \
     utils.h \
     utils.c \
+    websock.c \
     dns/dns.h \
     dns/dns.c \
     lz4/lz4.h \
@@ -166,7 +167,8 @@ check_PROGRAMS = \
     tests/keepalive \
     tests/fullstack \
     tests/iovec \
-    tests/http
+    tests/http \
+    tests/websock
 
 if HAVE_TLS
 
