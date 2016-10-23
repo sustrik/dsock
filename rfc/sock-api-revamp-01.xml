@@ -666,16 +666,22 @@
              protocol shutdown (done+stop). "done" function on the underlying
              connected protocol cannot be invoked because the socket in question
              is still owned by the top level unconnected protocol.</t>
+          <t>Given that "stop" function is supposed to call "done" function if
+             it was not called beforehand by the user, any non-standard
+             arguments to "done" (e.g. status code, reason for shutdown)
+             have to be duplicated in "stop" function. Therefore, user
+             performing two-phase shutdown (done+stop) has to pass the same
+             arguments to the protocol API twice.</t>
           <t>There are bandwidth optimizations that can be made in unconnected
-             protocols if we knew that it's actually running on the top of a
+             protocol if it knew that it's actually running on the top of a
              connected protocol. For example, unconnected encryption protocol
              may have to put a nonce to every message. However, if it knew it
              was being used on top of a reliable transport protocol, such as
              TPC, it could send the nonce once at the beginning of the
              connection and then increment it by one for every message.
              It is not clear whether such optimization is worth doing given that
-             with bandwidth we are not facing any hard physical limits -- unlike
-             with latency which is limited by the speed of light.</t>
+             with bandwidth we are not facing any hard physical limits. (Unlike
+             with latency where we are limited by the speed of light.)</t>
         </list>
       </t>
     </section>
