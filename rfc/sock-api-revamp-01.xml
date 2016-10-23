@@ -354,6 +354,15 @@
 
     </section>
 
+    <section title="Conflating handshakes">
+      <t>With many protocols layered one on top of another the latency
+         introduced by many initial and/or terminal handshakes may become
+         prohibitive. For example, with 10-layered stack of protocols
+         and RTT between peers at 100ms, the entire initiation sequence would
+         take one second.</t>
+      <t>TODO</t>
+    </section>
+
     <section title="Normal operation">
       <t>Everything that happens between protocol initialization and protocol
          termination will be referred to as "normal operation".</t>
@@ -500,6 +509,38 @@
              as needed.</t>
           <t>Protocol implementors should try to make custom send/recv
              functions as consistent with msend/mrecv as possible.</t>
+        </section>
+
+        <section title="Error codes">
+          <t>Send and receive function may return following error codes:
+            <list style="symbols">
+              <t>EBADF: Bad file descriptor.</t>
+              <t>ECONNRESET: Connection broken. For example, a failure to
+                 receive a keepalive from the peer may result in this error.</t>
+              <t>EMSGSIZE: Message is too large to fit into the supplied buffer.
+                 Only applies to mrecv() and mrecvv().</t>
+              <t>ENOTSUP: The socket does not support the function. For example,
+                 msend() was called on a bytestream socket.</t>
+              <t>EPIPE: Connection was terminated in orderly fashion.</t>
+              <t>EPROTO: The peer has violated the protocol specification.</t>
+              <t>ETIMEDOUT: Deadline expired.</t>
+            </list>
+          </t>
+          <t>Some of the error codes (EPIPE, ECONNRESET) are applicable only
+             to connection-based protocols. They make no sense for unconnected
+             protocols such as UDP. However, a protocol that is agnostic about
+             whether it is connected or not may get these errors from the
+             underlying connection-based protocol and pass them to the user.</t>
+          <t>Connection-based protocols MAY treat some of the errors as
+             unrecoverable. In these cases any subsequent operation on the
+             socket MUST return same error.</t>
+          <t>The implementation SHOULD NOT go into great lengths to implement
+             recoverable errors. Instead, it should stick to the most natural
+             semantics of the protocol. For example, ETIMEDOUT and EMSGSIZE
+             may seem to be recoverable errors, however, the implementation
+             would have to allocate memory to temporarily store the message
+             which could in turn allow DoS attacks be sending large messages.
+             It may thus be preferable to make these errors unrecoverable.</t>
         </section>
 
       </section>

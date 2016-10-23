@@ -450,12 +450,22 @@ Sustrik                  Expires April 26, 2017                 [Page 8]
 Internet-Draft            BSD Socket API Revamp             October 2016
 
 
-11.  Normal operation
+11.  Conflating handshakes
+
+   With many protocols layered one on top of another the latency
+   introduced by many initial and/or terminal handshakes may become
+   prohibitive.  For example, with 10-layered stack of protocols and RTT
+   between peers at 100ms, the entire initiation sequence would take one
+   second.
+
+   TODO
+
+12.  Normal operation
 
    Everything that happens between protocol initialization and protocol
    termination will be referred to as "normal operation".
 
-11.1.  Application protocols
+12.1.  Application protocols
 
    Application protocols live on top of transport protocols.  Rather
    than passing raw data they are meant to perform a specific service
@@ -468,7 +478,7 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    From the point of view of this document, application protocol is
    always at the topmost level of the protocol stack.
 
-11.2.  Presentation protocols
+12.2.  Presentation protocols
 
    Presentation protocols add structure to data carried by transport
    protocols (e.g.  ASN.1, JSON, XML).  This proposal doesn't address
@@ -478,23 +488,13 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    browse the structured data in which case it is an application
    protocol.
 
-11.3.  Transport protocols
+12.3.  Transport protocols
 
    The term "transport protocol" in this memo has broader scope than
    "OSI L4 protocol".  By "transport protocol" we mean anything capable
    of sending and/or receiving unstructured data, be it TCP, IP or
    Ethernet.
 
-11.3.1.  Bytestream protocols
-
-   Byte stream protocols are transport protocols that define no message
-   boundaries.  One peer can send 10 bytes, then 8 bytes.  The peer can
-   read all 18 bytes at once or read first 12 bytes, then 6 bytes.
-   Bytestream protocols are always reliable (no bytes can be lost) and
-   ordered (bytes are received in the same order they were sent in).
-   TCP is a classic example of bytestream protocol.
-
-   Bytestream protocols can be used via following four functions:
 
 
 
@@ -505,6 +505,17 @@ Sustrik                  Expires April 26, 2017                 [Page 9]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
+
+12.3.1.  Bytestream protocols
+
+   Byte stream protocols are transport protocols that define no message
+   boundaries.  One peer can send 10 bytes, then 8 bytes.  The peer can
+   read all 18 bytes at once or read first 12 bytes, then 6 bytes.
+   Bytestream protocols are always reliable (no bytes can be lost) and
+   ordered (bytes are received in the same order they were sent in).
+   TCP is a classic example of bytestream protocol.
+
+   Bytestream protocols can be used via following four functions:
 
        int bsend(int h, const void *buf, size_t len,
            int64_t deadline);
@@ -543,17 +554,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
    Functions bsendv() and brecvv() MUST behave in the same way as
    bsend() and brecv(), the only difference being that buffers are
-   passed to the functions via scatter/gather arrays, same way as in
-   POSIX sendmsg() and recvmsg() functions.
-
-11.3.2.  Message protocols
-
-   Message protocols are transport protocols that preserve message
-   boundaries.  While message protocols are not necessarily reliable
-   (messages can be lost) or ordered (messages can be received in
-   different order than they were sent in) they are always atomic.  User
-   will receive either complete message or no message.  IP, UDP and
-   WebSockets are examples of message protocols.
 
 
 
@@ -561,6 +561,18 @@ Sustrik                  Expires April 26, 2017                [Page 10]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
+
+   passed to the functions via scatter/gather arrays, same way as in
+   POSIX sendmsg() and recvmsg() functions.
+
+12.3.2.  Message protocols
+
+   Message protocols are transport protocols that preserve message
+   boundaries.  While message protocols are not necessarily reliable
+   (messages can be lost) or ordered (messages can be received in
+   different order than they were sent in) they are always atomic.  User
+   will receive either complete message or no message.  IP, UDP and
+   WebSockets are examples of message protocols.
 
    Message protocols can be used via following four functions:
 
@@ -597,6 +609,15 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    error and the protocol must behave as described above, setting errno
    to EMSGSIZE.  If there's no way to discard the unread part of the
    message in constant time it SHOULD also mark the protocol as broken
+
+
+
+
+Sustrik                  Expires April 26, 2017                [Page 11]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
    and refuse any further operations.  This behaviour prevents DoS
    attack by sending very large messages.
 
@@ -611,19 +632,12 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    is unpredictable and using such data will result in undefined
    behaviour.
 
-
-
-Sustrik                  Expires April 26, 2017                [Page 11]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
-
    Functions msendv() and mrecvv() MUST behave in the same way as
    msend() and mrecv().  The only difference is that buffers are passed
    to the functions via scatter/gather arrays, same way as in POSIX
    sendmsg() and recvmsg() functions.
 
-11.3.3.  Custom sending and receiving
+12.3.3.  Custom sending and receiving
 
    In addition to send/recv functions described above, protocols MAY
    implement its own custom send/recv functions.  These functions should
@@ -639,7 +653,55 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    Protocol implementors should try to make custom send/recv functions
    as consistent with msend/mrecv as possible.
 
-12.  Examples
+12.3.4.  Error codes
+
+   Send and receive function may return following error codes:
+
+   o  EBADF: Bad file descriptor.
+
+   o  ECONNRESET: Connection broken.  For example, a failure to receive
+      a keepalive from the peer may result in this error.
+
+   o  EMSGSIZE: Message is too large to fit into the supplied buffer.
+      Only applies to mrecv() and mrecvv().
+
+
+
+
+
+Sustrik                  Expires April 26, 2017                [Page 12]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
+   o  ENOTSUP: The socket does not support the function.  For example,
+      msend() was called on a bytestream socket.
+
+   o  EPIPE: Connection was terminated in orderly fashion.
+
+   o  EPROTO: The peer has violated the protocol specification.
+
+   o  ETIMEDOUT: Deadline expired.
+
+   Some of the error codes (EPIPE, ECONNRESET) are applicable only to
+   connection-based protocols.  They make no sense for unconnected
+   protocols such as UDP.  However, a protocol that is agnostic about
+   whether it is connected or not may get these errors from the
+   underlying connection-based protocol and pass them to the user.
+
+   Connection-based protocols MAY treat some of the errors as
+   unrecoverable.  In these cases any subsequent operation on the socket
+   MUST return same error.
+
+   The implementation SHOULD NOT go into great lengths to implement
+   recoverable errors.  Instead, it should stick to the most natural
+   semantics of the protocol.  For example, ETIMEDOUT and EMSGSIZE may
+   seem to be recoverable errors, however, the implementation would have
+   to allocate memory to temporarily store the message which could in
+   turn allow DoS attacks be sending large messages.  It may thus be
+   preferable to make these errors unrecoverable.
+
+13.  Examples
 
    To give an example of microprotocols that can be implemented using
    proposed API, here's the list of what's implemented in the proof-of-
@@ -659,6 +721,15 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
       nagle: batches outgoing data to improve performance
 
+
+
+
+
+Sustrik                  Expires April 26, 2017                [Page 13]
+
+Internet-Draft            BSD Socket API Revamp             October 2016
+
+
       pfx: turns a bytestream protocol into message-based protocol by
       prefixing each message by its size
 
@@ -666,13 +737,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
 
       throttler: imposes a limit of amount of data that can be sent and/
       or recevied per second
-
-
-
-Sustrik                  Expires April 26, 2017                [Page 12]
-
-Internet-Draft            BSD Socket API Revamp             October 2016
-
 
       udp: wraps system implementation of UDP protocol
 
@@ -714,27 +778,23 @@ Internet-Draft            BSD Socket API Revamp             October 2016
    passed through it.  Nagle doesn't do anything with incoming data.
    Then, the bytes are parsed and converted into a message.  Keepalive
    layer doesn't do anything with the message itself, but it checks
-   whether there have been any messages in last 4 seconds and if not so
-   it raises an error.  Finally, message is decrypted and authenticated
-   at level 6 and decompressed at level 7.
 
 
 
-
-
-
-
-
-Sustrik                  Expires April 26, 2017                [Page 13]
+Sustrik                  Expires April 26, 2017                [Page 14]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
 
-13.  IANA Considerations
+   whether there have been any messages in last 4 seconds and if not so
+   it raises an error.  Finally, message is decrypted and authenticated
+   at level 6 and decompressed at level 7.
+
+14.  IANA Considerations
 
    This memo includes no request to IANA.
 
-14.  Security Considerations
+15.  Security Considerations
 
    The security implications of the new API don't differ from security
    implications of classic BSD socket API.  Still, it may be worth
@@ -777,8 +837,4 @@ Author's Address
 
 
 
-
-
-
-
-Sustrik                  Expires April 26, 2017                [Page 14]
+Sustrik                  Expires April 26, 2017                [Page 15]
