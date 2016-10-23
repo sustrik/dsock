@@ -45,7 +45,7 @@
          interoperability etc.) the technology itself creates a huge barrier
          to popular participation. For example, the fact that huge part of the
          networking stack typically lives in the kernel space will prevent most
-         people from even trying. More importantly though there's basically
+         people from even trying. More importantly though there is basically
          no way to reuse what already exists. While in JavaScript world you can
          get other people's libraries, quickly glue them together, add a bit of
          code of your own and publish a shiny new library, you can't do the same
@@ -113,20 +113,22 @@
            is started, reusing the same underlying protocol, very much like
            a function can call two nested functions in sequence without
            having to exit itself.</t>
-        <t>An example of horizontal composability is how WebSockets protocol
-           starts with the classic text-based HTTP protocol and then, at some
-           point, switches to a completely different binary protocol:</t>
+        <t>An example of horizontal composability is how typical web page is
+           trasferred by first doing HTTP handshake, followed by HTML body:</t>
         <figure>
           <artwork>
                +-----------------------------------+
-               |   HTTP   |       WebSockets       |
+               |   HTTP   |          HTML          |
                +----------+------------------------+
                |                TCP                |
                +-----------------------------------+
           </artwork>
         </figure>
-        <t>Another example is how STARTTLS switches non-encrypted protocol into
-           encrypted version of the same protocol.</t>
+        <t>Note how this design makes protocol reusable: Same HTTP handshake
+           can be used, for example, to initiate a WebSocket session.</t>
+        <t>Another example of horizontal composability is how STARTTLS switches
+           non-encrypted protocol into encrypted version of the same protocol.
+           </t>
         <t>While these are very visible cases of composing protocols
            horizontally, the technique is in fact ubiquitous. For example,
            most protocols are composed from three distinct mini-protocols:
@@ -149,7 +151,7 @@
       <t>During the decades since BSD sockets were first introduced the way they
          are used have changed significantly. While in the beginning the user
          was supposed to fork a new process for each connection and do all the
-         work using simple blocking calls nowadays the user is expected to keep
+         work using simple blocking calls nowadays they are expected to keep
          a pool of connections, check them via functions like poll() or kqueue()
          and dispatch any work to be done to one of the worker threads in
          a thread pool. In other words, user is supposed to do both network and
@@ -186,8 +188,11 @@
       <t>Therefore this specification allows user space implementations
          to use fake file descriptors (simple integers that kernel space
          knows nothing about) and does not guarantee that system functions
-         will work with those descriptors. For example, you cannot count
-         on POSIX close() function to be able to close a socket.</t>
+         will work with those descriptors.</t>
+      <t>For example, you cannot count on POSIX close() function to be able to
+         close a socket. Therefore, hclose() function is introduced which maps
+         directly to close() in kernel-space implementations but can be
+         overriden by custom implementation in a user-space implementation.</t>
     </section>
 
     <section title="Socket options">
@@ -217,7 +222,7 @@
          SHOULD contain both protocol name and action name.</t>
       <t>First argument of the function, where applicable, SHOULD be the file
          descriptor.</t>
-      <t>In all blocking functions the last argument should be the deadline.</t>
+      <t>In all blocking functions the last argument SHOULD be the deadline.</t>
     </section>
 
     <section title="Protocol initialization">
@@ -232,80 +237,121 @@
       <t>Some protocols require more complex setup. Consider TCP's
          listen/connect/accept connection setup process. These protocols should
          use custom set of functions rather than try to shoehorn all the
-         functionality into an all-purpose "start" function.</t>
+         functionality into one all-purpose "start" function.</t>
       <t>If protocol runs on top of an underlying protocol it takes ownership
          of that protocol. Using the low level protocol while it is owned by a
          higher level protocol will result in undefined behaviour.</t>
       <t>Example of creating a stack of four protocols:</t>
       <figure>
         <artwork>
-    int h1 = tcp_connect("192.168.0.111:5555");
-    int h2 = foo_start(h1, arg1, arg2, arg3);
-    int h3 = bar_start(h2);
-    int h4 = baz_start(h3, arg4, arg5);
+    int s1 = tcp_connect("192.168.0.111:5555");
+    int s2 = foo_start(s1, arg1, arg2, arg3);
+    int s3 = bar_start(s2);
+    int s4 = baz_start(s3, arg4, arg5);
         </artwork>
       </figure>
     </section>
 
     <section title="Protocol termination">
-      <t>Protocol descriptor is closed by hclose() function. In kernel-space
-         implementatios this function maps to standard POSIX close().
-         The protocol SHOULD shut down immediately without trying to do
-         termination handshake or similar. Note that this is different from how
-         BSD sockets behave.</t>
-      <t>The protocol MUST also clean up all resources it owns including
-         closing the underlying protocol. Given that the underlying protocol
-         does the same operation, an entire stack of protocols can be shut down
-         recursivelly by closing the file descriptor of the topmost
-         protocol:</t>
-      <figure>
-        <artwork>
-    int h1 = foo_start();
-    int h2 = bar_start(h1);
-    int h3 = baz_start(h2);
-    hclose(h3); /* baz, bar and foo are shut down */
-        </artwork>
-      </figure>
-      <t>To perform an orderly shut down there SHOULD be a protocol-specific
-         function called "stop". In addition to the file descriptor
-         the function can have arbitrary number of other arguments.</t>
-      <t>If the shut down functionality is potentially blocking (e.g. if it
-         requires a response from the peer) the last argument SHOULD be a
-         deadline.</t>
-      <t>If shut down function succeeds it SHOULD NOT close the underlying
-         protocol. Instead it SHOULD return its file descriptor. This is crucial
-         for horizontal composability of protocols:</t>
-      <figure>
-        <artwork>
-    /* create stack of two protocols */
-    h1 = foo_start();
-    h2 = bar_start(h1);
-    /* top protocol is closed but bottom one is still alive */
-    h1 = bar_stop(h2);
-    /* new top protocol is started */
-    h3 = baz_start(h1);
-    /* shut down both protocols */
-    h1 = baz_stop(h3);
-    foo_stop(h1);
-        </artwork>
-      </figure>
-      <t>The protocol may live at the very bottom of the stack and have no
-         underlying protocol. It can also be incapable of cleaning up after
-         itself, i.e. a new protocol initiated on top of the same underlying
-         protocol would have to deal with random leftover chunks of data.</t>
-      <t>In these cases the stop function SHOULD simply close the underlying
-         protocol and return 0.</t>
-      <t>In the case of error stop function SHOULD forcibly close the underying
-         protocol (and thus recursively all protocols beneath it), return -1 and
-         set errno to the appropriate value.</t>
-      <t>Note that this design does away with BSD socket SO_LINGER behaviour
-         which cannot be cleanly implemented in user space.</t>
-      <t>If the protocol has terminal handshake stop function should initiate
-         the handshake and block until it is finished.</t>
-      <t>If the termination request is received from the peer the receive
-         function MUST return EPIPE error. At that point user can't receive
-         more data but is still capable of sending a reply. Afterwards it can
-         finish the terminal handshake by calling the stop function.</t>
+
+      <section title="Forceful termination">
+        <t>Protocol descriptor is closed by hclose() function. In kernel-space
+           implementations this function maps to standard POSIX close().
+           The protocol MUST shut down immediately without trying to do
+           termination handshake or similar. Note that this is different from
+           how BSD sockets behave.</t>
+        <t>The protocol MUST also clean up all resources it owns including
+           closing the underlying protocol. Given that the underlying protocol
+           does the same operation, an entire stack of protocols can be shut
+           down recursivelly by closing the file descriptor of the topmost
+           protocol:</t>
+        <figure>
+          <artwork>
+      int h1 = foo_start();
+      int h2 = bar_start(h1);
+      int h3 = baz_start(h2);
+      hclose(h3); /* baz, bar and foo are shut down */
+          </artwork>
+        </figure>
+      </section>
+
+      <section title="Orderly termination without a handshake">
+        <t>To perform an orderly shut down there SHOULD be a protocol-specific
+           function called "stop". In addition to the file descriptor
+           the function can have arbitrary number of other arguments.</t>
+        <t>The function MUST flush any unsent data.</t>
+        <t>If the shut down functionality is potentially blocking the last
+           argument SHOULD be a deadline.</t>
+        <t>If stop function succeeds it SHOULD NOT close the underlying
+           protocol. Instead it SHOULD return its file descriptor. This is
+           crucial for horizontal composability of protocols:</t>
+        <figure>
+          <artwork>
+      /* create stack of two protocols */
+      h1 = foo_start();
+      h2 = bar_start(h1);
+      /* top protocol is closed but bottom one is still alive */
+      h1 = bar_stop(h2);
+      /* new top protocol is started */
+      h3 = baz_start(h1);
+      /* shut down both protocols */
+      h1 = baz_stop(h3);
+      foo_stop(h1);
+          </artwork>
+        </figure>
+        <t>The protocol may live at the very bottom of the stack and have no
+           underlying protocol. In that case the stop function returns 0 on
+           success.</t>
+        <t>In the case of error stop function MUST forcibly close the underying
+           protocol (and thus recursively all protocols beneath it), return -1
+           and set errno to the appropriate value.</t>
+      </section>
+
+      <section title="Orderly termination with a handshake">
+        <t>Protocols with terminal handshake SHOULD allow the user to take
+           control of the process by implementing "done" function in addition to
+           "stop" function. The former function should start the termination
+           handshake with the peer and return to the user without waiting for
+           the reply. After calling this function any attempt to send more
+           data MUST result in EPIPE error.</t>
+        <t>After calling done function the users can still receive data. When
+           termination handshake is completed by the peer and all the pending
+           data are received by the local peer recv function MUST return EPIPE
+           error.</t>
+        <t>Afterwards, stop function can be called to retrieve the underlying
+           socket:</t>
+        <figure>
+          <artwork>
+      /* Send HTTP request. */
+      t = tcp_connect("192.168.0.111:80");
+      s = crlf_start(t);
+      msend(s, "GET /foo HTTP/1.1", 17, -1);
+      msend(s, "name1: value1", 13, -1);
+      msend(s, "name2: value2", 13, -1);
+      crlf_done(s, -1);
+      /* Receive HTTP response. */
+      while(1) {
+          int rc = mrecv(s, buf, sizeof(buf), -1);
+          if(rc &lt; 0 &amp;&amp; errno == EPIPE) break;
+          ...
+      }
+      t = crlf_stop(s, -1);
+      /* Switch to HTML here. */
+      ...
+          </artwork>
+        </figure>
+        <t>Stop function must work correctly irrespective of whether done
+           function was called before or not. It must also work whether the user
+           received all the inbound data or not.</t>
+        <t>The implementation should therefore start termination handshake (if
+           not done already), then read and discard incoming data until
+           termination response from the peer is received. Finally, it should
+           deallocate the socket and return the underlying socket's file
+           descriptor.</t>
+        <t>Note that this design does away with BSD socket SO_LINGER behaviour
+           which cannot be cleanly implemented in user space.</t>
+      </section>
+
     </section>
 
     <section title="Normal operation">
