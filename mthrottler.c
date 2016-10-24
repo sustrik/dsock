@@ -26,7 +26,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "msock.h"
 #include "dsock.h"
 #include "utils.h"
 

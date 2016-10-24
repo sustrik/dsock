@@ -27,10 +27,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "bsock.h"
 #include "dsock.h"
 #include "iov.h"
-#include "msock.h"
 #include "utils.h"
 
 dsock_unique_id(websock_type);

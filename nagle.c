@@ -27,7 +27,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "bsock.h"
 #include "dsock.h"
 #include "iov.h"
 #include "utils.h"

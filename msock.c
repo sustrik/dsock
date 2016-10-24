@@ -22,7 +22,6 @@
 
 */
 
-#include "msock.h"
 #include "dsock.h"
 #include "utils.h"
 

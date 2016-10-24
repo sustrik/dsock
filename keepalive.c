@@ -29,7 +29,6 @@
 #include <sys/uio.h>
 
 #include "iov.h"
-#include "msock.h"
 #include "dsock.h"
 #include "utils.h"
 

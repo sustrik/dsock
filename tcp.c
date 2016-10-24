@@ -26,7 +26,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "bsock.h"
 #include "dsock.h"
 #include "fd.h"
 #include "utils.h"

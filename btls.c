@@ -29,13 +29,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "tls/tls.h"
 
 #include "dsock.h"
 #include "iov.h"
-#include "bsock.h"
-#include "utils.h"
 #include "tcp.h"
+#include "utils.h"
 
 static int btls_init();
 static struct tls_config *btls_configure(uint64_t flags, uint64_t ciphers,

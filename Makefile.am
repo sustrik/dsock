@@ -32,7 +32,6 @@ dsockinclude_HEADERS = dsock.h
 lib_LTLIBRARIES = libdsock.la
 
 libdsock_la_SOURCES = \
-    bsock.h \
     bsock.c \
     bthrottler.c \
     btrace.c \
@@ -45,7 +44,6 @@ libdsock_la_SOURCES = \
     ipaddr.c \
     keepalive.c \
     lz4.c \
-    msock.h \
     msock.c \
     mthrottler.c \
     mtrace.c \
