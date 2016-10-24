@@ -49,8 +49,8 @@ AC_SUBST(DSOCK_ABI_VERSION)
 AC_SUBST(DSOCK_PACKAGE_VERSION)
 AC_SUBST(DSOCK_LIBTOOL_VERSION)
 
-AC_MSG_NOTICE([Millsocks package version: $DSOCK_PACKAGE_VERSION])
-AC_MSG_NOTICE([Millsocks ABI version: $DSOCK_ABI_VERSION])
+AC_MSG_NOTICE([dsock package version: $DSOCK_PACKAGE_VERSION])
+AC_MSG_NOTICE([dsock ABI version: $DSOCK_ABI_VERSION])
 
 ################################################################################
 #  Check the compilers.                                                        #
