@@ -37,13 +37,13 @@ static int tcpmakeconn(int fd);
 /*  TCP connection socket                                                     */
 /******************************************************************************/
 
-dsock_unique_id(tcp_conn_type);
+dsock_unique_id(tcp_type);
 
-static void *tcp_conn_hquery(struct hvfs *hvfs, const void *type);
-static void tcp_conn_hclose(struct hvfs *hvfs);
-static int tcp_conn_bsendv(struct bsock_vfs *bvfs,
+static void *tcp_hquery(struct hvfs *hvfs, const void *type);
+static void tcp_hclose(struct hvfs *hvfs);
+static int tcp_bsendv(struct bsock_vfs *bvfs,
     const struct iovec *iov, size_t iovlen, int64_t deadline);
-static int tcp_conn_brecvv(struct bsock_vfs *bvfs,
+static int tcp_brecvv(struct bsock_vfs *bvfs,
     const struct iovec *iov, size_t iovlen, int64_t deadline);
 
 struct tcp_conn {
@@ -53,10 +53,10 @@ struct tcp_conn {
     struct fd_rxbuf rxbuf;
 };
 
-static void *tcp_conn_hquery(struct hvfs *hvfs, const void *type) {
+static void *tcp_hquery(struct hvfs *hvfs, const void *type) {
     struct tcp_conn *obj = (struct tcp_conn*)hvfs;
     if(type == bsock_type) return &obj->bvfs;
-    if(type == tcp_conn_type) return obj;
+    if(type == tcp_type) return obj;
     errno = ENOTSUP;
     return NULL;
 }
@@ -84,7 +84,7 @@ error1:
     return -1;
 }
 
-static int tcp_conn_bsendv(struct bsock_vfs *bvfs,
+static int tcp_bsendv(struct bsock_vfs *bvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct tcp_conn *obj = dsock_cont(bvfs, struct tcp_conn, bvfs);
     ssize_t sz = fd_send(obj->fd, iov, iovlen, deadline);
@@ -93,13 +93,13 @@ static int tcp_conn_bsendv(struct bsock_vfs *bvfs,
     return -1;
 }
 
-static int tcp_conn_brecvv(struct bsock_vfs *bvfs,
+static int tcp_brecvv(struct bsock_vfs *bvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct tcp_conn *obj = dsock_cont(bvfs, struct tcp_conn, bvfs);
     return fd_recv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
 }
 
-static void tcp_conn_hclose(struct hvfs *hvfs) {
+static void tcp_hclose(struct hvfs *hvfs) {
     struct tcp_conn *obj = (struct tcp_conn*)hvfs;
     int rc = fd_close(obj->fd);
     dsock_assert(rc == 0);
@@ -196,7 +196,7 @@ error1:
 int tcp_fd(int s) {
     struct tcp_listener *lst = hquery(s, tcp_listener_type);
     if(lst) return lst->fd;
-    struct tcp_conn *conn = hquery(s, tcp_conn_type);
+    struct tcp_conn *conn = hquery(s, tcp_type);
     if(conn) return conn->fd;
     return -1;
 }
@@ -217,10 +217,10 @@ static int tcpmakeconn(int fd) {
     /* Create the object. */
     struct tcp_conn *obj = malloc(sizeof(struct tcp_conn));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
-    obj->hvfs.query = tcp_conn_hquery;
-    obj->hvfs.close = tcp_conn_hclose;
-    obj->bvfs.bsendv = tcp_conn_bsendv;
-    obj->bvfs.brecvv = tcp_conn_brecvv;
+    obj->hvfs.query = tcp_hquery;
+    obj->hvfs.close = tcp_hclose;
+    obj->bvfs.bsendv = tcp_bsendv;
+    obj->bvfs.brecvv = tcp_brecvv;
     obj->fd = fd;
     fd_initrxbuf(&obj->rxbuf);
     /* Create the handle. */

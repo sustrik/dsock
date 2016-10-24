@@ -180,7 +180,7 @@ DSOCK_EXPORT ssize_t mrecvv(
 /*  TCP protocol.                                                             */
 /******************************************************************************/
 
-extern const void *tcp_conn_type;
+extern const void *tcp_type;
 extern const void *tcp_listener_type;
 
 DSOCK_EXPORT int tcp_listen(
@@ -198,7 +198,7 @@ DSOCK_EXPORT int tcp_connect(
 /*  UNIX protocol.                                                            */
 /******************************************************************************/
 
-extern const void *unix_conn_type;
+extern const void *unix_type;
 extern const void *unix_listener_type;
 
 DSOCK_EXPORT int unix_listen(

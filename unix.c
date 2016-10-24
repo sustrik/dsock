@@ -39,13 +39,13 @@ static int unixmakeconn(int fd);
 /*  UNIX connection socket                                                    */
 /******************************************************************************/
 
-dsock_unique_id(unix_conn_type);
+dsock_unique_id(unix_type);
 
-static void *unix_conn_hquery(struct hvfs *hvfs, const void *type);
-static void unix_conn_hclose(struct hvfs *hvfs);
-static int unix_conn_bsendv(struct bsock_vfs *bvfs,
+static void *unix_hquery(struct hvfs *hvfs, const void *type);
+static void unix_hclose(struct hvfs *hvfs);
+static int unix_bsendv(struct bsock_vfs *bvfs,
     const struct iovec *iov, size_t iovlen, int64_t deadline);
-static int unix_conn_brecvv(struct bsock_vfs *bvfs,
+static int unix_brecvv(struct bsock_vfs *bvfs,
     const struct iovec *iov, size_t iovlen, int64_t deadline);
 
 struct unix_conn {
@@ -55,10 +55,10 @@ struct unix_conn {
     struct fd_rxbuf rxbuf;
 };
 
-static void *unix_conn_hquery(struct hvfs *hvfs, const void *type) {
+static void *unix_hquery(struct hvfs *hvfs, const void *type) {
     struct unix_conn *obj = (struct unix_conn*)hvfs;
     if(type == bsock_type) return &obj->bvfs;
-    if(type == unix_conn_type) return obj;
+    if(type == unix_type) return obj;
     errno = ENOTSUP;
     return NULL;
 }
@@ -90,7 +90,7 @@ error1:
     return -1;
 }
 
-static int unix_conn_bsendv(struct bsock_vfs *bvfs,
+static int unix_bsendv(struct bsock_vfs *bvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct unix_conn *obj = dsock_cont(bvfs, struct unix_conn, bvfs);
     ssize_t sz = fd_send(obj->fd, iov, iovlen, deadline);
@@ -99,13 +99,13 @@ static int unix_conn_bsendv(struct bsock_vfs *bvfs,
     return -1;
 }
 
-static int unix_conn_brecvv(struct bsock_vfs *bvfs,
+static int unix_brecvv(struct bsock_vfs *bvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct unix_conn *obj = dsock_cont(bvfs, struct unix_conn, bvfs);
     return fd_recv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
 }
 
-static void unix_conn_hclose(struct hvfs *hvfs) {
+static void unix_hclose(struct hvfs *hvfs) {
     struct unix_conn *obj = (struct unix_conn*)hvfs;
     int rc = fd_close(obj->fd);
     dsock_assert(rc == 0);
@@ -251,10 +251,10 @@ static int unixmakeconn(int fd) {
     /* Create the object. */
     struct unix_conn *obj = malloc(sizeof(struct unix_conn));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
-    obj->hvfs.query = unix_conn_hquery;
-    obj->hvfs.close = unix_conn_hclose;
-    obj->bvfs.bsendv = unix_conn_bsendv;
-    obj->bvfs.brecvv = unix_conn_brecvv;
+    obj->hvfs.query = unix_hquery;
+    obj->hvfs.close = unix_hclose;
+    obj->bvfs.bsendv = unix_bsendv;
+    obj->bvfs.brecvv = unix_brecvv;
     obj->fd = fd;
     fd_initrxbuf(&obj->rxbuf);
     /* Create the handle. */
