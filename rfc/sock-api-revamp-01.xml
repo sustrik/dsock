@@ -362,9 +362,9 @@
          take one second.</t>
       <t>To deal with this problem most protocols are not supposed to have
          initial or terminal handshake of their own. Instead, all parameters
-         the would be otherwise negotiated with the peer are passed as arguments
-         to the start function. The stop function, on the other hand, just
-         flushes any unsent data and returns the underlying socket.</t>
+         that would otherwise be negotiated with the peer are passed as
+         arguments to the start function. The stop function, on the other hand,
+         just flushes any unsent data and returns the underlying socket.</t>
       <t>Note that this is exactly how unconnected protocols work. There is
          no difference between "unconnected sockets" and "sockets with
          a conflated handshake".</t>
