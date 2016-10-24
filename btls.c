@@ -217,7 +217,7 @@ static int btls_conn_brecvv(struct bsock_vfs *bvfs,
 static int btls_conn_create(int s, struct tls *t, struct tls_config *c,
       const char *servername) {
     /* Check whether underlying socket is a bytestream. */
-    if(dsock_slow(!hquery(s, tcp_conn_type))) return -1;
+    if(dsock_slow(!hquery(s, tcp_type))) return -1;
     struct btls_conn *obj = malloc(sizeof(struct btls_conn));
     obj->hvfs.query = btls_conn_hquery;
     obj->hvfs.close = btls_conn_hclose;
@@ -255,7 +255,7 @@ int btls_start_client_kp(int s, uint64_t flags, uint64_t ciphers,
     const char *emsg;
     if(btls_init()) return -1;
     /* Check whether underlying socket is a TCP socket. */
-    if(dsock_slow(!hquery(s, tcp_conn_type))) return -1;
+    if(dsock_slow(!hquery(s, tcp_type))) return -1;
     /* Generate configuration for the server. */
     c = btls_configure(flags, ciphers, kp, kplen, ca, alpn);
     if(!c) {errno = ENOMEM; goto error;}
@@ -376,7 +376,7 @@ error:
 
 int btls_start_accept(int s, int l) {
     /* Check whether underlying socket is a TCP socket. */
-    if(dsock_slow(!hquery(s, tcp_conn_type))) return -1;
+    if(dsock_slow(!hquery(s, tcp_type))) return -1;
     /* Check whether passed socket is a configured btls. */
     struct btls_listener *listener = hquery(l, btls_listener_type);
     if(dsock_slow(!listener)) return -1;
