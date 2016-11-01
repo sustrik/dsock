@@ -35,7 +35,7 @@ branches:
 install:
   - wget http://libdill.org/libdill-0.8-beta.tar.gz
   - tar -xzf libdill-0.8-beta.tar.gz
-  - pushd libdill-0.8-beta && ./configure --prefix=/usr && make && sudo make install && popd
+  - pushd libdill-0.8-beta && ./configure && make && sudo make install && popd
   - if [[ $CONF == "shared" ]]; then ./autogen.sh && ./configure --enable-tls && make; fi
   - if [[ $CONF == "static" ]]; then ./autogen.sh && ./configure --enable-tls --disable-shared && make; fi
 
