@@ -185,7 +185,7 @@ int unix_accept(int s, int64_t deadline) {
     if(dsock_slow(h < 0)) {err = errno; goto error2;}
     return h;
 error2:
-    rc = fd_close(s);
+    rc = fd_close(as);
     dsock_assert(rc == 0);
 error1:
     errno = err;
