@@ -50,6 +50,7 @@ libdsock_la_SOURCES = \
     nacl.c \
     nagle.c \
     pfx.c \
+    tcp.h \
     tcp.c \
     udp.c \
     unix.c \
