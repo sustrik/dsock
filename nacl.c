@@ -89,7 +89,7 @@ int nacl_start(int s, const void *key, size_t keylen, int64_t deadline) {
         deadline); 
     if(dsock_slow(rc != 0)) {err = errno; goto error2;}
     /* Create the handle. */
-    int h = hcreate(&obj->hvfs);
+    int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}
     return h;
 error2:

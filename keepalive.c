@@ -99,7 +99,7 @@ int keepalive_start(int s, int64_t send_interval, int64_t recv_interval) {
     obj->last_recv = now();
     obj->err = 0;
     /* Create the handle. */
-    int h = hcreate(&obj->hvfs);
+    int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error5;}
     return h;
 error5:

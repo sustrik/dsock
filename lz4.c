@@ -79,7 +79,7 @@ int lz4_start(int s) {
     size_t ec = LZ4F_createDecompressionContext(&obj->dctx, LZ4F_VERSION);
     if(dsock_slow(LZ4F_isError(ec))) {err = EFAULT; goto error2;}
     /* Create the handle. */
-    int h = hcreate(&obj->hvfs);
+    int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error3;}
     return h;
 error3:

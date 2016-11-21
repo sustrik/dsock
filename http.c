@@ -64,7 +64,7 @@ int http_start(int s) {
     obj->s = -1;
     obj->rxerr = 0;
     /* Create the handle. */
-    int h = hcreate(&obj->hvfs);
+    int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}
     /* Wrap the underlying socket into CRLF protocol. */
     obj->s = crlf_start(s);

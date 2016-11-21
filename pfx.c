@@ -69,7 +69,7 @@ int pfx_start(int s) {
     obj->txerr = 0;
     obj->rxerr = 0;
     /* Create the handle. */
-    int h = hcreate(&obj->hvfs);
+    int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {
         int err = errno;
         free(obj);

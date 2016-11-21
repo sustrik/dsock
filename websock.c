@@ -73,7 +73,7 @@ static int websock_start(int s, int client) {
     obj->rxerr = 0;
     obj->client = client;
     /* Create the handle. */
-    int h = hcreate(&obj->hvfs);
+    int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {
         int err = errno;
         free(obj);

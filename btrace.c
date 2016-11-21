@@ -69,7 +69,7 @@ int btrace_start(int s) {
     obj->bvfs.brecvv = btrace_brecvv;
     obj->s = s;
     /* Create the handle. */
-    int h = hcreate(&obj->hvfs);
+    int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {
         int err = errno;
         free(obj);

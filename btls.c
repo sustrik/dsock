@@ -232,7 +232,7 @@ static int btls_conn_create(int s, struct tls *t, struct tls_config *c,
     obj->rxbuf.len = 0;
     obj->rxbuf.pos = 0;
     /* Create the handle. */
-    int h = hcreate(&obj->hvfs);
+    int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {
         int err = errno;
         free(obj);
@@ -330,7 +330,7 @@ static int btls_listener_create(int s, struct tls *tls, struct tls_config *c,
     obj->c = c;
     obj->fd = tcp_fd(s);
     /* Create the handle. */
-    int h = hcreate(&obj->hvfs);
+    int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {
         int err = errno;
         free(obj);

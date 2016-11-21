@@ -95,7 +95,7 @@ int udp_socket(ipaddr *local, const ipaddr *remote) {
     obj->hasremote = remote ? 1 : 0;
     if(remote) obj->remote = *remote;
     /* Create the handle. */
-    int h = hcreate(&obj->hvfs);
+    int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error3;}
     return h;
 error3:

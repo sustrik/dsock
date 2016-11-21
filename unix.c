@@ -157,7 +157,7 @@ int unix_listen(const char *addr, int backlog) {
     obj->hvfs.close = unix_listener_hclose;
     obj->fd = s;
     /* Create handle. */
-    int h = hcreate(&obj->hvfs);
+    int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error3;}
     return h;
 error3:
@@ -258,7 +258,7 @@ static int unixmakeconn(int fd) {
     obj->fd = fd;
     fd_initrxbuf(&obj->rxbuf);
     /* Create the handle. */
-    int h = hcreate(&obj->hvfs);
+    int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}
     return h;
 error2:
