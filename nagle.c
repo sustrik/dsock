@@ -109,6 +109,10 @@ error1:
     return -1;
 }
 
+int nagle_done(int s, int64_t deadline) {
+    dsock_assert(0);
+}
+
 int nagle_stop(int s, int64_t deadline) {
     struct nagle_sock *obj = hquery(s, nagle_type);
     if(dsock_slow(!obj)) return -1;

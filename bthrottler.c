@@ -103,6 +103,10 @@ int bthrottler_start(int s,
     return h;
 }
 
+int bthrottler_done(int s) {
+    dsock_assert(0);
+}
+
 int bthrottler_stop(int s) {
     struct bthrottler_sock *obj = hquery(s, bthrottler_type);
     if(dsock_slow(!obj)) return -1;

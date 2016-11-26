@@ -99,6 +99,10 @@ error1:
     return -1;
 }
 
+int nacl_done(int s) {
+    dsock_assert(0);
+}
+
 int nacl_stop(int s) {
     struct nacl_sock *obj = hquery(s, nacl_type);
     if(dsock_slow(!obj)) return -1;

@@ -193,6 +193,9 @@ DSOCK_EXPORT int tcp_accept(
 DSOCK_EXPORT int tcp_connect(
     const ipaddr *addr,
     int64_t deadline);
+DSOCK_EXPORT int tcp_done(
+    int s,
+    int64_t deadline);
 
 /******************************************************************************/
 /*  UNIX protocol.                                                            */
@@ -209,6 +212,9 @@ DSOCK_EXPORT int unix_accept(
     int64_t deadline);
 DSOCK_EXPORT int unix_connect(
     const char *addr,
+    int64_t deadline);
+DSOCK_EXPORT int unix_done(
+    int s,
     int64_t deadline);
 DSOCK_EXPORT int unix_pair(
     int s[2]);
@@ -355,6 +361,8 @@ DSOCK_EXPORT int nacl_start(
     const void *key,
     size_t keylen,
     int64_t deadline);
+DSOCK_EXPORT int nacl_done(
+    int s);
 DSOCK_EXPORT int nacl_stop(
     int s);
 
@@ -366,6 +374,8 @@ DSOCK_EXPORT int nacl_stop(
 extern const void *lz4_type;
 
 DSOCK_EXPORT int lz4_start(
+    int s);
+DSOCK_EXPORT int lz4_done(
     int s);
 DSOCK_EXPORT int lz4_stop(
     int s);
@@ -379,6 +389,8 @@ extern const void *btrace_type;
 
 DSOCK_EXPORT int btrace_start(
     int s);
+DSOCK_EXPORT int btrace_done(
+    int s);
 DSOCK_EXPORT int btrace_stop(
     int s);
 
@@ -390,6 +402,8 @@ DSOCK_EXPORT int btrace_stop(
 extern const void *mtrace_type;
 
 DSOCK_EXPORT int mtrace_start(
+    int s);
+DSOCK_EXPORT int mtrace_done(
     int s);
 DSOCK_EXPORT int mtrace_stop(
     int s);
@@ -406,6 +420,9 @@ DSOCK_EXPORT int nagle_start(
     int s,
     size_t batch,
     int64_t interval);
+DSOCK_EXPORT int nagle_done(
+    int s,
+    int64_t deadline);
 DSOCK_EXPORT int nagle_stop(
     int s, int64_t deadline);
 
@@ -425,6 +442,8 @@ DSOCK_EXPORT int bthrottler_start(
     int64_t send_interval,
     uint64_t recv_throughput,
     int64_t recv_interval);
+DSOCK_EXPORT int bthrottler_done(
+    int s);
 DSOCK_EXPORT int bthrottler_stop(
     int s);
 
@@ -444,6 +463,8 @@ DSOCK_EXPORT int mthrottler_start(
     int64_t send_interval,
     uint64_t recv_throughput,
     int64_t recv_interval);
+DSOCK_EXPORT int mthrottler_done(
+    int s);
 DSOCK_EXPORT int mthrottler_stop(
     int s);
 
@@ -460,6 +481,8 @@ DSOCK_EXPORT int keepalive_start(
     int s,
     int64_t send_interval,
     int64_t recv_interval);
+DSOCK_EXPORT int keepalive_done(
+    int s);
 DSOCK_EXPORT int keepalive_stop(
     int s);
 

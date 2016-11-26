@@ -80,6 +80,10 @@ int btrace_start(int s) {
     return h;
 }
 
+int btrace_done(int s) {
+    dsock_assert(0);
+}
+
 int btrace_stop(int s) {
     struct btrace_sock *obj = hquery(s, btrace_type);
     if(dsock_slow(!obj)) return -1;
