@@ -678,11 +678,7 @@
              top of any bytestream protocol. This can be solved by having two
              different protocols (TCP+WebSockets vs. stand-alone-WebSockets),
              but that is likely to cause naming clashing and confuse the users.
-             </t> 
-          <t>Conflated protocol handshakes don't play well with two-phase
-             protocol shutdown (done+stop). "done" function on the underlying
-             connected protocol cannot be invoked because the socket in question
-             is still owned by the top level unconnected protocol.</t>
+             </t>
           <t>Given that "stop" function is supposed to call "done" function if
              it was not called beforehand by the user, any non-standard
              arguments to "done" (e.g. status code, reason for shutdown)

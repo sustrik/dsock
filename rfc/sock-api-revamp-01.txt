@@ -872,11 +872,6 @@ Internet-Draft            BSD Socket API Revamp             October 2016
       different protocols (TCP+WebSockets vs. stand-alone-WebSockets),
       but that is likely to cause naming clashing and confuse the users.
 
-   o  Conflated protocol handshakes don't play well with two-phase
-      protocol shutdown (done+stop). "done" function on the underlying
-      connected protocol cannot be invoked because the socket in
-      question is still owned by the top level unconnected protocol.
-
    o  Given that "stop" function is supposed to call "done" function if
       it was not called beforehand by the user, any non-standard
       arguments to "done" (e.g. status code, reason for shutdown) have
@@ -890,6 +885,11 @@ Internet-Draft            BSD Socket API Revamp             October 2016
       may have to put a nonce to every message.  However, if it knew it
       was being used on top of a reliable transport protocol, such as
       TPC, it could send the nonce once at the beginning of the
+      connection and then increment it by one for every message.  It is
+      not clear whether such optimization is worth doing given that with
+      bandwidth we are not facing any hard physical limits.  (Unlike
+      with latency where we are limited by the speed of light.)
+
 
 
 
@@ -897,11 +897,6 @@ Sustrik                   Expires April 4, 2017                [Page 16]
 
 Internet-Draft            BSD Socket API Revamp             October 2016
 
-
-      connection and then increment it by one for every message.  It is
-      not clear whether such optimization is worth doing given that with
-      bandwidth we are not facing any hard physical limits.  (Unlike
-      with latency where we are limited by the speed of light.)
 
 14.  IANA Considerations
 
@@ -918,6 +913,11 @@ Author's Address
    Martin Sustrik (editor)
 
    Email: sustrik@250bpm.com
+
+
+
+
+
 
 
 
