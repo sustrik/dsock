@@ -244,7 +244,7 @@
       <t>Example of creating a stack of four protocols:</t>
       <figure>
         <artwork>
-    int s1 = tcp_connect("192.168.0.111:5555");
+    int s1 = tcp_connect("192.168.0.111:5555", -1);
     int s2 = foo_start(s1, arg1, arg2, arg3);
     int s3 = bar_start(s2);
     int s4 = baz_start(s3, arg4, arg5);
@@ -256,10 +256,10 @@
 
       <section title="Forceful termination">
         <t>Protocol descriptor is closed by hclose() function. In kernel-space
-           implementations this function maps to standard POSIX close().
-           The protocol MUST shut down immediately without trying to do
-           termination handshake or similar. Note that this is different from
-           how BSD sockets behave.</t>
+           implementations this function maps directly to standard POSIX
+           close() function. The protocol MUST shut down immediately without
+           trying to do termination handshake or similar. Note that this is
+           different from how BSD sockets behave.</t>
         <t>The protocol MUST also clean up all resources it owns including
            closing the underlying protocol. Given that the underlying protocol
            does the same operation, an entire stack of protocols can be shut
@@ -275,10 +275,11 @@
         </figure>
       </section>
 
-      <section title="Orderly termination without a handshake">
+      <section title="Orderly termination">
         <t>To perform an orderly shut down there SHOULD be a protocol-specific
            function called "stop". In addition to the file descriptor
-           the function can have arbitrary number of other arguments.</t>
+           the function can have arbitrary number of other arguments
+           (for example a shutdown reason string to be sent to the peer).</t>
         <t>The function MUST flush any unsent data.</t>
         <t>If the shut down functionality is potentially blocking the last
            argument SHOULD be a deadline.</t>
@@ -291,12 +292,12 @@
       h1 = foo_start();
       h2 = bar_start(h1);
       /* top protocol is closed but bottom one is still alive */
-      h1 = bar_stop(h2);
+      h1 = bar_stop(h2, -1);
       /* new top protocol is started */
       h3 = baz_start(h1);
       /* shut down both protocols */
-      h1 = baz_stop(h3);
-      foo_stop(h1);
+      h1 = baz_stop(h3, -1);
+      foo_stop(h1, -1);
           </artwork>
         </figure>
         <t>The protocol may live at the very bottom of the stack and have no
@@ -305,54 +306,13 @@
         <t>In the case of error stop function MUST forcibly close the underying
            protocol (and thus recursively all protocols beneath it), return -1
            and set errno to the appropriate value.</t>
-      </section>
-
-      <section title="Orderly termination with a handshake">
-        <t>Protocols with terminal handshake SHOULD allow the user to take
-           control of the process by implementing "done" function in addition to
-           "stop" function. The former function should start the termination
-           handshake with the peer and return to the user without waiting for
-           the reply. After calling this function any attempt to send more
-           data MUST result in EPIPE error.</t>
-        <t>After calling done function the users can still receive data. When
-           termination handshake is completed by the peer and all the pending
-           data are received by the local peer recv function MUST return EPIPE
-           error.</t>
-        <t>Afterwards, stop function can be called to retrieve the underlying
-           socket:</t>
-        <figure>
-          <artwork>
-      /* Send HTTP request. */
-      t = tcp_connect("192.168.0.111:80");
-      s = crlf_start(t);
-      msend(s, "GET /foo HTTP/1.1", 17, -1);
-      msend(s, "name1: value1", 13, -1);
-      msend(s, "name2: value2", 13, -1);
-      crlf_done(s, -1);
-      /* Receive HTTP response. */
-      while(1) {
-          int rc = mrecv(s, buf, sizeof(buf), -1);
-          if(rc &lt; 0 &amp;&amp; errno == EPIPE) break;
-          ...
-      }
-      t = crlf_stop(s, -1);
-      /* Switch to HTML here. */
-      ...
-          </artwork>
-        </figure>
-        <t>Stop function must work correctly irrespective of whether done
-           function was called before or not. It must also work whether the user
-           received all the inbound data or not.</t>
-        <t>The implementation should therefore start termination handshake (if
-           not done already), then read and discard incoming data until
-           termination response from the peer is received. Finally, it should
-           deallocate the socket and return the underlying socket's file
-           descriptor.</t>
+        <t>On the conceptual level, successfull invocation of "stop" function
+           means that both local and remote endpoints agree that the protocol
+           is finished and guarantee that no leftover data from the protocol
+           will be delivered in the future.</t>
         <t>Note that this design does away with BSD socket SO_LINGER behaviour
            which cannot be cleanly implemented in user space.</t>
       </section>
-
-    </section>
 
     <section title="Conflating handshakes">
       <t>With many protocols layered one on top of another the latency
@@ -367,19 +327,21 @@
          just flushes any unsent data and returns the underlying socket.</t>
       <t>Note that this is exactly how unconnected protocols work. There is
          no difference between "unconnected sockets" and "sockets with
-         a conflated handshake".</t>
-      <t>The unconnected protocol should then live on top of the connected
-         protocol. Parameter negotiation is performed before the top protocol
-         is initialized:</t>
+         a delegated handshake".</t>
+      <t>The unconnected protocol lives on top of a connected protocol.
+         Parameter negotiation is performed via the underlying connected
+         protocol:</t>
       <figure>
         <artwork>
-    int tcps = tcp_connect("192.168.0.111:80");
-    /* Websockets is a connected protocol. */
-    int ws = websock_connect(tcps);
-    uint16_t compression_algoritm;
-    mrecv(ws, &amp;compression_algorithm, 2, -1);
-    /* Compression socket is unconnected. */
-    int cs = compress_start(ws, compression_algorithm);
+    /* Open underlying TCP connection. */
+    int tcp = tcp_connect("192.168.0.111:5555", -1);
+    /* Perform initial handshake via TCP. */
+    int myarg = 1;
+    bsend(tcp, &amp;myarg, sizeof(myarg), -1);
+    brecv(tcp, &amp;myarg, sizeof(myarg), -1);
+    /* Use the values from the handshake to initialize any number of
+       protocols on top of the TCP connection. */
+    int s = myprotocol_start(tcp, myarg);
         </artwork>
       </figure>
       <t>When one of the peers decides to close the connection it stops the
@@ -388,8 +350,8 @@
          which performs the final handshake:</t>
       <figure>
         <artwork>
-    int ws = compress_stop(cs, -1);
-    int tcps = websock_stop(ws, -1);
+    int tcp = myprotocol_stop(s, -1);
+    tcp_stop(tcp, -1);
         </artwork>
       </figure>
       <t>On the side of the connection that haven't triggered the shutdown
@@ -399,6 +361,61 @@
          with respect to where the protocol ends. They can start a new protocol
          on top of the same TCP connection without having to deal with leftover
          data from previous communication.</t>
+    </section>
+
+      <section title="Half-closing a protocol">
+        <t>Sometimes, endpoint wants to terminate a protocol, yet it still
+           wants to receive any data sent by the peer prior to the termination.
+           The scenario gets tricky when combined with conflated handshakes:
+           User has to stop the protocol on top to be able to start the
+           termination handshake on the underlying protocol. But having stopped
+           the protocol on top in cannot receive any pending messages sent
+           via that protocol.</t>
+        <t>To address this use case, protocols SHOULD support "done" function,
+           roughly equivalent to POSIX shutdown(SHUT_WR) function.</t>
+        <t>The function MUST flush any pending outbound data and,
+           if applicable, start the termination handshake.</t>
+        <t>In case of success it returns the file descriptor of the underlying
+           protocol, if any. If there's no underlying protocol it returns zero.
+           In either case, it MUST NOT close the socket.</t>
+        <t>In case of error it MUST forcefully close the socket, return -1 and
+           set errno to the appropriate value.</t>
+        <t>After invoking "done" function, any sending-related functions on the
+           socket MUST fail with EPIPE error.</t>
+        <t>Using the file descriptor returned by "done" function for receiving
+           data results in undefined behaviour.</t>
+        <t>After calling done function the users can still receive data. When
+           termination handshake is completed by the peer and all the pending
+           data are received by the local peer recv function MUST return EPIPE
+           error.</t>
+        <t>Afterwards, stop function can be called to close the socket.</t>
+        <figure>
+          <artwork>
+    /* Start the termination handshake. */
+    int tcp = myprotocol_done(s, -1);
+    tcp_done(tcp, -1);
+    /* Receive any pending messages. */
+    while(1) {
+        char buf[256];
+        int rc = mrecv(s, buf, sizeof(buf), -1);
+        if(rc == -1 &amp;&amp; errno == EPIPE) break;
+        ...
+    }
+    /* Close the socket. */
+    tcp = myprotocol_stop(s, -1);
+    tcp_stop(tcp, -1);
+          </artwork>
+        </figure>
+        <t>"Stop" function MUST work correctly irrespective of whether "done"
+           function was called before or not. It MUST also work whether the user
+           received all the inbound data or not.</t>
+        <t>The implementation of "stop" should therefore start termination
+           handshake (if not done already by "done" function), then read and
+           discard incoming data until the peer finishes the termination
+           handshake. Finally, it MUST deallocate the socket and return the
+           underlying socket's file descriptor.</t>
+      </section>
+
     </section>
 
     <section title="Normal operation">
