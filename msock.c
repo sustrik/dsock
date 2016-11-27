@@ -22,7 +22,7 @@
 
 */
 
-#include "dsock.h"
+#include "dsockimpl.h"
 #include "utils.h"
 
 dsock_unique_id(msock_type);

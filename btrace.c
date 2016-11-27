@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "dsock.h"
+#include "dsockimpl.h"
 #include "iov.h"
 #include "utils.h"
 

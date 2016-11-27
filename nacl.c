@@ -31,7 +31,7 @@
 #include "tweetnacl/tweetnacl.h"
 
 #include "iov.h"
-#include "dsock.h"
+#include "dsockimpl.h"
 #include "utils.h"
 
 dsock_unique_id(nacl_type);

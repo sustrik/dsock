@@ -29,7 +29,7 @@
 #include "lz4/lz4frame.h"
 
 #include "iov.h"
-#include "dsock.h"
+#include "dsockimpl.h"
 #include "utils.h"
 
 dsock_unique_id(lz4_type);

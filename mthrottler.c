@@ -26,7 +26,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "dsock.h"
+#include "dsockimpl.h"
 #include "utils.h"
 
 dsock_unique_id(mthrottler_type);

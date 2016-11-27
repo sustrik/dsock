@@ -112,15 +112,6 @@ DSOCK_EXPORT void ipaddr_setport(
 /*  Bytestream sockets.                                                       */
 /******************************************************************************/
 
-extern const void *bsock_type;
-
-struct bsock_vfs {
-    int (*bsendv)(struct bsock_vfs *vfs, const struct iovec *iov, size_t iovlen,
-        int64_t deadline);
-    int (*brecvv)(struct bsock_vfs *vfs, const struct iovec *iov, size_t iovlen,
-        int64_t deadline);
-};
-
 DSOCK_EXPORT int bsend(
     int s,
     const void *buf,
@@ -145,15 +136,6 @@ DSOCK_EXPORT int brecvv(
 /******************************************************************************/
 /*  Message sockets.                                                          */
 /******************************************************************************/
-
-extern const void *msock_type;
-
-struct msock_vfs {
-    int (*msendv)(struct msock_vfs *vfs,
-        const struct iovec *iov, size_t iovlen, int64_t deadline);
-    ssize_t (*mrecvv)(struct msock_vfs *vfs,
-        const struct iovec *iov, size_t iovlen, int64_t deadline);
-};
 
 DSOCK_EXPORT int msend(
     int s,

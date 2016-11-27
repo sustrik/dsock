@@ -29,7 +29,7 @@
 #include <string.h>
 
 #include "iov.h"
-#include "dsock.h"
+#include "dsockimpl.h"
 #include "utils.h"
 
 dsock_unique_id(http_type);

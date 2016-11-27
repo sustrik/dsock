@@ -27,7 +27,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "dsock.h"
+#include "dsockimpl.h"
 #include "fd.h"
 #include "utils.h"
 

@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "dsock.h"
+#include "dsockimpl.h"
 #include "fd.h"
 #include "utils.h"
 #include "tcp.h"

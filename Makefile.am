@@ -27,7 +27,7 @@ ACLOCAL_AMFLAGS = -I m4
 ################################################################################
 
 dsockincludedir = $(includedir)
-dsockinclude_HEADERS = dsock.h
+dsockinclude_HEADERS = dsock.h dsockimpl.h
 
 lib_LTLIBRARIES = libdsock.la
 
