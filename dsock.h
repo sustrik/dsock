@@ -112,6 +112,8 @@ DSOCK_EXPORT void ipaddr_setport(
 /*  Bytestream sockets.                                                       */
 /******************************************************************************/
 
+extern const void *bsock_type;
+
 DSOCK_EXPORT int bsend(
     int s,
     const void *buf,
@@ -136,6 +138,8 @@ DSOCK_EXPORT int brecvv(
 /******************************************************************************/
 /*  Message sockets.                                                          */
 /******************************************************************************/
+
+extern const void *msock_type;
 
 DSOCK_EXPORT int msend(
     int s,

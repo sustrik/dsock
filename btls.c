@@ -1,6 +1,5 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
   Copyright (c) 2016 Tai Chi Minh Ralph Eastwood
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -32,7 +31,7 @@
 
 #include "tls/tls.h"
 
-#include "dsock.h"
+#include "dsockimpl.h"
 #include "iov.h"
 #include "tcp.h"
 #include "utils.h"
@@ -216,7 +215,7 @@ static int btls_conn_brecvv(struct bsock_vfs *bvfs,
 
 static int btls_conn_create(int s, struct tls *t, struct tls_config *c,
       const char *servername) {
-    /* Check whether underlying socket is a bytestream. */
+    /* Check whether underlying socket is a TCP socket. */
     if(dsock_slow(!hquery(s, tcp_type))) return -1;
     struct btls_conn *obj = malloc(sizeof(struct btls_conn));
     obj->hvfs.query = btls_conn_hquery;
