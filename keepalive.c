@@ -88,9 +88,9 @@ int keepalive_start(int s, int64_t send_interval, int64_t recv_interval) {
     obj->ackch = -1;
     obj->sender = -1;
     if(send_interval >= 0) {
-        obj->sendch = channel(sizeof(struct keepalive_vec), 0);
+        obj->sendch = chmake(sizeof(struct keepalive_vec));
         if(dsock_slow(obj->sendch < 0)) {err = errno; goto error2;}
-        obj->ackch = channel(sizeof(int), 0);
+        obj->ackch = chmake(sizeof(int));
         if(dsock_slow(obj->ackch < 0)) {err = errno; goto error3;}
         obj->sender = go(keepalive_sender(s, send_interval,
             obj->sendch, obj->ackch));

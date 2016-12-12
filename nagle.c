@@ -80,9 +80,9 @@ int nagle_start(int s, size_t batch, int64_t interval) {
     obj->s = s;
     obj->buf = malloc(batch);
     if(dsock_slow(!obj->buf)) {errno = ENOMEM; goto error2;}
-    obj->sendch = channel(sizeof(struct nagle_vec), 0);
+    obj->sendch = chmake(sizeof(struct nagle_vec));
     if(dsock_slow(obj->sendch < 0)) {err = errno; goto error3;}
-    obj->ackch = channel(sizeof(int), 0);
+    obj->ackch = chmake(sizeof(int));
     if(dsock_slow(obj->ackch < 0)) {err = errno; goto error4;}
     obj->sender = go(nagle_sender(s, batch, interval,
         obj->buf, obj->sendch, obj->ackch));

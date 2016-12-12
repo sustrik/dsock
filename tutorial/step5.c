@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    int ch = channel(sizeof(int), 0);
+    int ch = chmake(sizeof(int));
     assert(ch >= 0);
     int cr = go(statistics(ch));
     assert(cr >= 0);
