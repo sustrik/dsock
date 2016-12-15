@@ -66,12 +66,21 @@ int http_start(int s) {
     /* Create the handle. */
     int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}
+    /* Make a private copy of the underlying socket. */
+    int tmp = hdup(s);
+    if(dsock_slow(tmp < 0)) {err = errno; goto error3;}
     /* Wrap the underlying socket into CRLF protocol. */
-    obj->s = crlf_start(s);
-    if(dsock_slow(obj->s < 0)) {err = errno; goto error3;}
+    obj->s = crlf_start(tmp);
+    if(dsock_slow(obj->s < 0)) {err = errno; goto error4;}
+    /* Function succeeded. We can now close original undelying handle. */
+    int rc = hclose(s);
+    dsock_assert(rc == 0);
     return h;
+error4:
+    rc = hclose(tmp);
+    dsock_assert(rc == 0);
 error3:;
-    int rc = hclose(h);
+    rc = hclose(h);
     dsock_assert(rc == 0);
 error2:
     free(obj);
