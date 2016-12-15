@@ -91,7 +91,15 @@ int nacl_start(int s, const void *key, size_t keylen, int64_t deadline) {
     /* Create the handle. */
     int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}
+    /* Make a private copy of the underlying socket. */
+    obj->s = hdup(s);
+    if(dsock_slow(obj->s < 0)) {err = errno; goto error3;}
+    rc = hclose(s);
+    dsock_assert(rc == 0);
     return h;
+error3:
+    rc = hclose(h);
+    dsock_assert(rc == 0);
 error2:
     free(obj);
 error1:
@@ -182,8 +190,10 @@ static ssize_t nacl_mrecvv(struct msock_vfs *mvfs,
 
 static void nacl_hclose(struct hvfs *hvfs) {
     struct nacl_sock *obj = (struct nacl_sock*)hvfs;
-    int rc = hclose(obj->s);
-    dsock_assert(rc == 0);
+    if(dsock_fast(obj->s >= 0)) {
+        int rc = hclose(obj->s);
+        dsock_assert(rc == 0);
+    }
     free(obj->buf1);
     free(obj->buf2);
     free(obj);
