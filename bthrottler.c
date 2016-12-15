@@ -191,9 +191,11 @@ static int bthrottler_brecvv(struct bsock_vfs *bvfs,
 }
 
 static void bthrottler_hclose(struct hvfs *hvfs) {
-    struct bthrottler_sock *obj = (struct bthrottler_sock*)hvfs; 
-    int rc = hclose(obj->s);
-    dsock_assert(rc == 0);
+    struct bthrottler_sock *obj = (struct bthrottler_sock*)hvfs;
+    if(dsock_fast(obj->s >= 0)) {
+        int rc = hclose(obj->s);
+        dsock_assert(rc == 0);
+    }
     free(obj);
 }
 
