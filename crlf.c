@@ -64,22 +64,31 @@ int crlf_start(int s) {
     int err;
     /* Create the object. */
     struct crlf_sock *obj = malloc(sizeof(struct crlf_sock));
-    if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
+    if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->hvfs.query = crlf_hquery;
     obj->hvfs.close = crlf_hclose;
     obj->mvfs.msendv = crlf_msendv;
     obj->mvfs.mrecvv = crlf_mrecvv;
-    obj->u = s;
+    obj->u = -1;
     obj->uvfs = hquery(s, bsock_type);
-    if(dsock_slow(!obj->uvfs)) {err = errno; goto error;}
+    if(dsock_slow(!obj->uvfs)) {err = errno; goto error2;}
     obj->txerr = 0;
     obj->rxerr = 0;
     /* Create the handle. */
     int h = hmake(&obj->hvfs);
-    if(dsock_slow(h < 0)) {err = errno; goto error;}
+    if(dsock_slow(h < 0)) {err = errno; goto error2;}
+    /* Make a private copy of the underlying socket. */
+    obj->u = hdup(s);
+    if(dsock_slow(obj->u < 0)) {err = errno; goto error3;}
+    int rc = hclose(s);
+    dsock_assert(rc == 0);
     return h;
-error:
+error3:
+    rc = hclose(h);
+    dsock_assert(rc == 0);
+error2:
     free(obj);
+error1:
     errno = err;
     return -1;
 }
@@ -184,8 +193,10 @@ static ssize_t crlf_mrecvv(struct msock_vfs *mvfs,
 
 static void crlf_hclose(struct hvfs *hvfs) {
     struct crlf_sock *obj = (struct crlf_sock*)hvfs;
-    int rc = hclose(obj->u);
-    dsock_assert(rc == 0);
+    if(dsock_fast(obj->u >= 0)) {
+        int rc = hclose(obj->u);
+        dsock_assert(rc == 0);
+    }
     free(obj);
 }
 
