@@ -64,20 +64,21 @@ static void *bthrottler_hquery(struct hvfs *hvfs, const void *type) {
 int bthrottler_start(int s,
       uint64_t send_throughput, int64_t send_interval,
       uint64_t recv_throughput, int64_t recv_interval) {
+    int err;
     if(dsock_slow(send_throughput != 0 && send_interval <= 0 )) {
-        errno = EINVAL; return -1;}
+        err = EINVAL; goto error1;}
     if(dsock_slow(recv_throughput != 0 && recv_interval <= 0 )) {
-        errno = EINVAL; return -1;}
+        err = EINVAL; goto error1;}
     /* Check whether underlying socket is a bytestream. */
-    if(dsock_slow(!hquery(s, bsock_type))) return -1;
+    if(dsock_slow(!hquery(s, bsock_type))) {err = errno; goto error1;}
     /* Create the object. */
     struct bthrottler_sock *obj = malloc(sizeof(struct bthrottler_sock));
-    if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
+    if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->hvfs.query = bthrottler_hquery;
     obj->hvfs.close = bthrottler_hclose;
     obj->bvfs.bsendv = bthrottler_bsendv;
     obj->bvfs.brecvv = bthrottler_brecvv;
-    obj->s = s;
+    obj->s = -1;
     obj->send_full = 0;
     if(send_throughput > 0) {
         obj->send_full = send_throughput * send_interval / 1000;
@@ -94,13 +95,21 @@ int bthrottler_start(int s,
     }
     /* Create the handle. */
     int h = hmake(&obj->hvfs);
-    if(dsock_slow(h < 0)) {
-        int err = errno;
-        free(obj);
-        errno = err;
-        return -1;
-    }
+    if(dsock_slow(h < 0)) {err = errno; goto error2;}
+    /* Make a private copy of the underlying socket. */
+    obj->s = hdup(s);
+    if(dsock_slow(obj->s < 0)) {err = errno; goto error3;}
+    int rc = hclose(s);
+    dsock_assert(rc == 0);
     return h;
+error3:
+    rc = hclose(h);
+    dsock_assert(rc == 0);
+error2:
+    free(obj);
+error1:
+    errno = err;
+    return -1;
 }
 
 int bthrottler_done(int s) {
