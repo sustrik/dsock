@@ -102,19 +102,19 @@ int main() {
     assert(rc == 0);
     rc = msend(s1, "Blue", 4, -1);
     assert(rc == 0);
-    rc = pfx_stop(s1, -1);
-    assert(rc == h[1]);
+    int ts1 = pfx_stop(s1, -1);
+    assert(ts1 >= 0);
     sz = mrecv(s0, buf, sizeof(buf), -1);
     assert(sz == 3 && memcmp(buf, "Red", 3) == 0);
     sz = mrecv(s0, buf, sizeof(buf), -1);
     assert(sz == 4 && memcmp(buf, "Blue", 4) == 0);
     sz = mrecv(s0, buf, sizeof(buf), -1);
     assert(sz < 0 && errno == EPIPE);
-    rc = pfx_stop(s0, -1);
-    assert(rc == h[0]);
-    rc = hclose(h[1]);
+    int ts0 = pfx_stop(s0, -1);
+    assert(ts0 >= 0);
+    rc = hclose(ts1);
     assert(rc == 0);
-    rc = hclose(h[0]);
+    rc = hclose(ts0);
     assert(rc == 0);
 
     return 0;

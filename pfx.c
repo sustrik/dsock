@@ -56,27 +56,36 @@ static void *pfx_hquery(struct hvfs *hvfs, const void *type) {
 }
 
 int pfx_start(int s) {
+    int err;
     /* Check whether underlying socket is a bytestream. */
-    if(dsock_slow(!hquery(s, bsock_type))) return -1;
+    if(dsock_slow(!hquery(s, bsock_type))) {err = errno; goto error1;}
     /* Create the object. */
     struct pfx_sock *obj = malloc(sizeof(struct pfx_sock));
-    if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
+    if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->hvfs.query = pfx_hquery;
     obj->hvfs.close = pfx_hclose;
     obj->mvfs.msendv = pfx_msendv;
     obj->mvfs.mrecvv = pfx_mrecvv;
-    obj->s = s;
+    obj->s = -1;
     obj->txerr = 0;
     obj->rxerr = 0;
     /* Create the handle. */
     int h = hmake(&obj->hvfs);
-    if(dsock_slow(h < 0)) {
-        int err = errno;
-        free(obj);
-        errno = err;
-        return -1;
-    }
+    if(dsock_slow(h < 0)) {int err = errno; goto error2;}
+    /* Make a private copy of the underlying socket. */
+    obj->s = hdup(s);
+    if(dsock_slow(obj->s < 0)) {err = errno; goto error3;}
+    int rc = hclose(s);
+    dsock_assert(rc == 0);
     return h;
+error3:
+    rc = hclose(h);
+    dsock_assert(rc == 0);
+error2:
+    free(obj);
+error1:
+    errno = err;
+    return -1;
 }
 
 int pfx_done(int s, int64_t deadline) {
@@ -158,8 +167,10 @@ static ssize_t pfx_mrecvv(struct msock_vfs *mvfs,
 
 static void pfx_hclose(struct hvfs *hvfs) {
     struct pfx_sock *obj = (struct pfx_sock*)hvfs;
-    int rc = hclose(obj->s);
-    dsock_assert(rc == 0);
+    if(dsock_fast(obj->s >= 0)) {
+        int rc = hclose(obj->s);
+        dsock_assert(rc == 0);
+    }
     free(obj);
 }
 
