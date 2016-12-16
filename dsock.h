@@ -42,7 +42,7 @@
 /*  www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html  */
 
 /*  The current interface version. */
-#define DSOCK_VERSION_CURRENT 4
+#define DSOCK_VERSION_CURRENT 5
 
 /*  The latest revision of the current interface. */
 #define DSOCK_VERSION_REVISION 0
