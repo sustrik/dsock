@@ -32,9 +32,9 @@ branches:
     - master
 
 install:
-  - wget http://libdill.org/libdill-0.10-beta.tar.gz
-  - tar -xzf libdill-0.10-beta.tar.gz
-  - pushd libdill-0.10-beta && ./configure --prefix=/usr && make && sudo make install && popd
+  - wget http://libdill.org/libdill-1.0.tar.gz
+  - tar -xzf libdill-1.0.tar.gz
+  - pushd libdill-1.0 && ./configure --prefix=/usr && make && sudo make install && popd
   - if [[ $CONF == "shared" ]]; then ./autogen.sh && ./configure --enable-tls && make; fi
   - if [[ $CONF == "static" ]]; then ./autogen.sh && ./configure --enable-tls --disable-shared && make; fi
 
