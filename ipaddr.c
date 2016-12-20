@@ -278,10 +278,10 @@ int ipaddr_remote(ipaddr *addr, const char *name, int port, int mode,
             /* There's no guarantee that the file descriptor will be reused
                in next iteration. We have to clean the fdwait cache here
                to be on the safe side. */
+            int err = errno;
             fdclean(fd);
-            if(dsock_slow(rc < 0 && errno == ETIMEDOUT)) {
-                errno = ETIMEDOUT; return -1;}
-            dsock_assert(rc == 0);
+            errno = err;
+            if(dsock_slow(rc < 0)) return -1;
             continue;
         }
         if(rc == ENOENT)
