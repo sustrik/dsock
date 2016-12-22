@@ -41,6 +41,8 @@ int main() {
     assert(rc == 0);
     rc = http_sendfield(s0, "baz", "quux", -1);
     assert(rc == 0);
+    rc = http_sendfield(s0, "Date", "Tue, 15 Nov 1994 08:12:31 GMT", -1);
+    assert(rc == 0);
     rc = http_done(s0, -1);
     assert(rc == 0);
     /* Receive request. */
@@ -51,7 +53,7 @@ int main() {
     assert(strcmp(cmd, "GET") == 0);
     assert(strcmp(url, "/a/b/c") == 0);
     char name[16];
-    char value[16];
+    char value[32];
     rc = http_recvfield(s1, name, sizeof(name), value, sizeof(value), -1);
     assert(rc == 0);
     assert(strcmp(name, "foo") == 0);
@@ -60,6 +62,10 @@ int main() {
     assert(rc == 0);
     assert(strcmp(name, "baz") == 0);
     assert(strcmp(value, "quux") == 0);
+    rc = http_recvfield(s1, name, sizeof(name), value, sizeof(value), -1);
+    assert(rc == 0);
+    assert(strcmp(name, "Date") == 0);
+    assert(strcmp(value, "Tue, 15 Nov 1994 08:12:31 GMT") == 0);
     rc = http_recvfield(s1, name, sizeof(name), value, sizeof(value), -1);
     assert(rc < 0 && errno == EPIPE);
     /* Send response. */

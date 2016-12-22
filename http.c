@@ -258,7 +258,8 @@ int http_recvfield(int s, char *name, size_t namelen,
     while(obj->rxbuf[pos] == ' ') ++pos;
     /* Value. */
     start = pos;
-    while(obj->rxbuf[pos] != 0 && obj->rxbuf[pos] != ' ') ++pos;
+    pos = (size_t) sz;
+    while(pos >= start && obj->rxbuf[pos] == ' ') --pos;
     if(dsock_slow(pos - start > valuelen - 1)) {errno = EMSGSIZE; return -1;}
     memcpy(value, obj->rxbuf + start, pos - start);
     value[pos - start] = 0;
