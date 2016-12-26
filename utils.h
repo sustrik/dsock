@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #define dsock_concat(x,y) x##y
 
@@ -78,6 +79,12 @@ uint64_t dsock_getll(const uint8_t *buf);
 void dsock_putll(uint8_t *buf, uint64_t val);
 
 int dsock_random(uint8_t *buf, size_t len, int64_t deadline);
+
+/* Returns a pointer to the first character in string that is not delim */
+const char *dsock_lstrip(const char *string, char delim);
+
+/* Returns a pointer after the last character in string that is not delim */
+const char *dsock_rstrip(const char *string, char delim);
 
 #endif
 
