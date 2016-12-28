@@ -104,3 +104,14 @@ int dsock_random(uint8_t *buf, size_t len, int64_t deadline) {
     return 0;
 }
 
+const char *dsock_lstrip(const char *string, char delim) {
+    const char *pos = string;
+    while(*pos && *pos == delim) ++pos;
+    return pos;
+}
+
+const char *dsock_rstrip(const char *string, char delim) {
+    const char *end = string + strlen(string) - 1;
+    while(end > string && *end == delim) --end;
+    return ++end;
+}

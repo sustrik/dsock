@@ -222,13 +222,18 @@ int http_sendfield(int s, const char *name, const char *value,
     struct http_sock *obj = hquery(s, http_type);
     if(dsock_slow(!obj)) return -1;
     /* TODO: Check whether name contains only valid characters! */
+    if (strpbrk(name, "(),/:;<=>?@[\\]{}\" \t") != NULL) {errno = EPROTO; return -1;}
+    if (strlen(value) == 0) {errno = EPROTO; return -1;}
     struct iovec iov[3];
     iov[0].iov_base = (void*)name;
     iov[0].iov_len = strlen(name);
     iov[1].iov_base = (void*)": ";
     iov[1].iov_len = 2;
-    iov[2].iov_base = (void*)value;
-    iov[2].iov_len = strlen(value);
+    const char *start = dsock_lstrip(value, ' ');
+    const char *end = dsock_rstrip(start, ' ');
+    dsock_assert(start < end);
+    iov[2].iov_base = (void*)start;
+    iov[2].iov_len = end - start;
     return msendv(obj->s, iov, 3, deadline);
 }
 
@@ -258,7 +263,7 @@ int http_recvfield(int s, char *name, size_t namelen,
     while(obj->rxbuf[pos] == ' ') ++pos;
     /* Value. */
     start = pos;
-    while(obj->rxbuf[pos] != 0 && obj->rxbuf[pos] != ' ') ++pos;
+    pos = dsock_rstrip(obj->rxbuf + sz, ' ') - obj->rxbuf;
     if(dsock_slow(pos - start > valuelen - 1)) {errno = EMSGSIZE; return -1;}
     memcpy(value, obj->rxbuf + start, pos - start);
     value[pos - start] = 0;
