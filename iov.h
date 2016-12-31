@@ -44,5 +44,6 @@ void iov_copy(struct iovec *dst, const struct iovec *src, size_t len);
 size_t iov_cut(struct iovec *dst, const struct iovec *src, size_t iovlen,
       size_t offset, size_t bytes);
 
+int iov_deep_copy(const struct iovec *dst, size_t dst_iov_len, const struct iovec *src, size_t src_iov_len);
 #endif
 
