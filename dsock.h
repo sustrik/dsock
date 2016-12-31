@@ -671,5 +671,13 @@ DSOCK_EXPORT const char *btls_connservername(
 DSOCK_EXPORT const char *btls_connversion(
     int s);
 
+/******************************************************************************/
+/*  inproc sockets                                                            */
+/******************************************************************************/
+
+extern const void *inproc_type;
+
+DSOCK_EXPORT int inproc_pair_start(int fds[2]);
+
 #endif
 
