@@ -42,7 +42,7 @@ static void *inproc_hquery(struct hvfs *hvfs, const void *type) {
    Ownership of the channels is transferred to the socket */
 static int inproc_new(int data, int ack) {
     int err, rc;
-    if (data < 0 || ack < 0) { err = EBADF; goto error1; }
+    if(data < 0 || ack < 0) {err = EBADF; goto error1;}
     /* Create the object. */
     struct inproc_sock *obj = malloc(sizeof(struct inproc_sock));
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
@@ -81,21 +81,21 @@ static int inproc_destroy(struct inproc_sock *obj) {
 
 int inproc_pair_start(int fds[2]) {
     int err, rc;
-    if (!fds) {err = EINVAL; goto error1;}
+    if(!fds) {err = EINVAL; goto error1;}
     /* Setup channels */
     int ch_data1 = chmake(sizeof(struct inproc_vec));
-    if (ch_data1 < 0) {err = errno; goto error1;}
+    if(ch_data1 < 0) {err = errno; goto error1;}
     int ch_data2 = hdup(ch_data1);
-    if (ch_data2 < 0) {err = errno; goto error2;}
+    if(ch_data2 < 0) {err = errno; goto error2;}
     int ch_ack1 = chmake(sizeof(uint64_t));
-    if (ch_ack1 < 0) {err = errno; goto error3;}
+    if(ch_ack1 < 0) {err = errno; goto error3;}
     int ch_ack2 = hdup(ch_ack1);
-    if (ch_ack2 < 0) {err = errno; goto error4;}
+    if(ch_ack2 < 0) {err = errno; goto error4;}
     /* Create sockets */
     int a = inproc_new(ch_data1, ch_ack1);
-    if (a < 0) {err = errno; goto error5;}
+    if(a < 0) {err = errno; goto error5;}
     int b = inproc_new(ch_data2, ch_ack2);
-    if (b < 0) {err = errno; goto error6;}
+    if(b < 0) {err = errno; goto error6;}
     /*  */
     fds[0] = a;
     fds[1] = b;
@@ -133,16 +133,16 @@ static ssize_t inproc_mrecvv(struct msock_vfs *mvfs,
     uint64_t buf_len = iov_size(iov, iovlen);
     struct inproc_vec vec;
     int rc = chrecv(obj->data, &vec, sizeof(struct inproc_vec), deadline);
-    if (rc < 0) { return -1; }
+    if(rc < 0) return -1;
     uint64_t recv_len = iov_size(vec.iov, vec.iovlen);
     if (recv_len > buf_len) { goto msg2big; }
     iov_deep_copy(iov, iovlen, vec.iov, vec.iovlen);
     rc = chsend(obj->ack, &recv_len, 8, deadline);
-    if (rc < 0) { return -1; }
+    if(rc < 0) return -1;
     return recv_len;
     msg2big:
     rc = chsend(obj->ack, &MSG2BIG, 8 , deadline);
-    if (rc < 0) { return -1; }
+    if(rc < 0) return -1;
     errno = EMSGSIZE;
     return -1;
 }
@@ -155,11 +155,11 @@ static int inproc_msendv(struct msock_vfs *mvfs,
     vec.iov = iov;
     vec.iovlen = iovlen;
     int rc = chsend(obj->data, &vec, sizeof(struct inproc_vec), deadline);
-    if (rc < 0) { return -1; }
+    if(rc < 0) return -1;
     uint64_t confirmation;
     rc = chrecv(obj->ack, &confirmation, 8, deadline);
-    if (rc < 0) { return -1; }
-    if (confirmation == MSG2BIG) { errno = EMSGSIZE; return -1; }
-    if (confirmation != data_len) { errno = EPROTO; return -1; }
+    if(rc < 0) return -1;
+    if(confirmation == MSG2BIG) {errno = EMSGSIZE; return -1;}
+    if(confirmation != data_len) {errno = EPROTO; return -1;}
     return 0;
 }

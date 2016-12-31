@@ -100,14 +100,14 @@ void iov_copyto(const struct iovec *dst, size_t dstlen, const void *src,
 /* Copies the data from vector src into the vector dst. dst must be large enough to hold the data
  * TODO: Uses a simple hack at the moment, could be more optimized */
 int iov_deep_copy(const struct iovec *dst, size_t dst_iov_len, const struct iovec *src, size_t src_iov_len) {
-    if (!dst || !src) {errno = EINVAL; return -1;}
+    if(!dst || !src) {errno = EINVAL; return -1;}
 
     size_t dst_size = iov_size(dst, dst_iov_len);
     size_t src_size = iov_size(src, src_iov_len);
-    if (dst_size < src_size) {errno = EINVAL; return -1;}
+    if(dst_size < src_size) {errno = EINVAL; return -1;}
 
     void *temp_buf = malloc(src_size);
-    if (!temp_buf) return -1;
+    if(!temp_buf) return -1;
     iov_copyallfrom(temp_buf, src, src_iov_len);
     iov_copyto(dst, dst_iov_len, temp_buf, 0, src_size);
     free(temp_buf);
