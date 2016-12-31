@@ -16,7 +16,7 @@ static ssize_t inproc_mrecvv(struct msock_vfs *mvfs,
                            const struct iovec *iov, size_t iovlen, int64_t deadline);
 
 
-static const uint64_t MSG2BIG = 0;
+static const uint64_t MSG2BIG = UINT64_MAX;
 
 struct inproc_sock {
     struct hvfs hvfs;
