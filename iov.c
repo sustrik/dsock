@@ -97,18 +97,38 @@ void iov_copyto(const struct iovec *dst, size_t dstlen, const void *src,
     iov_copyallto(vec, veclen, src);
 }
 
-/* TODO: Uses a simple hack at the moment, could be more optimized */
-int iov_deep_copy(const struct iovec *dst, size_t dst_iov_len, const struct iovec *src, size_t src_iov_len) {
+int iov_deep_copy(const struct iovec *dst, size_t dst_iovlen,
+      const struct iovec *src, size_t src_iovlen) {
     if(!dst || !src) {errno = EINVAL; return -1;}
 
-    size_t dst_size = iov_size(dst, dst_iov_len);
-    size_t src_size = iov_size(src, src_iov_len);
+    size_t dst_size = iov_size(dst, dst_iovlen);
+    size_t src_size = iov_size(src, src_iovlen);
     if(dst_size < src_size) {errno = EINVAL; return -1;}
 
-    void *temp_buf = malloc(src_size);
-    if(!temp_buf) return -1;
-    iov_copyallfrom(temp_buf, src, src_iov_len);
-    iov_copyto(dst, dst_iov_len, temp_buf, 0, src_size);
-    free(temp_buf);
+    size_t remaining = src_size;
+    const struct iovec *src_it = src;
+    size_t src_block_remain = src_it->iov_len;
+    const struct iovec *dst_it = dst;
+    size_t dst_block_remain = dst_it->iov_len;
+    while(1) {
+        size_t to_copy = MIN(src_block_remain, dst_block_remain);
+        memcpy(dst_it->iov_base + dst_it->iov_len - dst_block_remain,
+               src_it->iov_base + src_it->iov_len - src_block_remain,
+               to_copy);
+        dst_block_remain -= to_copy;
+        src_block_remain -= to_copy;
+        remaining -= to_copy;
+        if(remaining == 0)
+            break;
+        dsock_assert(dst_block_remain == 0 || src_block_remain == 0);  // One block MUST be exhausted now
+        if(dst_block_remain == 0) {
+            ++dst_it;
+            dst_block_remain = dst_it->iov_len;
+        }
+        if(src_block_remain == 0) {
+            ++src_it;
+            src_block_remain = src_it->iov_len;
+        }
+    }
     return 0;
 }
