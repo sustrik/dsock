@@ -49,14 +49,15 @@ int deep_copy_test() {
     rc = iov_deep_copy(dst_vec2, 1, src_vec, 2);
     assert(rc == -1);
 
-    /* Zero length edge cases */
+    /* Zero length edge case: empty dst */
     struct iovec dst_vec3[1] = {{.iov_base = buf, .iov_len = 0}};
     rc = iov_deep_copy(dst_vec3, 1, src_vec, 2);
     assert(rc == -1);
-
+    
+    /* Zero length edge case: empty src */
     struct iovec src_vec2[1] = {{.iov_base = "NNNNNNN", .iov_len = 0}};
     memset(buf, 0, 5);
-    rc = iov_deep_copy(dst_vec1, 1, src_vec2, 2);
+    rc = iov_deep_copy(dst_vec1, 1, src_vec2, 1);
     assert(rc == 0);
     assert(buf[0] != 'N');
 
