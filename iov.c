@@ -97,8 +97,7 @@ void iov_copyto(const struct iovec *dst, size_t dstlen, const void *src,
     iov_copyallto(vec, veclen, src);
 }
 
-/* Copies the data from vector src into the vector dst. dst must be large enough to hold the data
- * TODO: Uses a simple hack at the moment, could be more optimized */
+/* TODO: Uses a simple hack at the moment, could be more optimized */
 int iov_deep_copy(const struct iovec *dst, size_t dst_iov_len, const struct iovec *src, size_t src_iov_len) {
     if(!dst || !src) {errno = EINVAL; return -1;}
 
