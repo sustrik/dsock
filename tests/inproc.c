@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Maximilian Pudelko
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -21,32 +21,48 @@
   IN THE SOFTWARE.
 
 */
-#ifndef DSOCK_IOV_H_INCLUDED
-#define DSOCK_IOV_H_INCLUDED
+#include <memory.h>
+#include <assert.h>
 
-#include <stddef.h>
-#include <sys/uio.h>
+#include "../dsock.h"
 
-size_t iov_size(const struct iovec *iov, size_t iovlen);
+coroutine void echo_sink(int s) {
+    ssize_t rc;
+    char buf[32];
+    while(1) {
+        rc = mrecv(s, buf, 32, -1);
+        assert(rc >= 0);
+        if(memcmp(buf, "CONTINUE", 8) == 0)
+            break;
+        rc = msend(s, buf, (size_t) rc, now() + 100);
+        assert(rc >= 0);
+    }
+    rc = hclose(s);
+    assert(rc == 0);
+}
 
-void iov_copyfrom(void *dst, const struct iovec *src, size_t srclen,
-    size_t offset, size_t bytes);
 
-void iov_copyto(const struct iovec *dst, size_t dstlen, const void *src,
-    size_t offset, size_t bytes);
+int main() {
+    ssize_t rc;
+    char buf[32];
+    int fds[2];
+    rc = inproc_pair_start(fds);
+    assert(rc >= 0);
+    int g = go(echo_sink(fds[1]));
+    rc = msend(fds[0], "ABC", 3, now() + 100);
+    assert(rc == 0);
+    rc = mrecv(fds[0], buf, 32, now() + 100);
+    assert(rc >= 0);
+    assert(memcmp(buf, "ABC", 3) == 0);
 
-void iov_copyallfrom(void *dst, const struct iovec *src, size_t srclen);
-
-void iov_copyallto(const struct iovec *dst, size_t dstlen, const void *src);
-
-void iov_copy(struct iovec *dst, const struct iovec *src, size_t len);
-
-size_t iov_cut(struct iovec *dst, const struct iovec *src, size_t iovlen,
-      size_t offset, size_t bytes);
-
-/* Copies the data from vector src into the vector dst.
-   dst must be large enough to hold the data */
-int iov_deep_copy(const struct iovec *dst, size_t dst_iovlen,
-      const struct iovec *src, size_t src_iovlen);
-#endif
-
+    rc = msend(fds[0], "CONTINUE", 8, now() + 100);
+    assert(rc == 0);
+    rc = mrecv(fds[0], buf, 32, -1);
+    assert(rc == -1);
+    assert(errno == EPIPE);
+    rc = hclose(fds[0]);
+    assert(rc == 0);
+    rc = hclose(g);
+    assert(rc == 0);
+    return 0;
+}

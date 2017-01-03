@@ -69,7 +69,8 @@ libdsock_la_SOURCES = \
     lz4/xxhash.h \
     lz4/xxhash.c \
     tweetnacl/tweetnacl.h \
-    tweetnacl/tweetnacl.c
+    tweetnacl/tweetnacl.c \
+    inproc.c
 
 if HAVE_TLS
 libdsock_la_SOURCES += \
@@ -166,7 +167,8 @@ check_PROGRAMS = \
     tests/fullstack \
     tests/iovec \
     tests/http \
-    tests/websock
+    tests/websock \
+    tests/inproc
 
 if HAVE_TLS
 
@@ -175,7 +177,7 @@ check_PROGRAMS += \
 
 endif
 
-LDADD = libdsock.la
+LDADD = libdsock.la libdsock_la-iov.lo
 
 TESTS = $(check_PROGRAMS)
 

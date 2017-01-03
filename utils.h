@@ -86,5 +86,9 @@ const char *dsock_lstrip(const char *string, char delim);
 /* Returns a pointer after the last character in string that is not delim */
 const char *dsock_rstrip(const char *string, char delim);
 
+#define MIN(a,b) (((a)<(b))?(a):(b))
+
+#define MAX(a,b) (((a)>(b))?(a):(b))
+
 #endif
 
