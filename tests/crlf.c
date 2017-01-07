@@ -29,12 +29,12 @@
 
 coroutine void client(void) {
     ipaddr addr;
-    int rc = ipaddr_remote(&addr, "127.0.0.1", 5555, 0, -1);
+    int cs, rc = ipaddr_remote(&addr, "127.0.0.1", 5555, 0, -1);
     assert(rc == 0);
     int s = tcp_connect(&addr, -1);
     assert(s >= 0);
 
-    int cs = crlf_start(s);
+    cs = crlf_start(s);
     assert(cs >= 0);
     rc = msend(cs, "ABC", 3, -1);
     assert(rc == 0);
