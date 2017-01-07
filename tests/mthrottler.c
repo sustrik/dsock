@@ -45,7 +45,7 @@ int main() {
         assert(rc == 0);
     }
     int64_t elapsed = now() - start;
-    assert(elapsed > 80 && elapsed < 100);
+    assert(elapsed > 80 && elapsed < 120);
     char buf[3];
     for(i = 0; i != 95; ++i) {
         ssize_t sz = mrecv(pfx1, buf, sizeof(buf), -1);
@@ -73,7 +73,7 @@ int main() {
         assert(rc == 0);
     }
     elapsed = now() - start;
-    assert(elapsed > 80 && elapsed < 100);
+    assert(elapsed > 80 && elapsed < 120);
     hclose(thr);
     hclose(crlf1);
 
