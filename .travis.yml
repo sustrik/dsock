@@ -3,13 +3,8 @@ language: c
 sudo: false
 
 os:
+  - osx
   - linux
-
-sudo: required
-
-compiler:
-  - gcc
-  - clang
 
 env:
   matrix:
@@ -31,12 +26,22 @@ branches:
   only:
     - master
 
+before_install:
+  - '[ `type -P brew` ] && brew install openssl --force || ``'
+  - export {opt=`pwd`/opt,ssl=/usr/local/Cellar/openssl/1.0.2j}
+  - export {CFLAGS=-I$opt/include,LDFLAGS=-L$opt/lib}
+  - git clone --depth 1 https://github.com/sustrik/libdill && cd libdill
+  - ./autogen.sh && ./configure --prefix=$opt && make && make install
+  - cd $opt/lib
+  - '[ `type -P brew` ] && for i in $(ls $ssl/lib/lib*); do ln -s $i; done || ``'
+  - cd $opt/include
+  - '[ `type -P brew` ] && ln -s $ssl/include/openssl || ``'
+  - cd ../.. && ./autogen.sh
+
 install:
-  - wget http://libdill.org/libdill-1.1.tar.gz
-  - tar -xzf libdill-1.1.tar.gz
-  - pushd libdill-1.1 && ./configure --prefix=/usr && make && sudo make install && popd
-  - if [[ $CONF == "shared" ]]; then ./autogen.sh && ./configure --enable-tls && make; fi
-  - if [[ $CONF == "static" ]]; then ./autogen.sh && ./configure --enable-tls --disable-shared && make; fi
+  - if [[ $CONF == "shared" ]]; then ./configure --prefix=$opt  --enable-tls; fi
+  - if [[ $CONF == "static" ]]; then ./configure --prefix=$opt --disable-shared  --enable-tls; fi
+  - make
 
 script:
   - make check
