@@ -61,12 +61,12 @@ Internet-Draft            BSD Socket API Revamp            February 2017
 1.  Introduction
 
    The progress in the area of network protocols is distinctively
-   lagging behind.  While every hobbyist new to the art of programming
-   writes and publishes their small JavaScript libraries, there's no
-   such thing going on with network protocols.  Indeed, it looks like
-   the field of network protocols is dominated by big companies and
-   academia, just like programming as a whole used to be before the
-   advent of personal computers.
+   lagging behind.  While every hobbyist writes and publishes their
+   small JavaScript libraries, there's no such thing going on with
+   network protocols.  Indeed, it looks like the field of network
+   protocols is dominated by big companies and academia, just like
+   programming as a whole used to be before the advent of personal
+   computers.
 
    While social and political reasons may be partly to blame (adoption,
    interoperability etc.) the technology itself creates a huge barrier
@@ -120,10 +120,7 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
    document are to be interpreted as described in RFC 2119.
 
-3.  Composability
-
-   To cover all the use cases the API has to support two distinct kinds
-   of composabilty.
+3.  Basic concepts
 
 3.1.  Vertical composability
 
@@ -158,8 +155,11 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    An example of horizontal composability is how typical web page is
    trasferred by first doing HTTP handshake, followed by HTML body:
 
-
-
+                  +-----------------------------------+
+                  |   HTTP   |          HTML          |
+                  +----------+------------------------+
+                  |                TCP                |
+                  +-----------------------------------+
 
 
 
@@ -169,12 +169,6 @@ Sustrik                  Expires August 22, 2017                [Page 3]
 
 Internet-Draft            BSD Socket API Revamp            February 2017
 
-
-                  +-----------------------------------+
-                  |   HTTP   |          HTML          |
-                  +----------+------------------------+
-                  |                TCP                |
-                  +-----------------------------------+
 
    Note how this design makes protocol reusable: The same HTTP handshake
    can be used, for example, to initiate a WebSocket session.
@@ -194,12 +188,156 @@ Internet-Draft            BSD Socket API Revamp            February 2017
                   |                TCP                |
                   +-----------------------------------+
 
-4.  Scheduling or rather lack of it
+3.3.  Application and transport protocols
+
+3.3.1.  Application protocols
+
+   Application protocols live on the top of the network stack.  Rather
+   than trasferring raw data they are meant to perform a specific
+   service for the user.  For example, DNS protocol provides name
+   resolution service.
+
+   Application protocols don't give user a way to send or receive data.
+   They have no standardized API for sending or receiving.  Still, they
+   can be initialized, terminated and layered on top of other protocols.
+   That being the case, relevant parts of this specification still apply
+   to them.
+
+3.3.2.  Presentation protocols
+
+   Presentation protocols add structure to data carried by transport
+   protocols (e.g.  ASN.1, JSON, XML).  This proposal doesn't address
+   them in any way.  Either the protocol sends and receives binary data
+   that just happen to be in a structured format in which case it's a
+   standard transport protocol.  Or the protocol exposes special API to
+   browse the structured data in which case it should be treated as an
+   application protocol.
+
+3.3.3.  Transport protocols
+
+   The term "transport protocol" in this memo has broader scope than
+   "OSI L4 protocol".  By "transport protocol" we mean anything capable
+
+
+
+
+Sustrik                  Expires August 22, 2017                [Page 4]
+
+Internet-Draft            BSD Socket API Revamp            February 2017
+
+
+   of sending and/or receiving unstructured data, be it TCP, IP or
+   Ethernet.
+
+3.4.  Bytestream and message protocols
+
+   Byte stream protocols are transport protocols that define no message
+   boundaries.  One peer can send 10 bytes, then 8 bytes.  The other
+   peer can read all 18 bytes at once or read 12 bytes first, 6 bytes
+   second.  Bytestream protocols are always reliable (no bytes can be
+   lost) and ordered (bytes are received in the same order they were
+   sent in).  TCP is a classic example of bytestream protocol.
+
+   Message protocols are transport protocols that preserve message
+   boundaries.  While message protocols are not necessarily reliable
+   (messages can be lost) or ordered (messages can be received in
+   different order than they were sent in) they are always atomic.  User
+   will receive either complete message or no message.  IP, UDP and
+   WebSockets are examples of message protocols.
+
+   This memo proposes distinct API for bytestream and message protocols.
+   The reason for the design decision is that while the API for the two
+   is superficially similar there is large difference in semantics,
+   especially when it comes to atomicity and error handling.
+
+   As an added benefit, the fact that bystream protocols are always
+   ordered and reliable means that bystream API provides stronger
+   semantic guarantees than message API.
+
+   In theory, the two API could have been unified by treating each byte
+   in a bytestream protocol as a separate message.  In practice,
+   however, such API design would prevent batching and would thus result
+   in implementations with inferior throughput characteristics.
+
+3.5.  Connected and unconnected protocols
+
+   From the API point of view the most significant difference between
+   connected protocols such as TCP and unconnected protocols such as UDP
+   is that the former have initialization and termination handshakes
+   while the latter do not.
+
+   This distinction turns out to be critical when contemplating
+   composable microprotocols.  If there are 10 connected microprotocols
+   in the stack and RTT between two endpoints is 100 ms, connection
+   establishment will require at least 10 roundtrips, i.e. one second or
+   more.
+
+
+
+
+
+
+Sustrik                  Expires August 22, 2017                [Page 5]
+
+Internet-Draft            BSD Socket API Revamp            February 2017
+
+
+   Latency of this magnitude is often not acceptable.  Even worse, given
+   that RTT is limited by the speed of light, it's not going to get
+   better as technology advances.
+
+   Therefore, the only way to get microprotocols with decent performance
+   is to make majority of them unconnected.  In the ideal case there
+   shoudl be at most one connected protocol in any networking stack.
+
+   To achieve the goal we'll have to turn even protocols that
+   instinctively feel like connected into unconnected ones.
+
+   Consider a simple keep-alive protocol.  The peers have to agree on a
+   keep-alive interval and thus the intial handshake seems unavoidable.
+   However, if the peers have agreed on the keep-alive interval
+   beforehand they can just pass the number to the API and no initial
+   handshake is required.  We can suddenly think of the protocol as
+   unconnected.
+
+   Technically, the users could have just met personally and decided on
+   keep-alive interval.  However, it doesn't have to be that way.  In
+   most cases there's a connected protocol in the stack somewhere
+   beneath the keep-alive protocol.  If that connected protocol allows
+   to bundle arbitrary data with its initial handshake we can use it to
+   exchange keep-alive intervals between the peers.  Later on, when
+   instantiating the keep-alive protocol we can pass in the correct
+   number via API.
+
+   As for the terminal handshakes, these are critical for horizontal
+   composability of protocols.  To be able to start new protocol on pre-
+   existing connection the old protocol has to be terminated and both
+   peers have to agree on where exactly it have ended.  To do that
+   handshake is needed.
+
+   Assuming there's a connected protocol beneath the user can tear down
+   all the unconnected protocol layers above.  Then they can shut down
+   the connected protocol which will put both peers in sync with respect
+   to where exaclty have the protocol ended.  Afterwards they can open
+   new protocols on top of the remaining layers of the stack.
+
+   Each protocol MUST be either connected or unconnected.  A protocol
+   MUST NOT try to support both scenarios.
+
+3.6.  Scheduling or rather lack of it
 
    During the decades since BSD sockets were first introduced the way
    they are used have changed significantly.  While in the beginning the
    user was supposed to fork a new process for each connection and do
    all the work using simple blocking calls nowadays they are expected
+
+
+
+Sustrik                  Expires August 22, 2017                [Page 6]
+
+Internet-Draft            BSD Socket API Revamp            February 2017
+
+
    to keep a pool of connections, check them via functions like poll()
    or kqueue() and dispatch any work to be done to one of the worker
    threads in a thread pool.  In other words, user is supposed to do
@@ -218,17 +356,10 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    concurrency systems deployed in the wild.  One well-known example are
    Golang's goroutines but there are others available as well.
 
-
-
-
-Sustrik                  Expires August 22, 2017                [Page 4]
-
-Internet-Draft            BSD Socket API Revamp            February 2017
-
-
    In such environment network programming can be done in the old "one
-   process per connection" way.  There's no need for polling, thread
-   pools, callbacks, explicit state machines or similar.
+   process per connection" way, with all the functions exhibiting
+   blocking behavior.  There's no need for polling, thread pools,
+   callbacks, explicit state machines or similar.
 
    This memo thus adheres to "let system programmers do system
    programming" maxim and doesn't address the problem of scheduling, be
@@ -238,16 +369,111 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    of deliberate design choices that prevent the modern "schedule by
    hand" style of network programming.
 
-5.  File descriptors
+3.7.  Tx buffering
+
+   Buffering of outbound data and sending them down the stack in batches
+   often results in improved performance.  It is perfectly acceptable
+   for protocol implementation to do so as long as data is flushed when
+   the socket is closed.  The data should also be flushed periodically
+   not to induce unbounded latencies when there are no new outbound data
+   to fill in the buffer.
+
+3.8.  Rx buffering
+
+   Buffering of inbound data collides with vertical composability of
+   protocols.
+
+   If protocol reads 1000 bytes of data from the underlying protocol,
+   then protocol above it asks for 700 bytes and closes the socket,
+   there's no way to push the remaining 300 bytes back to the underlying
+
+
+
+Sustrik                  Expires August 22, 2017                [Page 7]
+
+Internet-Draft            BSD Socket API Revamp            February 2017
+
+
+   socket.  Allowing for such operation would mean that the buffer of
+   the underlying socket would have to be virtually unbounded.
+
+   If, on the other hand, the remaining bytes were dropped there would
+   be no way to start a new protocol on top of the same underlying
+   socket.  The new protocol would miss initial 300 bytes of data.
+
+   Luckily though, the above reasoning doesn't apply to the bottommost
+   protocol in the stack.  Given that there's no underlying protocol to
+   start a new protocol on top of, the buffered data can be simply
+   dropped.
+
+   Also, rx buffering on the lowermost level, where the protocol is
+   interfacing with the hardware or with user/kernel space boundary, is
+   likely to provide the largest performance benefits.  Absence of rx
+   buffering on higher levels, where performance impact of additional
+   receive operation is basically that of a function call, is not likely
+   to incur huge performance penalty.  And even more so given that
+   higher layers of the stack are likely to be message-based and thus
+   some amount of batching, proportional to the average message size,
+   happens anyway.
+
+3.9.  Socket options
+
+   There's no equivalent to socket options as they are known from BSD
+   socket API.  Any such customization of the network stack is supposed
+   to be built by vertically layering the protocols.
+
+4.  The API guidelines
+
+4.1.  Protocol naming conventions
+
+   Whenever possible, protocol name in the API SHOULD correspond to the
+   official name of the protocol, not to the name of the protocol
+   implementation.  While this can lead to name clashes the assumption
+   is that single application is not going to use two implementations of
+   the same network protocol.  This rule also provides an incentive to
+   standardize protocol APIs.
+
+   To make the API less tedious to use, short protocol name, e.g. "ws",
+   SHOULD be preferred to the long name, e.g. "websockets".
+
+   Given that end users prefer to create full protocol stack using a
+   single function it is desirable to provide them with shrinkwrapped
+   protocols aggregating many microprotocols into a coherent whole.  For
+   example, "websocket" protocol may be composed of TCP protocol and
+   WebSocket protocol itself.  Still, expert users may want to have
+   access to WebSocket protocol as such, without the underlying TCP
+
+
+
+Sustrik                  Expires August 22, 2017                [Page 8]
+
+Internet-Draft            BSD Socket API Revamp            February 2017
+
+
+   protocol, say, if they want to run it on top of SCTP or any other
+   alternative transport.  In such cases there is a naming dilemma:
+   Should "websocket" name refer to the TCP+WebSocket aggregate or to
+   the WebSocket alone?  In these cases the implemetors SHOULD always
+   prefer the former solution.
+
+4.2.  Function naming conventions
+
+   The function names SHOULD be in lowercase and SHOULD be composed of
+   short protocol name and action name separated by underscore (e.g.
+   "tcp_connect").  Of course, in languages other than C the native
+   naming convention should be followed, but even then the name SHOULD
+   contain both short protocol name and action name.
+
+4.3.  File descriptors
 
    One of the design goals of this API is to support both kernel space
    and user space implementations.  One problem with that is that kernel
    space objects are typically reffered to by file descriptors while
-   there is no easy way to associate user space objects with file
+   POSIX provides no easy way to associate user space objects with file
    descriptors.
 
-   Therefore this specification allows user space implementations to use
-   fake file descriptors (simple integers that kernel space knows
+   Therefore, this specification allows user space implementations to
+   use fake file descriptors (simple integers that kernel space knows
    nothing about) and does not guarantee that system functions will work
    with those descriptors.
 
@@ -256,13 +482,10 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    maps directly to close() in kernel-space implementations but can be
    overriden by custom implementation in a user-space implementation.
 
-6.  Socket options
+   Whenever a function acts on a file descriptor, the descriptor SHOULD
+   be passed to the function as its first argument.
 
-   There's no equivalent to socket options as they are known from BSD
-   socket API.  Any such functionality is supposed to be built by
-   vertical layering of protocols.
-
-7.  Deadlines
+4.4.  Deadlines
 
    Unlike with BSD sockets the deadlines are points in time rather than
    intervals.  This allows to use the same deadline in multiple calls
@@ -272,231 +495,8 @@ Internet-Draft            BSD Socket API Revamp            February 2017
        bsend(h, "ABC", 3, deadline);
        bsend(h, "DEF", 3, deadline);
 
-
-
-
-
-
-Sustrik                  Expires August 22, 2017                [Page 5]
-
-Internet-Draft            BSD Socket API Revamp            February 2017
-
-
-8.  Function prototype conventions
-
-   For consistency's sake the function names SHOULD be in lowercase and
-   SHOULD be composed of short protocol name and action name separated
-   by underscore (e.g. "tcp_connect").  Of course, in non-C languages
-   the native naming convention should be followed, but even then the
-   name SHOULD contain both protocol name and action name.
-
-   Given that end users prefer to create full protocol stack using a
-   single function it is desirable to have shrinkwrapped protocols
-   aggregating many microprotocols into a coherent whole.  For example,
-   "websock" protocol may be composed of TCP protocol and WebSocket
-   protocol itself.  Still, expert users may want to have access to
-   WebSocket protocol as such, without the underlying TCP protocol, say,
-   if they want to run it on top of SCTP or any other alternative
-   transport.  In such cases there is a naming dillema: Should "websock"
-   name refer to TCP+WebSocket aggregate or to WebSocket alone?  In
-   these cases the implemetors SHOULD always prefer the former solution.
-
-   First argument of the function, where applicable, SHOULD be the file
-   descriptor.
-
-   In all blocking functions the last argument SHOULD be the deadline.
-
-9.  Protocol initialization
-
-   A protocol SHOULD be initialized using "start" function (e.g.
-   "smtp_start").  If protocol runs on top of another protocol the file
-   descriptor of the underlying protocol SHOULD be supplied as the first
-   argument of the function.  The function MAY have arbitrary number of
-   additional arguments.
-
-   The function SHOULD return the file descriptor of the newly created
-   protocol instance.  In case of error it SHOULD close the underlying
-   protocol, return -1 and set errno to the appropriate error.
-
-   Some protocols require more complex setup.  Consider TCP's
-   listen/connect/accept connection setup process.  These protocols
-   should use custom set of functions rather than try to shoehorn all
-   the functionality into one all-purpose "start" function.
-
-   If protocol runs on top of an underlying protocol it takes ownership
-   of that protocol.  Using the low level protocol while it is owned by
-   a higher level protocol will result in undefined behaviour.  A sane
-   way to implement this behaviour is to create a duplicate of the
-   underlying file descriptor to be owned by the parent protocol and
-   closing the original file descriptor.  That way, user accidentally
-
-
-
-
-Sustrik                  Expires August 22, 2017                [Page 6]
-
-Internet-Draft            BSD Socket API Revamp            February 2017
-
-
-   using a lower level protocol after it have been wrapped in higher
-   layer protocol results in EBADF error.
-
-   Example of creating a stack of four protocols:
-
-       int s1 = tcp_connect("192.168.0.111:5555", -1);
-       int s2 = foo_start(s1, arg1, arg2, arg3);
-       int s3 = bar_start(s2);
-       int s4 = baz_start(s3, arg4, arg5);
-
-10.  Protocol termination
-
-10.1.  Forceful termination
-
-   Protocol descriptor is closed by hclose() function.  In kernel-space
-   implementations this function maps directly to standard POSIX close()
-   function.  The protocol MUST shut down immediately without trying to
-   do termination handshake or similar.  Note that this is different
-   from how BSD sockets behave.
-
-   The protocol MUST also clean up all resources it owns including
-   closing the underlying protocol.  Given that the underlying protocol
-   does the same operation, an entire stack of protocols can be shut
-   down recursivelly by closing the file descriptor of the topmost
-   protocol:
-
-         int h1 = foo_start();
-         int h2 = bar_start(h1);
-         int h3 = baz_start(h2);
-         hclose(h3); /* baz, bar and foo are shut down */
-
-10.2.  Orderly termination
-
-   To perform an orderly shut down there SHOULD be a protocol-specific
-   function called "stop".  In addition to the file descriptor the
-   function can have arbitrary number of other arguments (for example a
-   shutdown reason string to be sent to the peer).
-
-   The function MUST flush any unsent data.
-
-   If the shut down functionality is potentially blocking the last
-   argument SHOULD be a deadline.
-
-   If stop function succeeds it SHOULD NOT close the underlying
-   protocol.  Instead it SHOULD return its file descriptor.  This is
-   crucial for horizontal composability of protocols:
-
-
-
-
-
-Sustrik                  Expires August 22, 2017                [Page 7]
-
-Internet-Draft            BSD Socket API Revamp            February 2017
-
-
-         /* create stack of two protocols */
-         h1 = foo_start();
-         h2 = bar_start(h1);
-         /* top protocol is closed but bottom one is still alive */
-         h1 = bar_stop(h2, -1);
-         /* new top protocol is started */
-         h3 = baz_start(h1);
-         /* shut down both protocols */
-         h1 = baz_stop(h3, -1);
-         foo_stop(h1, -1);
-
-   The protocol may live at the very bottom of the stack and have no
-   underlying protocol.  In that case the stop function SHOULD return 0
-   on success.
-
-   In the case of error stop function MUST forcibly close the underying
-   protocol (and thus recursively all protocols beneath it), return -1
-   and set errno to the appropriate value.
-
-   On the conceptual level, successfull invocation of "stop" function
-   means that both local and remote endpoints agree that the protocol is
-   finished and guarantee that no leftover data from the protocol will
-   be delivered in the future.
-
-   Note that this design does away with BSD socket SO_LINGER behaviour,
-   which is problematic as it cannot be implemented cleanly in user
-   space.
-
-10.3.  Conflating handshakes
-
-   With many protocols layered one on top of another the latency
-   introduced by many initial handshakes may become prohibitive.  For
-   example, with 10-layered stack of protocols and RTT between peers at
-   100ms, the entire initiation sequence would take one second.
-
-   To deal with this problem most protocols are not supposed to have
-   initial or terminal handshake of their own.  Instead, all parameters
-   that would otherwise be negotiated with the peer are passed as
-   arguments to the start function.  The stop function, on the other
-   hand, doesnt't do any handshakes just flushes any unsent data and
-   returns the underlying socket.
-
-   Note that this is exactly how unconnected protocols (e.g.  UDP) work.
-   There is no difference between "unconnected sockets" and "sockets
-   with a delegated handshake".
-
-
-
-
-
-
-Sustrik                  Expires August 22, 2017                [Page 8]
-
-Internet-Draft            BSD Socket API Revamp            February 2017
-
-
-   The unconnected protocol lives on top of a connected protocol.
-   Parameter negotiation is performed via the underlying connected
-   protocol:
-
-       /* Open underlying TCP connection. */
-       int tcp = tcp_connect("192.168.0.111:5555", -1);
-       /* Perform initial handshake via TCP. */
-       int foo = 1, bar, baz, quux;
-       bsend(tcp, &foo, sizeof(foo), -1);
-       brecv(tcp, &bar, sizeof(bar), -1);
-       brecv(tcp, &baz, sizeof(baz), -1);
-       brecv(tcp, &quux, sizeof(quux), -1);
-       /* Use the values from the handshake to initialize any number of
-          protocols on top of the TCP connection. */
-       int p1 = myprotocol1_start(tcp, bar);
-       int p2 = myprotocol2_start(p1, baz, quux);
-
-   When one of the peers decides to close the connection it stops the
-   unconnected protocol on top.  That flushes any unsent data to the
-   underlying protocol.  Then it stops the connected protocol on the
-   bottom which performs the final handshake:
-
-       int tcp = myprotocol_stop(s, -1);
-       tcp_stop(tcp, -1);
-
-   On the side of the connection that haven't triggered the shutdown the
-   code looks very much the same, except that the functionality is
-   triggered by getting EPIPE error from a receive function.
-
-   Important thing to note is that at this point both peers are in sync
-   with respect to where the protocol ends.  They can start a new
-   protocol on top of the same TCP connection without having to deal
-   with leftover data from previous communication.
-
-10.4.  Half-closing a protocol
-
-   Sometimes, endpoint wants to terminate a protocol, yet it still wants
-   to receive any data sent by the peer prior to the termination.  The
-   scenario gets tricky when combined with conflated handshakes: User
-   has to stop the protocol on top to be able to start the termination
-   handshake on the underlying protocol.  But having stopped the
-   protocol on top in cannot receive any pending messages sent via that
-   protocol.
-
-   To address this use case, protocols SHOULD support "done" function,
-   roughly equivalent to POSIX shutdown(SHUT_WR) function.
-
+   All possibly blocking functions MUST accept a deadline.  The deadline
+   SHOULD be passed to the function as its last argument.
 
 
 
@@ -506,54 +506,54 @@ Sustrik                  Expires August 22, 2017                [Page 9]
 Internet-Draft            BSD Socket API Revamp            February 2017
 
 
-   The function MUST flush any pending outbound data and, if applicable,
-   start the termination handshake.
+4.5.  Protocol initialization
 
-   In case of success it returns the file descriptor of the underlying
-   protocol, if any.  If there's no underlying protocol it returns zero.
-   In either case, it MUST NOT close the socket.
+   A protocol SHOULD be initialized using a protocol-specific "start"
+   function (e.g. "smtp_start").  If protocol runs on top of another
+   protocol the file descriptor of the underlying protocol SHOULD be
+   supplied as the first argument of the function.  The function MAY
+   have arbitrary number of additional arguments.
 
-   In case of error it MUST forcefully close the socket, return -1 and
-   set errno to the appropriate value.
+   The function SHOULD return the file descriptor of the newly created
+   protocol instance.  In case of error it SHOULD close the underlying
+   protocol, return -1 and set errno to the appropriate error.
 
-   After invoking "done" function, any sending-related functions on the
-   socket MUST fail with EPIPE error.
+   Some protocols require more complex setup.  Consider TCP's
+   listen/connect/accept connection setup process.  These protocols
+   SHOULD use custom set of functions rather than try to shoehorn all
+   the functionality into a single all-purpose "start" function.
 
-   Using the file descriptor returned by "done" function for receiving
-   data results in undefined behaviour.
+   If protocol runs on top of an underlying protocol it takes ownership
+   of that protocol.  Using the low level protocol while it is owned by
+   a higher level protocol will result in undefined behaviour.  A sane
+   way to implement this behaviour is to create a duplicate of the
+   underlying file descriptor to be owned by the parent protocol and
+   closing the original file descriptor.  That way, user accidentally
+   using a lower level protocol will get an EBADF error.
 
-   After calling done function the users can still receive data.  When
-   termination handshake is completed by the peer and all the pending
-   data are received by the local peer recv function MUST return EPIPE
-   error.
+   If protocol requires an initial handshake it MUST be performed in
+   this phase of the socket lifecycle.
 
-   Afterwards, stop function can be called to close the socket.
+   Example of creating a stack of four protocols:
 
-       /* Start the termination handshake. */
-       int tcp = myprotocol_done(s, -1);
-       tcp_done(tcp, -1);
-       /* Receive any pending messages. */
-       while(1) {
-           char buf[256];
-           int rc = mrecv(s, buf, sizeof(buf), -1);
-           if(rc == -1 && errno == EPIPE) break;
-           ...
-       }
-       /* Close the socket. */
-       tcp = myprotocol_stop(s, -1);
-       tcp_stop(tcp, -1);
+       int s1 = tcp_connect("192.168.0.111:5555", -1);
+       int s2 = foo_start(s1, arg1, arg2, arg3);
+       int s3 = bar_start(s2);
+       int s4 = baz_start(s3, arg4, arg5);
 
-   "Stop" function MUST work correctly irrespective of whether "done"
-   function was called before or not.  It MUST also work whether the
-   user received all the inbound data or not.
+4.6.  Protocol termination
 
-   The implementation of "stop" should therefore start termination
-   handshake (if not done already by "done" function), then read and
-   discard incoming data until the peer finishes the termination
-   handshake.  Finally, it MUST deallocate the socket and return the
-   underlying socket's file descriptor.
+   There are several types of termination that will be discussed in
+   following sections:
 
+   o  Forceful termination means that the user wants to shut down the
+      socket abruptly without even letting the peer know.  Forceful
+      termination is always a non-blocking operation.
 
+   o  Half-close termination means that outbound half of the connection
+      is closed by the user and the terminal handshake, if supported by
+      the protocol, is initiated.  However, the user is still able to
+      receive data from the peer.
 
 
 
@@ -562,52 +562,52 @@ Sustrik                  Expires August 22, 2017               [Page 10]
 Internet-Draft            BSD Socket API Revamp            February 2017
 
 
-11.  Normal operation
+   o  Orderly termination means that terminal handshake with the peer,
+      if required by the protocol, is performed.  Orderly termination
+      leaves both peers with a consistent view of the world.
 
-   Everything that happens between protocol initialization and protocol
-   termination will be referred to as "normal operation".
+4.6.1.  Forceful termination
 
-11.1.  Application protocols
+   To perform forceful termination protocol descriptor is closed by
+   hclose() function.  In kernel-space implementations this function
+   maps directly to standard POSIX close() function.  The protocol MUST
+   shut down immediately without trying to do termination handshake.
+   Note that this is different from how classic BSD sockets behave.
 
-   Application protocols live on top of transport protocols.  Rather
-   than passing raw data they are meant to perform a specific service
-   for the user (e.g.  DNS performs name lookups).
+   The protocol MUST also clean up all resources it owns including
+   closing the underlying protocol.  Given that the underlying protocol
+   does the same operation, an entire stack of protocols can be shut
+   down recursivelly by closing the file descriptor of the topmost
+   protocol:
 
-   Application protocols don't send or receive data.  Therefore, they
-   have no standardized API for normal operation.  Still they can be
-   initialized and terminated same way as other protocols.
+       int h1 = foo_start();
+       int h2 = bar_start(h1);
+       int h3 = baz_start(h2);
+       hclose(h3); /* baz, bar and foo are shut down */
 
-   From the point of view of this document, application protocol is
-   always at the topmost level of the protocol stack.
+   In case of success hclose() returns zero.  In case of error it
+   returns -1 and sets errno to appropriate value.
 
-11.2.  Presentation protocols
+4.6.2.  Half-close termination
 
-   Presentation protocols add structure to data carried by transport
-   protocols (e.g.  ASN.1, JSON, XML).  This proposal doesn't address
-   them in any way.  Either the protocol sends and receives binary data
-   that just happen to be in a structured format in which case it's a
-   standard transport protocol.  Or the protocol exposes special API to
-   browse the structured data in which case it should be treated as an
-   application protocol.
+   The primary use case for half-closing a connection is when user wants
+   to close a connection, yet still wants to receive all the data sent
+   by the peer prior to the termination.
 
-11.3.  Transport protocols
+   To do so function hdone() is used.  It is roughly equivalent to POSIX
+   shutdown(SHUT_WR) function.
 
-   The term "transport protocol" in this memo has broader scope than
-   "OSI L4 protocol".  By "transport protocol" we mean anything capable
-   of sending and/or receiving unstructured data, be it TCP, IP or
-   Ethernet.
+   hdone() first of all flushes any buffered outbound data.  What
+   happens next depends on whether the protocol is connected or
+   unconnected.
 
-11.3.1.  Bytestream protocols
+   For unconnected protocols the implementation MUST forward the call to
+   the underlying socket.  If the protocol is at the bottom of the stack
+   and there is no underlying socket it SHOULD return ENOTSUP error.
 
-   Byte stream protocols are transport protocols that define no message
-   boundaries.  One peer can send 10 bytes, then 8 bytes.  The other
-   peer can read all 18 bytes at once or read first 12 bytes, then 6
-   bytes.  Bytestream protocols are always reliable (no bytes can be
-   lost) and ordered (bytes are received in the same order they were
-   sent in).  TCP is a classic example of bytestream protocol.
-
-   Bytestream protocols can be used via following four functions:
-
+   For connected protocols the implementation MUST start termination
+   handshake and return to the caller without waiting for the answer
+   from the peer.
 
 
 
@@ -617,6 +617,122 @@ Sustrik                  Expires August 22, 2017               [Page 11]
 
 Internet-Draft            BSD Socket API Revamp            February 2017
 
+
+   After hdone() is called, any further calls to hdone() or attemps to
+   send more data MUST result in EPIPE error.
+
+   However, user is still able to receive more data from the socket.
+
+   Following piece of code shows typical usage do hdone().  It half-
+   closes the connection, receives any pending messages from the peer
+   and finally closes the socket:
+
+       hdone(s);
+       while(1) {
+           int rc = mrecv(s, &msg, sizeof(msg), -1);
+           if(rc < 0 && errno == EPIPE) break;
+           process_msg(&msg);
+       }
+       hclose(s);
+
+   hdone() function returns 0 on success.  In case of error the function
+   MUST forcibly close the underying protocol (and thus recursively all
+   protocols beneath it), return -1 and set errno to the appropriate
+   value.
+
+4.6.3.  Orderly termination
+
+   To perform an orderly shut down there SHOULD be a protocol-specific
+   function called "stop" (e.g. "smtp_stop").
+
+   In addition to the file descriptor the function can have arbitrary
+   number of other arguments.  For example, one such argument may be a
+   "shutdown reason" string to be sent to the peer.  However, it is
+   RECOMMENDED to avoid such additional arguments in newly designed
+   protocols.  The reason is that such arguments cannot be passed to
+   hdone() function, making half-close termination functionally inferior
+   to orderly termination.
+
+   If the shut down functionality is potentially blocking the last
+   argument of the function SHOULD be a deadline.
+
+   First thing hclose() should do is to check whether hdone() was called
+   by the user beforehand and if not so, to invoke it itself.
+
+   If hdone() returns error other than ENOTSUP the socket MUST be torn
+   down and the error MUST be forwarded to the caller.
+
+   If hdone() returns ENOTSUP error the implementation MUST simply
+   procceed further without reading any messages from the peer.
+
+
+
+
+
+Sustrik                  Expires August 22, 2017               [Page 12]
+
+Internet-Draft            BSD Socket API Revamp            February 2017
+
+
+   If hdone() succeeds the implementation must read and drop any pending
+   messages from the peer.  Note that there is a possible DoS attack
+   here: The peer can send infinite number of messages.  Therefore, the
+   implementation MUST observe the deadline and tear down the socket in
+   case it runs out of time.  ETIMEDOUT error is then returned to the
+   user.
+
+   At this point the implementation should deallocate the socket.
+   However, it SHOULD NOT close the underlying protocol.  Instead it
+   SHOULD return its file descriptor to the user.  This is crucial for
+   horizontal composability of the protocols:
+
+       /* create stack of two protocols */
+       h1 = foo_start();
+       h2 = bar_start(h1);
+       /* top protocol is closed but bottom one is still alive */
+       h1 = bar_stop(h2, -1);
+       /* new top protocol is started */
+       h3 = baz_start(h1);
+       /* shut down both protocols */
+       h1 = baz_stop(h3, -1);
+       foo_stop(h1, -1);
+
+   If protocol lives at the very bottom of the stack and has no
+   underlying protocol "stop" function MUST return 0 on success.
+
+   In the case of error stop function MUST forcibly close the underying
+   protocol (and thus recursively all protocols beneath it), return -1
+   and set errno to the appropriate value.
+
+   Note that this design of orderly termination does away with BSD
+   socket SO_LINGER behaviour, which is problematic as it cannot be
+   implemented cleanly in user space.
+
+4.7.  Normal operation
+
+   Everything that happens between protocol initialization and protocol
+   termination will be referred to as "normal operation".
+
+   As already mentioned, application protocols can't send or receive
+   data.  Trying to invoke any of the functions below on an application
+   protocol MUST result in ENOTSUP error.
+
+   Transport protocols are either bystestream protocols or message
+   protocols.
+
+
+
+
+
+
+Sustrik                  Expires August 22, 2017               [Page 13]
+
+Internet-Draft            BSD Socket API Revamp            February 2017
+
+
+4.7.1.  Bytestream protocols
+
+   Bytestream protocols can be used via following four functions:
 
        int bsend(int h, const void *buf, size_t len,
            int64_t deadline);
@@ -629,20 +745,13 @@ Internet-Draft            BSD Socket API Revamp            February 2017
 
    Function bsend() sends data to the protocol.  The protocol SHOULD
    send them, after whatever manipulation is required, to its underlying
-   protocol.  Eventually, the lowermost protocol in the stack sends the
+   protocol.  Eventually, the bottommost protocol in the stack sends the
    data to the network.
 
    Function brecv() reads data from the protocol.  The protocol SHOULD
    read them from the underlying socket and after whetever required
-   manipulation is done return them to the caller.  The lowermost
+   manipulation is done return them to the caller.  The bottommost
    protocol in the stack reads the data from the network.
-
-   The lowermost protocol MAY read more data than asked for by the user
-   and store it in a buffer.  This may be needed for efficiency reasons
-   e.g. when getting more date requires crossing user/kernel space
-   boundary.  The protocols that are not at the bottom of the stack MAY
-   NOT implement such behaviour.  If they did, they would not be able to
-   shut down cleanly.
 
    All the functions above MUST be blocking and exhibit atomic
    behaviour.  I.e. either all data are sent/received or none of them
@@ -653,35 +762,31 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    Expired deadline is considered to be an error and the protocol MUST
    behave as described above and set errno to ETIMEDOUT.
 
-   In case of success all functions MUST return zero.
-
-   Note that the implementations of brecv() and brecvv() may change the
-   content of the supplied buffer even in case of error.  However, what
-   will be written into the buffer is unpredictable and using such data
-   will result in undefined behaviour.
+   In case of success all the functions MUST return zero.
 
    Functions bsendv() and brecvv() MUST behave in the same way as
    bsend() and brecv(), the only difference being that buffers are
    passed to the functions via scatter/gather arrays, same way as in
    POSIX sendmsg() and recvmsg() functions.
 
+   Note that the implementations of brecv() and brecvv() MAY change the
+   content of the buffer supplied to the function even in the case of
+   error.  However, what exaclty will be written into the buffer is
+   unpredictable and using such data will result in undefined behaviour.
 
 
 
 
-Sustrik                  Expires August 22, 2017               [Page 12]
+
+
+
+
+Sustrik                  Expires August 22, 2017               [Page 14]
 
 Internet-Draft            BSD Socket API Revamp            February 2017
 
 
-11.3.2.  Message protocols
-
-   Message protocols are transport protocols that preserve message
-   boundaries.  While message protocols are not necessarily reliable
-   (messages can be lost) or ordered (messages can be received in
-   different order than they were sent in) they are always atomic.  User
-   will receive either complete message or no message.  IP, UDP and
-   WebSockets are examples of message protocols.
+4.7.2.  Message protocols
 
    Message protocols can be used via following four functions:
 
@@ -707,50 +812,51 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    All the functions MUST be blocking and exhibit atomic behaviour.
    I.e. either entire message is sent/received or none of it is.  In the
    later case errno MUST be set to appropriate value and -1 MUST be
-   returned to the user.  The protocol MAY be marked as broken and any
-   subsequent attempt to use it will result in an error.
+   returned to the user.  The protocol may be recoverable in which case
+   receiving next message after an error is possible.  In can also be
+   non-recoverable in which the protocol MUST be marked as broken and
+   any subsequent attempt to use it MUST result in an error.
 
    Note that unlike with bytestream sockets the buffer supplied to
-   mrecv() doesn't have to be fully filled in, i.e. received messaged
+   mrecv() doesn't have to be fully filled in, i.e. received messages
    may be smaller than the buffer.
 
    If the message is larger than the buffer, it is considered to be an
-   error and the protocol must behave as described above, setting errno
-   to EMSGSIZE.  If there's no way to discard the unread part of the
-   message in constant time it SHOULD also mark the protocol as broken
-   and refuse any further operations.  This behaviour prevents DoS
-   attacks by sending very large messages.
+   error and the protocol must return -1 and set errno to EMSGSIZE.  If
+   there's no way to discard the unread part of the message in constant
+   time it SHOULD also mark the protocol as broken and refuse any
+   further operations.  This behaviour prevents DoS attacks by sending
+   very large messages.
+
+   Expired deadline is considered to be an error and the protocol MUST
+   return ETIMEDOUT error.
+
+   In case of success msend() function MUST return zero, mrecv() MUST
+   return the size of the received message, zero being a valid size.
 
 
 
 
-
-Sustrik                  Expires August 22, 2017               [Page 13]
+Sustrik                  Expires August 22, 2017               [Page 15]
 
 Internet-Draft            BSD Socket API Revamp            February 2017
 
-
-   Expired deadline is considered to be an error and the protocol MUST
-   behave as described above, setting errno to ETIMEDOUT.
-
-   In case of success msend() function MUST return zero, mrecv() MUST
-   return the size of the received message (zero is a valid size).
-
-   The implementation of mrecv() may change the content of the buffer
-   even in case of error.  However, what will be written into the buffer
-   is unpredictable and using such data will result in undefined
-   behaviour.
 
    Functions msendv() and mrecvv() MUST behave in the same way as
    msend() and mrecv().  The only difference is that buffers are passed
    to the functions via scatter/gather arrays, same way as in POSIX
    sendmsg() and recvmsg() functions.
 
-11.3.3.  Custom sending and receiving
+   Note that the implementations of mrecv() and mrecvv() MAY change the
+   content of the buffer supplied to the function even in the case of
+   error.  However, what exaclty will be written into the buffer is
+   unpredictable and using such data will result in undefined behaviour.
+
+4.7.3.  Custom sending and receiving functions
 
    In addition to send/recv functions described above, protocols MAY
-   implement its own custom send/recv functions.  These functions should
-   be called "send" and/or "recv" (e.g.  "udp_send").
+   implement their own custom send/recv functions.  These functions
+   should be called "send" and/or "recv" (e.g.  "udp_send").
 
    Custom functions allow for providing additional arguments.  For
    example, UDP protocol may implement custom send function with
@@ -760,9 +866,13 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    needed.
 
    Protocol implementors should try to make custom send/recv functions
-   as consistent with msend/mrecv as possible.
+   as consistent with standard send/recv as possible.
 
-11.3.4.  Error codes
+   Standard send/recv functions SHOULD fill in arguments otherwise
+   provided in custom send/recv by sensible defaults.  It MAY be
+   possible to set those defaults via "start" function.
+
+4.7.4.  Error codes
 
    Send and receive function may return following error codes:
 
@@ -778,27 +888,21 @@ Internet-Draft            BSD Socket API Revamp            February 2017
       msend() was called on a bytestream socket or mrecv() was called on
       send-only socket.
 
+   o  EPIPE: The peer have closed the connection.
 
 
 
-Sustrik                  Expires August 22, 2017               [Page 14]
+
+Sustrik                  Expires August 22, 2017               [Page 16]
 
 Internet-Draft            BSD Socket API Revamp            February 2017
 
-
-   o  EPIPE: Connection was terminated in orderly fashion.
 
    o  EPROTO: The peer has violated the protocol specification.
 
    o  ETIMEDOUT: Deadline expired.
 
-   Some of the error codes (EPIPE, ECONNRESET) are applicable only to
-   connection-based protocols.  They make no sense for unconnected
-   protocols such as UDP.  However, a protocol that is agnostic about
-   whether it is connected or not may get these errors from the
-   underlying connection-based protocol and pass them to the user.
-
-   Connection-based protocols MAY treat some of the errors as
+   As already mentioned some protocols MAY treat errors as
    unrecoverable.  In these cases any subsequent operation on the socket
    MUST return the same error.
 
@@ -806,11 +910,12 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    recoverable errors.  Instead, it should stick to the most natural
    semantics for the protocol.  For example, EMSGSIZE may seem to be a
    recoverable error, however, the implementation may have to allocate
-   memory to temporarily store the message which could in turn allow DoS
-   attacks be sending large messages.  It may thus be preferable to make
-   these errors unrecoverable.
+   arbitrary amount of memory to temporarily store the already received
+   part of the message which could in turn enable DoS attacks by sending
+   large messages.  It may thus be preferable to keep these errors
+   unrecoverable.
 
-12.  Examples
+5.  Examples
 
    To give an example of microprotocols that can be implemented using
    proposed API, here's the list of what's implemented in the proof-of-
@@ -835,19 +940,19 @@ Internet-Draft            BSD Socket API Revamp            February 2017
 
       tcp: wraps system implementation of TCP protocol
 
-
-
-Sustrik                  Expires August 22, 2017               [Page 15]
-
-Internet-Draft            BSD Socket API Revamp            February 2017
-
-
       throttler: imposes a limit of amount of data that can be sent and/
       or recevied per second
 
       udp: wraps system implementation of UDP protocol
 
       unix: wraps system implementation of UNIX domain sockets
+
+
+
+Sustrik                  Expires August 22, 2017               [Page 17]
+
+Internet-Draft            BSD Socket API Revamp            February 2017
+
 
    And here's an example of how the microprotocols can be combined to
    achieve complex functionality:
@@ -875,8 +980,8 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    size of the message in network byte order followed by the body of the
    message.  Nagle protocol doesn't modify the data but it may delay it
    by at most 100ms and batch it with preceding and/or following data.
-   Throttler once again doesn't modify the data but may delay so as not
-   to violate the bandwidth limit.  Finally, the data is sent to the
+   Throttler once again doesn't modify the data but may delay it so as
+   not to violate the bandwidth limit.  Finally, the data is sent to the
    network via TCP protocol.
 
    In the opposite direction, message traverses the stack from level 1
@@ -889,47 +994,29 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    it raises an error.  Finally, message is decrypted and authenticated
    at level 6 and decompressed at level 7.
 
+6.  IANA Considerations
+
+   This memo includes no request to IANA.
 
 
 
 
-Sustrik                  Expires August 22, 2017               [Page 16]
+
+
+
+
+Sustrik                  Expires August 22, 2017               [Page 18]
 
 Internet-Draft            BSD Socket API Revamp            February 2017
 
 
-13.  Unresolved issues
+7.  Security Considerations
 
-   This is a draft specification.  It still contains some unresolved
-   problems:
+   This memo addresses possible DoS attack at several places.
 
-   o  Given that "stop" function is supposed to call "done" function if
-      it was not called beforehand by the user, any non-standard
-      arguments to "done" (e.g. status code, reason for shutdown) have
-      to be duplicated in "stop" function.  Therefore, user performing
-      two-phase shutdown (done+stop) has to pass the same arguments to
-      the protocol API twice.
-
-   o  There are bandwidth optimizations that can be made in unconnected
-      protocol if it knew that it's actually running on the top of a
-      connected protocol.  For example, unconnected encryption protocol
-      may have to put a nonce to every message.  However, if it knew it
-      was being used on top of a reliable transport protocol, such as
-      TPC, it could send the nonce once at the beginning of the
-      connection and then increment it by one for every message.  It is
-      not clear whether such optimization is worth doing given that with
-      bandwidth we are not facing any hard physical limits.  (Unlike
-      with latency where we are limited by the speed of light.)
-
-14.  IANA Considerations
-
-   This memo includes no request to IANA.
-
-15.  Security Considerations
-
-   The security implications of the new API don't differ from security
-   implications of classic BSD socket API.  Still, it may be worth
-   passing the design through a security audit.
+   Other than that, the security implications of the new API don't
+   differ from security implications of classic BSD socket API.  Still,
+   it may be worth passing the design through a security audit.
 
 Author's Address
 
@@ -949,4 +1036,29 @@ Author's Address
 
 
 
-Sustrik                  Expires August 22, 2017               [Page 17]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sustrik                  Expires August 22, 2017               [Page 19]
