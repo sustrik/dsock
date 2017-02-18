@@ -282,13 +282,24 @@ Sustrik                  Expires August 22, 2017                [Page 5]
 Internet-Draft            BSD Socket API Revamp            February 2017
 
 
-8.  Prototype conventions
+8.  Function prototype conventions
 
    For consistency's sake the function names SHOULD be in lowercase and
    SHOULD be composed of short protocol name and action name separated
    by underscore (e.g. "tcp_connect").  Of course, in non-C languages
    the native naming convention should be followed, but even then the
    name SHOULD contain both protocol name and action name.
+
+   Given that end users prefer to create full protocol stack using a
+   single function it is desirable to have shrinkwrapped protocols
+   aggregating many microprotocols into a coherent whole.  For example,
+   "websock" protocol may be composed of TCP protocol and WebSocket
+   protocol itself.  Still, expert users may want to have access to
+   WebSocket protocol as such, without the underlying TCP protocol, say,
+   if they want to run it on top of SCTP or any other alternative
+   transport.  In such cases there is a naming dillema: Should "websock"
+   name refer to TCP+WebSocket aggregate or to WebSocket alone?  In
+   these cases the implemetors SHOULD always prefer the former solution.
 
    First argument of the function, where applicable, SHOULD be the file
    descriptor.
@@ -318,6 +329,15 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    way to implement this behaviour is to create a duplicate of the
    underlying file descriptor to be owned by the parent protocol and
    closing the original file descriptor.  That way, user accidentally
+
+
+
+
+Sustrik                  Expires August 22, 2017                [Page 6]
+
+Internet-Draft            BSD Socket API Revamp            February 2017
+
+
    using a lower level protocol after it have been wrapped in higher
    layer protocol results in EBADF error.
 
@@ -327,16 +347,6 @@ Internet-Draft            BSD Socket API Revamp            February 2017
        int s2 = foo_start(s1, arg1, arg2, arg3);
        int s3 = bar_start(s2);
        int s4 = baz_start(s3, arg4, arg5);
-
-
-
-
-
-
-Sustrik                  Expires August 22, 2017                [Page 6]
-
-Internet-Draft            BSD Socket API Revamp            February 2017
-
 
 10.  Protocol termination
 
@@ -375,6 +385,15 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    protocol.  Instead it SHOULD return its file descriptor.  This is
    crucial for horizontal composability of protocols:
 
+
+
+
+
+Sustrik                  Expires August 22, 2017                [Page 7]
+
+Internet-Draft            BSD Socket API Revamp            February 2017
+
+
          /* create stack of two protocols */
          h1 = foo_start();
          h2 = bar_start(h1);
@@ -385,14 +404,6 @@ Internet-Draft            BSD Socket API Revamp            February 2017
          /* shut down both protocols */
          h1 = baz_stop(h3, -1);
          foo_stop(h1, -1);
-
-
-
-
-Sustrik                  Expires August 22, 2017                [Page 7]
-
-Internet-Draft            BSD Socket API Revamp            February 2017
-
 
    The protocol may live at the very bottom of the stack and have no
    underlying protocol.  In that case the stop function SHOULD return 0
@@ -429,17 +440,6 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    There is no difference between "unconnected sockets" and "sockets
    with a delegated handshake".
 
-   The unconnected protocol lives on top of a connected protocol.
-   Parameter negotiation is performed via the underlying connected
-   protocol:
-
-
-
-
-
-
-
-
 
 
 
@@ -449,6 +449,10 @@ Sustrik                  Expires August 22, 2017                [Page 8]
 
 Internet-Draft            BSD Socket API Revamp            February 2017
 
+
+   The unconnected protocol lives on top of a connected protocol.
+   Parameter negotiation is performed via the underlying connected
+   protocol:
 
        /* Open underlying TCP connection. */
        int tcp = tcp_connect("192.168.0.111:5555", -1);
@@ -493,10 +497,6 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    To address this use case, protocols SHOULD support "done" function,
    roughly equivalent to POSIX shutdown(SHUT_WR) function.
 
-   The function MUST flush any pending outbound data and, if applicable,
-   start the termination handshake.
-
-
 
 
 
@@ -505,6 +505,9 @@ Sustrik                  Expires August 22, 2017                [Page 9]
 
 Internet-Draft            BSD Socket API Revamp            February 2017
 
+
+   The function MUST flush any pending outbound data and, if applicable,
+   start the termination handshake.
 
    In case of success it returns the file descriptor of the underlying
    protocol, if any.  If there's no underlying protocol it returns zero.
@@ -549,9 +552,6 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    discard incoming data until the peer finishes the termination
    handshake.  Finally, it MUST deallocate the socket and return the
    underlying socket's file descriptor.
-
-
-
 
 
 
@@ -903,15 +903,6 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    This is a draft specification.  It still contains some unresolved
    problems:
 
-   o  End users prefer to create full protocol stacks using a single
-      function.  For example, they would like websock_start() to create
-      a TCP connection and the WebSocket protocol on top of that.
-      Protocol designers, on the other hand, would prefer to split the
-      operation into two steps, so that they can layer WebSockets on top
-      of any bytestream protocol.  This can be solved by having two
-      different protocols (TCP+WebSockets vs. stand-alone-WebSockets),
-      but that is likely to cause naming clashing and confuse the users.
-
    o  Given that "stop" function is supposed to call "done" function if
       it was not called beforehand by the user, any non-standard
       arguments to "done" (e.g. status code, reason for shutdown) have
@@ -945,6 +936,15 @@ Author's Address
    Martin Sustrik (editor)
 
    Email: sustrik@250bpm.com
+
+
+
+
+
+
+
+
+
 
 
 

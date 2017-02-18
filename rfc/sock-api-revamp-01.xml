@@ -213,12 +213,22 @@
         </figure>
     </section>
 
-    <section title="Prototype conventions">
+    <section title="Function prototype conventions">
       <t>For consistency's sake the function names SHOULD be in lowercase and
          SHOULD be composed of short protocol name and action name separated
          by underscore (e.g. "tcp_connect"). Of course, in non-C languages
          the native naming convention should be followed, but even then the name
          SHOULD contain both protocol name and action name.</t>
+      <t>Given that end users prefer to create full protocol stack using a
+         single function it is desirable to have shrinkwrapped protocols
+         aggregating many microprotocols into a coherent whole. For example,
+         "websock" protocol may be composed of TCP protocol and WebSocket
+         protocol itself. Still, expert users may want to have access to
+         WebSocket protocol as such, without the underlying TCP protocol, say,
+         if they want to run it on top of SCTP or any other alternative
+         transport. In such cases there is a naming dillema: Should "websock"
+         name refer to TCP+WebSocket aggregate or to WebSocket alone? In these
+         cases the implemetors SHOULD always prefer the former solution.</t>
       <t>First argument of the function, where applicable, SHOULD be the file
          descriptor.</t>
       <t>In all blocking functions the last argument SHOULD be the deadline.</t>
@@ -687,15 +697,6 @@
       <t>This is a draft specification. It still contains some unresolved
          problems:
         <list style="symbols">
-          <t>End users prefer to create full protocol stacks using a single
-             function. For example, they would like websock_start() to create
-             a TCP connection and the WebSocket protocol on top of that.
-             Protocol designers, on the other hand, would prefer to split the
-             operation into two steps, so that they can layer WebSockets on
-             top of any bytestream protocol. This can be solved by having two
-             different protocols (TCP+WebSockets vs. stand-alone-WebSockets),
-             but that is likely to cause naming clashing and confuse the users.
-             </t>
           <t>Given that "stop" function is supposed to call "done" function if
              it was not called beforehand by the user, any non-standard
              arguments to "done" (e.g. status code, reason for shutdown)
