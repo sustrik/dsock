@@ -603,7 +603,7 @@ Internet-Draft            BSD Socket API Revamp            February 2017
 
    For unconnected protocols the implementation MUST forward the call to
    the underlying socket.  If the protocol is at the bottom of the stack
-   and there is no underlying socket it SHOULD return ENOTSUP error.
+   and there is no underlying socket it MUST return ENOTSUP error.
 
    For connected protocols the implementation MUST start termination
    handshake and return to the caller without waiting for the answer

@@ -474,7 +474,7 @@
              unconnected.</t>
           <t>For unconnected protocols the implementation MUST forward the call
              to the underlying socket. If the protocol is at the bottom of the
-             stack and there is no underlying socket it SHOULD return
+             stack and there is no underlying socket it MUST return
              ENOTSUP error.</t>
           <t>For connected protocols the implementation MUST start termination
              handshake and return to the caller without waiting for the answer
