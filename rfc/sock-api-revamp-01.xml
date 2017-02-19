@@ -189,8 +189,8 @@
            two is superficially similar there is large difference in
            semantics, especially when it comes to atomicity and error handling.
            </t>
-        <t>As an added benefit, the fact that bystream protocols are always
-           ordered and reliable means that bystream API provides stronger
+        <t>As an added benefit, the fact that bytestream protocols are always
+           ordered and reliable means that bytestream API provides stronger
            semantic guarantees than message API.</t>
         <t>In theory, the two API could have been unified by treating each byte
            in a bytestream protocol as a separate message. In practice, however,

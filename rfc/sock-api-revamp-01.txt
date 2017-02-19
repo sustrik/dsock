@@ -250,8 +250,8 @@ Internet-Draft            BSD Socket API Revamp            February 2017
    is superficially similar there is large difference in semantics,
    especially when it comes to atomicity and error handling.
 
-   As an added benefit, the fact that bystream protocols are always
-   ordered and reliable means that bystream API provides stronger
+   As an added benefit, the fact that bytestream protocols are always
+   ordered and reliable means that bytestream API provides stronger
    semantic guarantees than message API.
 
    In theory, the two API could have been unified by treating each byte
