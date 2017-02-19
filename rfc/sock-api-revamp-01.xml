@@ -213,7 +213,7 @@
            better as technology advances.</t>
         <t>Therefore, the only way to get microprotocols with decent performance
            is to make majority of them unconnected. In the ideal case there
-           shoudl be at most one connected protocol in any networking stack.</t>
+           should be at most one connected protocol in any networking stack.</t>
         <t>To achieve the goal we'll have to turn even protocols that
            instinctively feel like connected into unconnected ones.</t>
         <t>Consider a simple keep-alive protocol. The peers have to agree on a

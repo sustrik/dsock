@@ -288,7 +288,7 @@ Internet-Draft            BSD Socket API Revamp            February 2017
 
    Therefore, the only way to get microprotocols with decent performance
    is to make majority of them unconnected.  In the ideal case there
-   shoudl be at most one connected protocol in any networking stack.
+   should be at most one connected protocol in any networking stack.
 
    To achieve the goal we'll have to turn even protocols that
    instinctively feel like connected into unconnected ones.
