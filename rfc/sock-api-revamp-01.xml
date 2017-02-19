@@ -25,7 +25,7 @@
 
     <abstract>
       <t>This memo describes new API for network sockets. Compared to classic
-         BSD socket API the new API is much more leightweight and flexible.
+         BSD socket API the new API is much more lightweight and flexible.
          Its primary focus is on easy composability of network protocols.</t>
     </abstract>
 
@@ -63,7 +63,7 @@
          individual protocols differ. Therefore, it lets each protocol define
          its own API and asks only for bare minimum of standardised behaviour
          needed to implement protocol composability.</t>
-      <t>As a consequence, the new API is much more leightweight and flexible
+      <t>As a consequence, the new API is much more lightweight and flexible
          than classic BSD socket API and allows to decompose today's monolithic
          protocol monsters into small single-purpose microprotocols that can be
          easily combined together to achieve desired functionality. </t>
