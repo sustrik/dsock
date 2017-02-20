@@ -110,9 +110,15 @@ int fd_send(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
         hdr.msg_iovlen = veclen;
         ssize_t sz = sendmsg(s, &hdr, FD_NOSIGNAL);
         if(sz < 0) {
-            if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) return -1;
+            if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) {
+                if(errno == EPIPE) errno = ECONNRESET;
+                return -1;
+            }
             int rc = fdout(s, deadline);
-            if(dsock_slow(rc < 0)) return -1;
+            if(dsock_slow(rc < 0)) {
+                if(errno == EPIPE) errno = ECONNRESET;
+                return -1;
+            }
             continue;
         }
         sent += sz;
@@ -133,7 +139,7 @@ static ssize_t fdget(int s, struct iovec *iov, size_t iovlen, int block,
         hdr.msg_iovlen = veclen;
         ssize_t sz = recvmsg(s, &hdr, 0);
         if(dsock_fast(sz == len)) return pos + sz;
-        if(dsock_slow(sz == 0)) {errno = ECONNRESET; return -1;}
+        if(dsock_slow(sz == 0)) {errno = EPIPE; return -1;}
         if(dsock_slow(sz < 0 && errno != EWOULDBLOCK && errno != EAGAIN))
             return -1;
         if(dsock_fast(sz > 0)) {

@@ -23,6 +23,7 @@
 */
 
 #include <assert.h>
+#include <stdio.h>
 
 #include "../dsock.h"
 
@@ -32,19 +33,8 @@ coroutine void client(int port) {
     assert(rc == 0);
     int cs = tcp_connect(&addr, -1);
     assert(cs >= 0);
-    ipaddr addr2;
-
-    rc = msleep(now() + 100);
-    assert(rc == 0);
-
-    char buf[3];
-    rc = brecv(cs, buf, sizeof(buf), -1);
-    assert(rc == 0);
-    assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
-
-    rc = bsend(cs, "456", 3, -1);
-    assert(rc == 0);
-
+    rc = msleep(now() + 100000);
+    assert(rc == -1 && errno == ECANCELED);
     rc = hclose(cs);
     assert(rc == 0);
 }
@@ -55,10 +45,47 @@ coroutine void client2(int port) {
     assert(rc == 0);
     int cs = tcp_connect(&addr, -1);
     assert(cs >= 0);
+    char buf[3];
+    rc = brecv(cs, buf, sizeof(buf), -1);
+    assert(rc == 0);
+    assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
+    rc = bsend(cs, "DEF", 3, -1);
+    assert(rc == 0);
+    rc = tcp_stop(cs, -1);
+    /* Main coroutine closes this coroutine before it manages to read
+       the pending data from the socket. */
+    assert(rc == -1 && errno == ECANCELED);
+}
+
+coroutine void client3(int port) {
+    ipaddr addr;
+    int rc = ipaddr_remote(&addr, "127.0.0.1", port, 0, -1);
+    assert(rc == 0);
+    int cs = tcp_connect(&addr, -1);
+    assert(cs >= 0);
+    char buf[3];
+    rc = brecv(cs, buf, sizeof(buf), -1);
+    assert(rc == 0);
+    assert(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C');
+    rc = brecv(cs, buf, sizeof(buf), -1);
+    assert(rc == -1 && errno == EPIPE);
+    rc = bsend(cs, "DEF", 3, -1);
+    assert(rc == 0);
+    rc = tcp_stop(cs, -1);
+    assert(rc == 0);
+}
+
+coroutine void client4(int port) {
+    ipaddr addr;
+    int rc = ipaddr_remote(&addr, "127.0.0.1", port, 0, -1);
+    assert(rc == 0);
+    int cs = tcp_connect(&addr, -1);
+    assert(cs >= 0);
+    /* This line should make us hit TCP pushback. */
     rc = msleep(now() + 100);
     assert(rc == 0);
-    rc = hclose(cs);
-    assert(rc == 0);
+    rc = tcp_stop(cs, now() + 100);
+    assert(rc == -1 && errno == ETIMEDOUT);
 }
 
 int main() {
@@ -67,36 +94,77 @@ int main() {
     ipaddr addr;
     int rc = ipaddr_local(&addr, NULL, 5555, 0);
     assert(rc == 0);
-    int ls = tcp_listen(&addr, 10);
-    assert(ls >= 0);
-
-    go(client(5555));
-
-    int as = tcp_accept(ls, NULL, -1);
 
     /* Test deadline. */
+    int ls = tcp_listen(&addr, 10);
+    assert(ls >= 0);
+    int cr = go(client(5555));
+    assert(cr >= 0);
+    int as = tcp_accept(ls, NULL, -1);
+    assert(as >= 0);
     int64_t deadline = now() + 30;
     ssize_t sz = sizeof(buf);
     rc = brecv(as, buf, sizeof(buf), deadline);
     assert(rc == -1 && errno == ETIMEDOUT);
     int64_t diff = now() - deadline;
     assert(diff > -20 && diff < 20);
-
-    rc = bsend(as, "ABC", 3, -1);
-    assert(rc == 0);
-    rc = brecv(as, buf, 2, -1);
-    assert(rc == 0);
-    rc = brecv(as, buf, sizeof(buf), -1);
+    rc = brecv(as, buf, sizeof(buf), deadline);
     assert(rc == -1 && errno == ECONNRESET);
-
     rc = hclose(as);
     assert(rc == 0);
     rc = hclose(ls);
     assert(rc == 0);
+    rc = hclose(cr);
+    assert(rc == 0);
 
-    /* Test whether we perform correctly when faced with TCP pushback. */
+    /* Test simple data exchange. */
     ls = tcp_listen(&addr, 10);
-    go(client2(5555));
+    assert(ls >= 0);
+    cr = go(client2(5555));
+    assert(cr >= 0);
+    as = tcp_accept(ls, NULL, -1);
+    assert(as >= 0);
+    rc = bsend(as, "ABC", 3, -1);
+    assert(rc == 0);
+    rc = brecv(as, buf, 3, -1);
+    assert(rc == 0);
+    assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
+    rc = brecv(as, buf, sizeof(buf), -1);
+    assert(rc == -1 && errno == EPIPE);
+    rc = tcp_stop(as, -1);
+    assert(rc == 0);
+    rc = hclose(ls);
+    assert(rc == 0);
+    rc = hclose(cr);
+    assert(rc == 0);
+
+    /* Manual termination handshake. */
+    ls = tcp_listen(&addr, 10);
+    assert(ls >= 0);
+    cr = go(client3(5555));
+    assert(cr >= 0);
+    as = tcp_accept(ls, NULL, -1);
+    assert(as >= 0);
+    rc = bsend(as, "ABC", 3, -1);
+    assert(rc == 0);
+    rc = hdone(as);
+    assert(rc == 0);
+    rc = brecv(as, buf, 3, -1);
+    assert(rc == 0);
+    assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
+    rc = brecv(as, buf, sizeof(buf), -1);
+    assert(rc == -1 && errno == EPIPE);
+    rc = hclose(as);
+    assert(rc == 0);
+    rc = hclose(ls);
+    assert(rc == 0);
+    rc = hclose(cr);
+    assert(rc == 0);    
+
+    /* Emulate a DoS attack. */
+    ls = tcp_listen(&addr, 10);
+    cr = go(client4(5555));
+    assert(cr >= 0);
     as = tcp_accept(ls, NULL, -1);
     assert(as >= 0);
     char buffer[2048];
@@ -106,9 +174,11 @@ int main() {
             break;
         assert(rc == 0);
     }
-    rc = hclose(as);
-    assert(rc == 0);
+    rc = tcp_stop(as, -1);
+    assert(rc == -1 && errno == ECONNRESET);
     rc = hclose(ls);
+    assert(rc == 0);
+    rc = hclose(cr);
     assert(rc == 0);
 
     return 0;
