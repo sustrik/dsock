@@ -105,10 +105,40 @@ static int tcp_brecvv(struct bsock_vfs *bvfs,
 static int tcp_hdone(struct hvfs *hvfs) {
     struct tcp_conn *obj = (struct tcp_conn*)hvfs;
     if(dsock_slow(obj->done)) {errno = EPIPE; return -1;}
+    /* Flushing the tx buffer is done asynchronously on kernel level. */
     int rc = shutdown(obj->fd, SHUT_WR);
     dsock_assert(rc == 0);
     obj->done = 1;
     return 0;
+}
+
+int tcp_stop(int s, int64_t deadline) {
+    int err;
+    struct tcp_conn *obj = hquery(s, tcp_type);
+    if(dsock_slow(!obj)) return -1;
+    /* If not done already, flush the outbound data and start the terminal
+       handshake. */
+    if(!obj->done) {
+        int rc = tcp_hdone(&obj->hvfs);
+        if(dsock_slow(rc < 0)) {err = errno; goto error;}
+    }
+    /* Now we are going to read all the inbound data until we reach end of the
+       stream. That way we can be sure that the peer either received all our
+       data or consciously closed the connection without reading all of it. */
+    while(1) {
+        char buf[128];
+        struct iovec iov;
+        iov.iov_base = buf;
+        iov.iov_len = sizeof(buf);
+        int rc = tcp_brecvv(&obj->bvfs, &iov, 1, deadline);
+        if(rc < 0 && errno == EPIPE) break;
+        if(dsock_slow(rc < 0)) {err = errno; goto error;}
+    }
+    return 0;
+error:
+    tcp_hclose(&obj->hvfs);
+    errno = err;
+    return -1;
 }
 
 static void tcp_hclose(struct hvfs *hvfs) {

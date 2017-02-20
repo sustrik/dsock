@@ -179,6 +179,9 @@ DSOCK_EXPORT int tcp_accept(
 DSOCK_EXPORT int tcp_connect(
     const ipaddr *addr,
     int64_t deadline);
+DSOCK_EXPORT int tcp_stop(
+    int s,
+    int64_t deadline);
 
 /******************************************************************************/
 /*  UNIX protocol.                                                            */
