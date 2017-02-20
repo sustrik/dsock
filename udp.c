@@ -188,7 +188,7 @@ static ssize_t udp_mrecvv(struct msock_vfs *mvfs,
 
 static void udp_hclose(struct hvfs *hvfs) {
     struct udp_sock *obj = (struct udp_sock*)hvfs;
-    /* We are not switch off linger here because if UDP socket was fully
+    /* We do not switch off linger here because if UDP socket was fully
        implemented in user space, msend() would block until the packet
        was flushed into network, thus providing some basic reliability.
        Kernel-space implementation here, on the other hand, may queue
