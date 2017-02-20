@@ -41,6 +41,7 @@ dsock_unique_id(tcp_type);
 
 static void *tcp_hquery(struct hvfs *hvfs, const void *type);
 static void tcp_hclose(struct hvfs *hvfs);
+static int tcp_done(struct hvfs *hvfs);
 static int tcp_bsendv(struct bsock_vfs *bvfs,
     const struct iovec *iov, size_t iovlen, int64_t deadline);
 static int tcp_brecvv(struct bsock_vfs *bvfs,
@@ -99,12 +100,8 @@ static int tcp_brecvv(struct bsock_vfs *bvfs,
     return fd_recv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
 }
 
-int tcp_done(int s, int64_t deadline) {
-    /* Deadline in in the prototype because flushing TCP data is a potentially
-       blocking operation. However, POSIX flushes the data in asynchronous
-       manner, thus deadline in never used. It may become handy in user-space
-       implementations of TCP though. */
-    struct tcp_conn *obj = hquery(s, tcp_type);
+static int tcp_done(struct hvfs *hvfs) {
+    struct tcp_conn *obj = (struct tcp_conn*)hvfs;
     if(dsock_slow(!obj)) return -1;
     int rc = shutdown(obj->fd, SHUT_WR);
     dsock_assert(rc == 0);
