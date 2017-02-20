@@ -188,6 +188,12 @@ static ssize_t udp_mrecvv(struct msock_vfs *mvfs,
 
 static void udp_hclose(struct hvfs *hvfs) {
     struct udp_sock *obj = (struct udp_sock*)hvfs;
+    /* We are not switch off linger here because if UDP socket was fully
+       implemented in user space, msend() would block until the packet
+       was flushed into network, thus providing some basic reliability.
+       Kernel-space implementation here, on the other hand, may queue
+       outgoing packets rather than flushing them. The effect is balanced
+       out by lingering when closing the socket. */
     int rc = fd_close(obj->fd);
     dsock_assert(rc == 0);
     free(obj);
