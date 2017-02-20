@@ -54,6 +54,7 @@ struct unix_conn {
     struct bsock_vfs bvfs;
     int fd;
     struct fd_rxbuf rxbuf;
+    unsigned int done : 1;
 };
 
 static void *unix_hquery(struct hvfs *hvfs, const void *type) {
@@ -94,6 +95,7 @@ error1:
 static int unix_bsendv(struct bsock_vfs *bvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct unix_conn *obj = dsock_cont(bvfs, struct unix_conn, bvfs);
+    if(dsock_slow(obj->done)) {errno = EPIPE; return -1;}
     ssize_t sz = fd_send(obj->fd, iov, iovlen, deadline);
     if(dsock_fast(sz >= 0)) return sz;
     if(errno == EPIPE) errno = ECONNRESET;
@@ -108,8 +110,10 @@ static int unix_brecvv(struct bsock_vfs *bvfs,
 
 static int unix_hdone(struct hvfs *hvfs) {
     struct unix_conn *obj = (struct unix_conn*)hvfs;
+    if(dsock_slow(obj->done)) {errno = EPIPE; return -1;}
     int rc = shutdown(obj->fd, SHUT_WR);
     dsock_assert(rc == 0);
+    obj->done = 1;
     return 0;
 }
 
@@ -267,6 +271,7 @@ static int unixmakeconn(int fd) {
     obj->bvfs.brecvv = unix_brecvv;
     obj->fd = fd;
     fd_initrxbuf(&obj->rxbuf);
+    obj->done = 0;
     /* Create the handle. */
     int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}
