@@ -43,6 +43,7 @@ dsock_unique_id(unix_type);
 
 static void *unix_hquery(struct hvfs *hvfs, const void *type);
 static void unix_hclose(struct hvfs *hvfs);
+static int unix_hdone(struct hvfs *hvfs);
 static int unix_bsendv(struct bsock_vfs *bvfs,
     const struct iovec *iov, size_t iovlen, int64_t deadline);
 static int unix_brecvv(struct bsock_vfs *bvfs,
@@ -105,9 +106,8 @@ static int unix_brecvv(struct bsock_vfs *bvfs,
     return fd_recv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
 }
 
-int unix_done(int s, int64_t deadline) {
-    struct unix_conn *obj = hquery(s, unix_type);
-    if(dsock_slow(!obj)) return -1;
+static int unix_hdone(struct hvfs *hvfs) {
+    struct unix_conn *obj = (struct unix_conn*)hvfs;
     int rc = shutdown(obj->fd, SHUT_WR);
     dsock_assert(rc == 0);
     return 0;
@@ -163,6 +163,7 @@ int unix_listen(const char *addr, int backlog) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error2;}
     obj->hvfs.query = unix_listener_hquery;
     obj->hvfs.close = unix_listener_hclose;
+    obj->hvfs.done = NULL;
     obj->fd = s;
     /* Create handle. */
     int h = hmake(&obj->hvfs);
@@ -261,6 +262,7 @@ static int unixmakeconn(int fd) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->hvfs.query = unix_hquery;
     obj->hvfs.close = unix_hclose;
+    obj->hvfs.done = unix_hdone;
     obj->bvfs.bsendv = unix_bsendv;
     obj->bvfs.brecvv = unix_brecvv;
     obj->fd = fd;
