@@ -89,6 +89,7 @@ int udp_socket(ipaddr *local, const ipaddr *remote) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error2;}
     obj->hvfs.query = udp_hquery;
     obj->hvfs.close = udp_hclose;
+    obj->hvfs.done = NULL; /* hdone() is not supported for UDP sockets. */
     obj->mvfs.msendv = udp_msendv;
     obj->mvfs.mrecvv = udp_mrecvv;
     obj->fd = s;
