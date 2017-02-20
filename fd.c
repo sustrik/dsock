@@ -183,6 +183,12 @@ int fd_recv(int s, struct fd_rxbuf *rxbuf, const struct iovec *iov,
 
 int fd_close(int s) {
     fdclean(s);
+    /* Discard any pending outbound data. If SO_LINGER option cannot
+       be set, never mind and continue anyway. */
+    struct linger lng;
+    lng.l_onoff=1;
+    lng.l_linger=0;
+    setsockopt(s, SOL_SOCKET, SO_LINGER, (void*)&lng, sizeof(lng));
     return close(s);
 }
 
