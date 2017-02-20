@@ -54,7 +54,10 @@ struct unix_conn {
     struct bsock_vfs bvfs;
     int fd;
     struct fd_rxbuf rxbuf;
-    unsigned int done : 1;
+    unsigned int indone : 1;
+    unsigned int outdone : 1;
+    unsigned int inerr : 1;
+    unsigned int outerr : 1;
 };
 
 static void *unix_hquery(struct hvfs *hvfs, const void *type) {
@@ -95,26 +98,65 @@ error1:
 static int unix_bsendv(struct bsock_vfs *bvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct unix_conn *obj = dsock_cont(bvfs, struct unix_conn, bvfs);
-    if(dsock_slow(obj->done)) {errno = EPIPE; return -1;}
+    if(dsock_slow(obj->outdone)) {errno = EPIPE; return -1;}
+    if(dsock_slow(obj->outerr)) {errno = ECONNRESET; return -1;}
     ssize_t sz = fd_send(obj->fd, iov, iovlen, deadline);
     if(dsock_fast(sz >= 0)) return sz;
-    if(errno == EPIPE) errno = ECONNRESET;
+    obj->outerr = 1;
     return -1;
 }
 
 static int unix_brecvv(struct bsock_vfs *bvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct unix_conn *obj = dsock_cont(bvfs, struct unix_conn, bvfs);
-    return fd_recv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
+    if(dsock_slow(obj->indone)) {errno = EPIPE; return -1;}
+    if(dsock_slow(obj->inerr)) {errno = ECONNRESET; return -1;}
+    int rc = fd_recv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
+    if(dsock_fast(rc == 0)) return 0;
+    if(errno == EPIPE) obj->indone = 1;
+    else obj->inerr = 1;
+    return -1;
 }
 
 static int unix_hdone(struct hvfs *hvfs) {
     struct unix_conn *obj = (struct unix_conn*)hvfs;
-    if(dsock_slow(obj->done)) {errno = EPIPE; return -1;}
+    if(dsock_slow(obj->outdone)) {errno = EPIPE; return -1;}
+    if(dsock_slow(obj->outerr)) {errno = ECONNRESET; return -1;}
+    /* Flushing the tx buffer is done asynchronously on kernel level. */
     int rc = shutdown(obj->fd, SHUT_WR);
     dsock_assert(rc == 0);
-    obj->done = 1;
+    obj->outdone = 1;
     return 0;
+}
+
+int unix_stop(int s, int64_t deadline) {
+    int err;
+    struct unix_conn *obj = hquery(s, unix_type);
+    if(dsock_slow(!obj)) return -1;
+    if(dsock_slow(obj->inerr || obj->outerr)) {err = ECONNRESET; goto error;}
+    /* If not done already, flush the outbound data and start the terminal
+       handshake. */
+    if(!obj->outdone) {
+        int rc = unix_hdone(&obj->hvfs);
+        if(dsock_slow(rc < 0)) {err = errno; goto error;}
+    }
+    /* Now we are going to read all the inbound data until we reach end of the
+       stream. That way we can be sure that the peer either received all our
+       data or consciously closed the connection without reading all of it. */
+    while(1) {
+        char buf[128];
+        struct iovec iov;
+        iov.iov_base = buf;
+        iov.iov_len = sizeof(buf);
+        int rc = unix_brecvv(&obj->bvfs, &iov, 1, deadline);
+        if(rc < 0 && errno == EPIPE) break;
+        if(dsock_slow(rc < 0)) {err = errno; goto error;}
+    }
+    return 0;
+error:
+    unix_hclose(&obj->hvfs);
+    errno = err;
+    return -1;
 }
 
 static void unix_hclose(struct hvfs *hvfs) {
@@ -271,7 +313,10 @@ static int unixmakeconn(int fd) {
     obj->bvfs.brecvv = unix_brecvv;
     obj->fd = fd;
     fd_initrxbuf(&obj->rxbuf);
-    obj->done = 0;
+    obj->indone = 0;
+    obj->outdone = 0;
+    obj->inerr = 0;
+    obj->outerr = 0;
     /* Create the handle. */
     int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {err = errno; goto error2;}

@@ -33,7 +33,7 @@ coroutine void client(int port) {
     assert(rc == 0);
     int cs = tcp_connect(&addr, -1);
     assert(cs >= 0);
-    rc = msleep(now() + 100000);
+    rc = msleep(-1);
     assert(rc == -1 && errno == ECANCELED);
     rc = hclose(cs);
     assert(rc == 0);
