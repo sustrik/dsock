@@ -56,26 +56,58 @@
       <t>This memo proposes to fix the reusability problem by revamping the
          old BSD socket API and while doing so strongly focusing on
          composability of protocols.</t>
-      <t>In short, the API proposed in this document doesn't try to virtualize
-         all possible aspects of all possible protocols and provide a single set
-         of functions to deal with all of them. Instead, it acknowledges how
-         varied the protocol landscape is and how much the requirements for
-         individual protocols differ. Therefore, it lets each protocol define
-         its own API and asks only for bare minimum of standardised behaviour
-         needed to implement protocol composability.</t>
-      <t>As a consequence, the new API is much more lightweight and flexible
-         than classic BSD socket API and allows to decompose today's monolithic
-         protocol monsters into small single-purpose microprotocols that can be
-         easily combined together to achieve desired functionality. </t>
-      <t>The document also provides some non-binding suggestions for protocol
-         API designers. Following these suggestions would lead to uniform feel
-         of the APIs and flat learning curve for protocol users.</t>
     </section>
 
     <section title="Terminology">
       <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
          "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this
          document are to be interpreted as described in RFC 2119.</t>
+    </section>
+
+    <section title="The problems">
+      <t>This section offers a brief summary of the problems that protocol
+         implementors are facing in the current environment.
+         <list style="symbols">
+           <t>The hook-in API to implement new protocols and make them
+              accessible via standard functions like send() and recv() exists,
+              in most cases, only in the kernel space. While that makes
+              implementation a little bit harder the real problem is deployment.
+              Kernel is rarely deployed with the application and waiting for a
+              kernel patch to be widely deployed can take many years.</t>
+           <t>The API hook-in API is not standardized meaning that a protocol
+              has to be implemented for each operating system separately.</t>
+           <t>The usability of the original blocking BSD socket API is dependent
+              one operating system's ability to spawn a lot of threads (e.g. two
+              per TCP connection) and switch between them quickly. This happens
+              not to be the case with majority of operating systems. The thread
+              number limit tends to be couple of thousand and the
+              context switch latency is often one or two orders of magnitude
+              higher than what would be acceptable for high-performance
+              networking. This leads to proliferation of asynchronous network
+              code using non-blocking APIs like poll() which forces
+              the implementor to do both CPU and network scheduling by hand.
+              High context switch latency is often fought by extreme measures.
+              For example, by implementing hand-crafted lock-free algorithms.
+              Ugly, mislayered and barely maintainable code ensues.</t>
+           <t>The BSD socket API is semantically underspecified. The particular
+              points of pain are error handling and behaviour during protocol
+              shutdown. No fixed semantics to rely on means that higher level
+              protocols are fine-tuned to work with a particular low level
+              protocol (e.g. TCP) and don't allow to switch it for a different
+              low-level protocol. The situation is made worse by
+              offering a high number of socket options that modify semantics
+              of the core APIs.</t>
+           <t>Scope of BSD socket API is unnecessarily wide. It attempts to
+              provide standardized way for doing things that would better be
+              done in a customized way. This results in unnecessarily complex
+              system of extension points: Socket options, ancillary data,
+              fcntl(), various arguments to socket() function.</t>
+           <t>Finally, there are some minor ways to improve the socket API
+              which, however, are not a sufficient reason to revamp the API.
+              But if the revamp is to be done anyway these minor issues can
+              be fixed.</t>
+         </list>
+      </t>
     </section>
 
     <section title="Basic concepts">
