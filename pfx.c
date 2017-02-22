@@ -34,6 +34,7 @@ dsock_unique_id(pfx_type);
 
 static void *pfx_hquery(struct hvfs *hvfs, const void *type);
 static void pfx_hclose(struct hvfs *hvfs);
+static int pfx_hdone(struct hvfs *hvfs);
 static int pfx_msendv(struct msock_vfs *mvfs,
     const struct iovec *iov, size_t iovlen, int64_t deadline);
 static ssize_t pfx_mrecvv(struct msock_vfs *mvfs,
@@ -43,8 +44,10 @@ struct pfx_sock {
     struct hvfs hvfs;
     struct msock_vfs mvfs;
     int s;
-    int txerr;
-    int rxerr;
+    unsigned int indone : 1;
+    unsigned int outdone: 1;
+    unsigned int inerr : 1;
+    unsigned int outerr : 1;
 };
 
 static void *pfx_hquery(struct hvfs *hvfs, const void *type) {
@@ -64,11 +67,14 @@ int pfx_start(int s) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->hvfs.query = pfx_hquery;
     obj->hvfs.close = pfx_hclose;
+    obj->hvfs.done = pfx_hdone;
     obj->mvfs.msendv = pfx_msendv;
     obj->mvfs.mrecvv = pfx_mrecvv;
     obj->s = -1;
-    obj->txerr = 0;
-    obj->rxerr = 0;
+    obj->indone = 0;
+    obj->outdone = 0;
+    obj->inerr = 0;
+    obj->outerr = 0;
     /* Create the handle. */
     int h = hmake(&obj->hvfs);
     if(dsock_slow(h < 0)) {int err = errno; goto error2;}
@@ -88,15 +94,15 @@ error1:
     return -1;
 }
 
-int pfx_done(int s, int64_t deadline) {
-    struct pfx_sock *obj = hquery(s, pfx_type);
-    if(dsock_slow(!obj)) return -1;
-    if(dsock_slow(obj->txerr)) {errno = obj->txerr; return -1;}
-    /* Send termination message. */
+static int pfx_hdone(struct hvfs *hvfs) {
+    struct pfx_sock *obj = (struct pfx_sock*)hvfs;
+    if(dsock_slow(obj->outdone)) {errno = EPIPE; return -1;}
+    if(dsock_slow(obj->outerr)) {errno = ECONNRESET; return -1;}
+    /* Send termination message. TODO: This should be done asynchronously. */
     uint64_t sz = 0xffffffffffffffff;
-    int rc = bsend(obj->s, &sz, 8, deadline);
-    if(dsock_slow(rc < 0)) {obj->txerr = errno; return -1;}
-    obj->txerr = EPIPE;
+    int rc = bsend(obj->s, &sz, 8, -1);
+    if(dsock_slow(rc < 0)) {obj->outerr = 1; return -1;}
+    obj->outdone = 1;
     return 0;
 }
 
@@ -104,12 +110,10 @@ int pfx_stop(int s, int64_t deadline) {
     int err;
     struct pfx_sock *obj = hquery(s, pfx_type);
     if(dsock_slow(!obj)) return -1;
-    /* Send the termination message. */
-    if(dsock_slow(obj->txerr != 0 && obj->txerr != EPIPE)) {
-        err = obj->txerr; goto error;}
-    if(obj->txerr == 0) {
-        uint64_t sz = 0xffffffffffffffff;
-        int rc = bsend(obj->s, &sz, 8, deadline);
+    if(dsock_slow(obj->inerr || obj->outerr)) {err = ECONNRESET; goto error;}
+    /* If not done already start the terminal handshake. */
+    if(!obj->outdone) {
+        int rc = pfx_hdone(&obj->hvfs);
         if(dsock_slow(rc < 0)) {err = errno; goto error;}
     }
     /* Drain incoming messages until termination message is received. */
@@ -121,10 +125,8 @@ int pfx_stop(int s, int64_t deadline) {
     int u = obj->s;
     free(obj);
     return u;
-error:;
-    int rc = hclose(obj->s);
-    dsock_assert(rc == 0);
-    free(obj);
+error:
+    pfx_hclose(&obj->hvfs);
     errno = err;
     return -1;
 }
@@ -132,7 +134,8 @@ error:;
 static int pfx_msendv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct pfx_sock *obj = dsock_cont(mvfs, struct pfx_sock, mvfs);
-    if(dsock_slow(obj->txerr)) {errno = obj->txerr; return -1;}
+    if(dsock_slow(obj->outdone)) {errno = EPIPE; return -1;}
+    if(dsock_slow(obj->outerr)) {errno = ECONNRESET; return -1;}
     uint8_t szbuf[8];
     size_t len = iov_size(iov, iovlen);
     dsock_putll(szbuf, (uint64_t)len);
@@ -141,27 +144,28 @@ static int pfx_msendv(struct msock_vfs *mvfs,
     vec[0].iov_len = 8;
     iov_copy(vec + 1, iov, iovlen);
     int rc = bsendv(obj->s, vec, iovlen + 1, deadline);
-    if(dsock_slow(rc < 0)) {obj->txerr = errno; return -1;}
+    if(dsock_slow(rc < 0)) {obj->outerr = 1; return -1;}
     return 0;
 }
 
 static ssize_t pfx_mrecvv(struct msock_vfs *mvfs,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct pfx_sock *obj = dsock_cont(mvfs, struct pfx_sock, mvfs);
-    if(dsock_slow(obj->rxerr)) {errno = obj->rxerr; return -1;}
+    if(dsock_slow(obj->indone)) {errno = EPIPE; return -1;}
+    if(dsock_slow(obj->inerr)) {errno = ECONNRESET; return -1;}
     uint8_t szbuf[8];
     int rc = brecv(obj->s, szbuf, 8, deadline);
-    if(dsock_slow(rc < 0)) {obj->rxerr = errno; return -1;}
+    if(dsock_slow(rc < 0)) {obj->inerr = 1; return -1;}
     uint64_t sz = dsock_getll(szbuf);
     /* Peer is terminating. */
     if(dsock_slow(sz == 0xffffffffffffffff)) {
-        errno = obj->rxerr = EPIPE; return -1;}
+        obj->indone = 1; errno = EPIPE; return -1;}
     size_t len = iov_size(iov, iovlen);
-    if(dsock_slow(len < sz)) {errno = obj->rxerr = EMSGSIZE; return -1;}
+    if(dsock_slow(len < sz)) {obj->inerr = 1; errno = EMSGSIZE; return -1;}
     struct iovec vec[iovlen];
     size_t veclen = iov_cut(vec, iov, iovlen, 0, sz);
     rc = brecvv(obj->s, vec, veclen, deadline);
-    if(dsock_slow(rc < 0)) {obj->rxerr = errno; return -1;}
+    if(dsock_slow(rc < 0)) {obj->inerr = 1; return -1;}
     return sz;
 }
 
