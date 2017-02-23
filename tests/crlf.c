@@ -88,7 +88,7 @@ int main() {
     assert(rc == 0);
     rc = msend(s0, "Third", 5, -1);
     assert(rc == 0);
-    rc = crlf_done(s0, -1);
+    rc = hdone(s0);
     assert(rc == 0);
     sz = mrecv(s1, buf, sizeof(buf), -1);
     assert(sz == 5 && memcmp(buf, "First", 5) == 0);

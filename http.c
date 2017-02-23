@@ -93,7 +93,7 @@ error1:
 int http_done(int s, int64_t deadline) {
     struct http_sock *obj = hquery(s, http_type);
     if(dsock_slow(!obj)) return -1;
-    return crlf_done(obj->s, deadline);
+    return hdone(obj->s);
 }
 
 int http_stop(int s, int64_t deadline) {
