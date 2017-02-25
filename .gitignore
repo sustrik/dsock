@@ -54,3 +54,4 @@ tests/fullstack
 tests/iovec
 tests/http
 tests/websock
+tests/inproc

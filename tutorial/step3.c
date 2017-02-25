@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     if(argc > 1)
         port = atoi(argv[1]);
 
-    ipaddr addr;
+    struct ipaddr addr;
     int rc = ipaddr_local(&addr, NULL, port, 0);
     assert(rc == 0);
     int ls = tcp_listen(&addr, 10);

@@ -28,7 +28,7 @@
 #include "../dsock.h"
 
 coroutine void client(void) {
-    ipaddr addr;
+    struct ipaddr addr;
     int rc = ipaddr_remote(&addr, "127.0.0.1", 5555, 0, -1);
     assert(rc == 0);
     int s = tcp_connect(&addr, -1);
@@ -50,8 +50,8 @@ coroutine void client(void) {
     assert(rc == 0);
 }
 
-int main() {
-    ipaddr addr;
+int main(void) {
+    struct ipaddr addr;
     int rc = ipaddr_local(&addr, NULL, 5555, 0);
     assert(rc == 0);
     int ls = tcp_listen(&addr, 10);

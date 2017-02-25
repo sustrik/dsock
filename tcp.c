@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -66,7 +66,7 @@ static void *tcp_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int tcp_connect(const ipaddr *addr, int64_t deadline) {
+int tcp_connect(const struct ipaddr *addr, int64_t deadline) {
     int err;
     /* Open a socket. */
     int s = socket(ipaddr_family(addr), SOCK_STREAM, 0);
@@ -172,7 +172,7 @@ static void tcp_listener_hclose(struct hvfs *hvfs);
 struct tcp_listener {
     struct hvfs hvfs;
     int fd;
-    ipaddr addr;
+    struct ipaddr addr;
 };
 
 static void *tcp_listener_hquery(struct hvfs *hvfs, const void *type) {
@@ -182,7 +182,7 @@ static void *tcp_listener_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int tcp_listen(ipaddr *addr, int backlog) {
+int tcp_listen(struct ipaddr *addr, int backlog) {
     int err;
     /* Open the listening socket. */
     int s = socket(ipaddr_family(addr), SOCK_STREAM, 0);
@@ -198,8 +198,8 @@ int tcp_listen(ipaddr *addr, int backlog) {
     /* If the user requested an ephemeral port,
        retrieve the port number assigned by the OS. */
     if(ipaddr_port(addr) == 0) {
-        ipaddr baddr;
-        socklen_t len = sizeof(ipaddr);
+        struct ipaddr baddr;
+        socklen_t len = sizeof(struct ipaddr);
         rc = getsockname(s, (struct sockaddr*)&baddr, &len);
         if(rc < 0) {err = errno; goto error2;}
         ipaddr_setport(addr, ipaddr_port(&baddr));
@@ -224,13 +224,13 @@ error1:
     return -1;
 }
 
-int tcp_accept(int s, ipaddr *addr, int64_t deadline) {
+int tcp_accept(int s, struct ipaddr *addr, int64_t deadline) {
     int err;
     /* Retrieve the listener object. */
     struct tcp_listener *lst = hquery(s, tcp_listener_type);
     if(dsock_slow(!lst)) {err = errno; goto error1;}
     /* Try to get new connection in a non-blocking way. */
-    socklen_t addrlen = sizeof(ipaddr);
+    socklen_t addrlen = sizeof(struct ipaddr);
     int as = fd_accept(lst->fd, (struct sockaddr*)addr, &addrlen, deadline);
     if(dsock_slow(as < 0)) {err = errno; goto error1;}
     /* Set it to non-blocking mode. */

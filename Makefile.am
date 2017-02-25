@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015 Martin Sustrik  All rights reserved.
+# Copyright (c) 2017 Martin Sustrik  All rights reserved.
 # Copyright (c) 2013 Luca Barbato
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -41,7 +41,6 @@ libdsock_la_SOURCES = \
     http.c \
     iov.h \
     iov.c \
-    ipaddr.c \
     keepalive.c \
     lz4.c \
     msock.c \
@@ -57,8 +56,6 @@ libdsock_la_SOURCES = \
     utils.h \
     utils.c \
     websock.c \
-    dns/dns.h \
-    dns/dns.c \
     lz4/lz4.h \
     lz4/lz4.c \
     lz4/lz4frame.h \

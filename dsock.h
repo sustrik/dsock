@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -71,44 +71,6 @@
 #endif
 
 /******************************************************************************/
-/*  IP address resolution.                                                    */
-/******************************************************************************/
-
-#define IPADDR_IPV4 1
-#define IPADDR_IPV6 2
-#define IPADDR_PREF_IPV4 3
-#define IPADDR_PREF_IPV6 4
-#define IPADDR_MAXSTRLEN 46
-
-typedef struct {char data[32];} ipaddr;
-
-DSOCK_EXPORT int ipaddr_local(
-    ipaddr *addr,
-    const char *name,
-    int port,
-    int mode);
-DSOCK_EXPORT int ipaddr_remote(
-    ipaddr *addr,
-    const char *name,
-    int port,
-    int mode,
-    int64_t deadline);
-DSOCK_EXPORT const char *ipaddr_str(
-    const ipaddr *addr,
-    char *ipstr);
-DSOCK_EXPORT int ipaddr_family(
-    const ipaddr *addr);
-DSOCK_EXPORT const struct sockaddr *ipaddr_sockaddr(
-    const ipaddr *addr);
-DSOCK_EXPORT int ipaddr_len(
-    const ipaddr *addr);
-DSOCK_EXPORT int ipaddr_port(
-    const ipaddr *addr);
-DSOCK_EXPORT void ipaddr_setport(
-    ipaddr *addr,
-    int port);
-
-/******************************************************************************/
 /*  Bytestream sockets.                                                       */
 /******************************************************************************/
 
@@ -170,14 +132,14 @@ extern const void *tcp_type;
 extern const void *tcp_listener_type;
 
 DSOCK_EXPORT int tcp_listen(
-    ipaddr *addr,
+    struct ipaddr *addr,
     int backlog);
 DSOCK_EXPORT int tcp_accept(
     int s,
-    ipaddr *addr,
+    struct ipaddr *addr,
     int64_t deadline);
 DSOCK_EXPORT int tcp_connect(
-    const ipaddr *addr,
+    const struct ipaddr *addr,
     int64_t deadline);
 DSOCK_EXPORT int tcp_stop(
     int s,
@@ -212,27 +174,27 @@ DSOCK_EXPORT int unix_pair(
 extern const void *udp_type;
 
 DSOCK_EXPORT int udp_socket(
-    ipaddr *local,
-    const ipaddr *remote);
+    struct ipaddr *local,
+    const struct ipaddr *remote);
 DSOCK_EXPORT int udp_send(
     int s,
-    const ipaddr *addr,
+    const struct ipaddr *addr,
     const void *buf,
     size_t len);
 DSOCK_EXPORT ssize_t udp_recv(
     int s,
-    ipaddr *addr,
+    struct ipaddr *addr,
     void *buf,
     size_t len,
     int64_t deadline);
 DSOCK_EXPORT int udp_sendv(
     int s,
-    const ipaddr *addr,
+    const struct ipaddr *addr,
     const struct iovec *iov,
     size_t iovlen);
 DSOCK_EXPORT ssize_t udp_recvv(
     int s,
-    ipaddr *addr,
+    struct ipaddr *addr,
     const struct iovec *iov,
     size_t iovlen,
     int64_t deadline);

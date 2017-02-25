@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -45,7 +45,7 @@ struct udp_sock {
     struct msock_vfs mvfs;
     int fd;
     int hasremote;
-    ipaddr remote;
+    struct ipaddr remote;
 };
 
 static void *udp_hquery(struct hvfs *hvfs, const void *type) {
@@ -56,7 +56,7 @@ static void *udp_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int udp_socket(ipaddr *local, const ipaddr *remote) {
+int udp_socket(struct ipaddr *local, const struct ipaddr *remote) {
     int err;
     /* Sanity checking. */
     if(dsock_slow(local && remote &&
@@ -77,8 +77,8 @@ int udp_socket(ipaddr *local, const ipaddr *remote) {
         if(s < 0) {err = errno; goto error2;}
         /* Get the ephemeral port number. */
         if(ipaddr_port(local) == 0) {
-            ipaddr baddr;
-            socklen_t len = sizeof(ipaddr);
+            struct ipaddr baddr;
+            socklen_t len = sizeof(struct ipaddr);
             rc = getsockname(s, (struct sockaddr*)&baddr, &len);
             if(dsock_slow(rc < 0)) {err = errno; goto error2;}
             ipaddr_setport(local, ipaddr_port(&baddr));
@@ -109,11 +109,11 @@ error1:
     return -1;
 }
 
-int udp_sendv_(struct msock_vfs *mvfs, const ipaddr *addr,
+int udp_sendv_(struct msock_vfs *mvfs, const struct ipaddr *addr,
       const struct iovec *iov, size_t iovlen) {
     struct udp_sock *obj = dsock_cont(mvfs, struct udp_sock, mvfs);
     /* If no destination IP address is provided, fall back to the stored one. */
-    const ipaddr *dstaddr = addr;
+    const struct ipaddr *dstaddr = addr;
     if(!dstaddr) {
         if(dsock_slow(!obj->hasremote)) {errno = EINVAL; return -1;}
         dstaddr = &obj->remote;
@@ -130,14 +130,14 @@ int udp_sendv_(struct msock_vfs *mvfs, const ipaddr *addr,
     return -1;
 }
 
-ssize_t udp_recvv_(struct msock_vfs *mvfs, ipaddr *addr,
+ssize_t udp_recvv_(struct msock_vfs *mvfs, struct ipaddr *addr,
       const struct iovec *iov, size_t iovlen, int64_t deadline) {
     struct udp_sock *obj = dsock_cont(mvfs, struct udp_sock, mvfs);
     while(1) {
         struct msghdr hdr;
         memset(&hdr, 0, sizeof(hdr));
         hdr.msg_name = (void*)addr;
-        hdr.msg_namelen = sizeof(ipaddr);
+        hdr.msg_namelen = sizeof(struct ipaddr);
         hdr.msg_iov = (struct iovec*)iov;
         hdr.msg_iovlen = iovlen;
         ssize_t sz = recvmsg(obj->fd, &hdr, 0);
@@ -148,28 +148,29 @@ ssize_t udp_recvv_(struct msock_vfs *mvfs, ipaddr *addr,
     }
 }
 
-int udp_send(int s, const ipaddr *addr, const void *buf, size_t len) {
+int udp_send(int s, const struct ipaddr *addr, const void *buf, size_t len) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
     struct iovec iov = {(void*)buf, len};
     return udp_sendv_(m, addr, &iov, 1);
 }
 
-ssize_t udp_recv(int s, ipaddr *addr, void *buf, size_t len, int64_t deadline) {
+ssize_t udp_recv(int s, struct ipaddr *addr, void *buf, size_t len,
+      int64_t deadline) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
     struct iovec iov = {(void*)buf, len};
     return udp_recvv_(m, addr, &iov, 1, deadline);
 }
 
-int udp_sendv(int s, const ipaddr *addr, const struct iovec *iov,
+int udp_sendv(int s, const struct ipaddr *addr, const struct iovec *iov,
       size_t iovlen) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
     return udp_sendv_(m, addr, iov, iovlen);
 }
 
-ssize_t udp_recvv(int s, ipaddr *addr, const struct iovec *iov, size_t iovlen,
+ssize_t udp_recvv(int s, struct ipaddr *addr, const struct iovec *iov, size_t iovlen,
       int64_t deadline) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
