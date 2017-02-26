@@ -22,6 +22,7 @@
 
 */
 
+#include <errno.h>
 #include <stddef.h>
 
 #include "dsockimpl.h"
@@ -52,6 +53,8 @@ ssize_t mrecv(int s, void *buf, size_t len, int64_t deadline) {
 int msendl(int s, struct iolist *first, struct iolist *last, int64_t deadline) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
+    if(dsock_slow(!first || !last || last->iol_next)) {
+        errno = EINVAL; return -1;}
     return m->msendl(m, first, last, deadline);
 }
 
@@ -59,6 +62,8 @@ ssize_t mrecvl(int s, struct iolist *first, struct iolist *last,
       int64_t deadline) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
+    if(dsock_slow(!first || !last || last->iol_next)) {
+        errno = EINVAL; return -1;}
     return m->mrecvl(m, first, last, deadline);
 }
 

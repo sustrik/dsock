@@ -31,8 +31,6 @@
 #include "iov.h"
 #include "utils.h"
 
-#if 0
-
 dsock_unique_id(btrace_type);
 
 static void *btrace_hquery(struct hvfs *hvfs, const void *type);
@@ -94,35 +92,37 @@ int btrace_stop(int s) {
     return u;
 }
 
-static int btrace_bsendv(struct bsock_vfs *bvfs,
+static int btrace_bsendl(struct bsock_vfs *bvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct btrace_sock *obj = dsock_cont(bvfs, struct btrace_sock, bvfs);
     size_t len = 0;
-    size_t i, j;
     fprintf(stderr, "bsend(%d, 0x", obj->h);
-    for(i = 0; i != iovlen; ++i) {
-        for(j = 0; j != iov[i].iov_len; ++j) {
-            fprintf(stderr, "%02x", (int)((uint8_t*)iov[i].iov_base)[j]);
-            ++len;
-        }
+    struct iolist *it = first;
+    while(it) {
+        int i;
+        for(i = 0; i != it->iol_len; ++i)
+            fprintf(stderr, "%02x", (int)((uint8_t*)it->iol_base)[i]);
+        len += it->iol_len;
+        it = it->iol_next;
     }
     fprintf(stderr, ", %zu)\n", len);
     return bsendl(obj->s, first, last, deadline);
 }
 
-static int btrace_brecvv(struct bsock_vfs *bvfs,
+static int btrace_brecvl(struct bsock_vfs *bvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct btrace_sock *obj = dsock_cont(bvfs, struct btrace_sock, bvfs);
     int rc = brecvl(obj->s, first, last, deadline);
     if(dsock_slow(rc < 0)) return -1;
     size_t len = 0;
-    size_t i, j;
     fprintf(stderr, "brecv(%d, 0x", obj->h);
-    for(i = 0; i != iovlen; ++i) {
-        for(j = 0; j != iov[i].iov_len; ++j) {
-            fprintf(stderr, "%02x", (int)((uint8_t*)iov[i].iov_base)[j]);
-            ++len;
-        }
+    struct iolist *it = first;
+    while(it) {
+        int i;
+        for(i = 0; i != it->iol_len; ++i)
+            fprintf(stderr, "%02x", (int)((uint8_t*)it->iol_base)[i]);
+        len += it->iol_len;
+        it = it->iol_next;
     }
     fprintf(stderr, ", %zu)\n", len);
     return 0;
@@ -134,6 +134,4 @@ static void btrace_hclose(struct hvfs *hvfs) {
     dsock_assert(rc == 0);
     free(obj);
 }
-
-#endif
 
