@@ -246,7 +246,7 @@ int http_sendfield(int s, const char *name, const char *value,
     iol[2].iol_base = (void*)start;
     iol[2].iol_len = end - start;
     iol[2].iol_next = NULL;
-    return msendv(obj->s, &iol[0], &iol[2], deadline);
+    return msendl(obj->s, &iol[0], &iol[2], deadline);
 }
 
 int http_recvfield(int s, char *name, size_t namelen,

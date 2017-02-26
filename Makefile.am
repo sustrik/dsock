@@ -39,6 +39,8 @@ libdsock_la_SOURCES = \
     fd.h \
     fd.c \
     http.c \
+    iol.h \
+    iol.c \
     iov.h \
     iov.c \
     keepalive.c \
