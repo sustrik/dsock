@@ -32,7 +32,7 @@
 #include "../dsock.h"
 
 coroutine void client(int port) {
-    ipaddr addr;
+    struct ipaddr addr;
     int rc = ipaddr_remote(&addr, "127.0.0.1", port, 0, -1);
     assert(rc == 0);
     int cs = tcp_connect(&addr, -1);
