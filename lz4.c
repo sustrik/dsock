@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -32,14 +32,16 @@
 #include "dsockimpl.h"
 #include "utils.h"
 
+#if 0
+
 dsock_unique_id(lz4_type);
 
 static void *lz4_hquery(struct hvfs *hvfs, const void *type);
 static void lz4_hclose(struct hvfs *hvfs);
-static int lz4_msendv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static ssize_t lz4_mrecvv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int lz4_msendl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static ssize_t lz4_mrecvl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 
 struct lz4_sock {
     struct hvfs hvfs;
@@ -69,8 +71,8 @@ int lz4_start(int s) {
     if(dsock_slow(!obj)) {errno = ENOMEM; goto error1;}
     obj->hvfs.query = lz4_hquery;
     obj->hvfs.close = lz4_hclose;
-    obj->mvfs.msendv = lz4_msendv;
-    obj->mvfs.mrecvv = lz4_mrecvv;
+    obj->mvfs.msendl = lz4_msendl;
+    obj->mvfs.mrecvl = lz4_mrecvl;
     obj->s = s;
     obj->outbuf = NULL;
     obj->outlen = 0;
@@ -108,8 +110,8 @@ int lz4_stop(int s) {
     return u;
 }
 
-static int lz4_msendv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int lz4_msendl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct lz4_sock *obj = dsock_cont(mvfs, struct lz4_sock, mvfs);
     /* Adjust the buffer size as needed. */
     size_t len = iov_size(iov, iovlen);
@@ -136,8 +138,8 @@ static int lz4_msendv(struct msock_vfs *mvfs,
     return msend(obj->s, obj->outbuf, dstlen, deadline);
 }
 
-static ssize_t lz4_mrecvv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static ssize_t lz4_mrecvl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct lz4_sock *obj = dsock_cont(mvfs, struct lz4_sock, mvfs);
     /* Adjust the buffer size as needed. */
     size_t len = iov_size(iov, iovlen);
@@ -186,4 +188,6 @@ static void lz4_hclose(struct hvfs *hvfs) {
     dsock_assert(rc == 0);
     free(obj);
 }
+
+#endif
 

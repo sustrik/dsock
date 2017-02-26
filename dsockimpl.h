@@ -34,10 +34,10 @@
 /******************************************************************************/
 
 struct bsock_vfs {
-    int (*bsendv)(struct bsock_vfs *vfs, const struct iovec *iov, size_t iovlen,
-        int64_t deadline);
-    int (*brecvv)(struct bsock_vfs *vfs, const struct iovec *iov, size_t iovlen,
-        int64_t deadline);
+    int (*bsendl)(struct bsock_vfs *vfs,
+        struct iolist *first, struct iolist *last, int64_t deadline);
+    int (*brecvl)(struct bsock_vfs *vfs,
+        struct iolist *first, struct iolist *last, int64_t deadline);
 };
 
 /******************************************************************************/
@@ -45,10 +45,10 @@ struct bsock_vfs {
 /******************************************************************************/
 
 struct msock_vfs {
-    int (*msendv)(struct msock_vfs *vfs,
-        const struct iovec *iov, size_t iovlen, int64_t deadline);
-    ssize_t (*mrecvv)(struct msock_vfs *vfs,
-        const struct iovec *iov, size_t iovlen, int64_t deadline);
+    int (*msendl)(struct msock_vfs *vfs,
+        struct iolist *first, struct iolist *last, int64_t deadline);
+    ssize_t (*mrecvl)(struct msock_vfs *vfs,
+        struct iolist *first, struct iolist *last, int64_t deadline);
 };
 
 #endif

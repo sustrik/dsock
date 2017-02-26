@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -22,6 +22,8 @@
 
 */
 
+#include <stddef.h>
+
 #include "dsockimpl.h"
 #include "utils.h"
 
@@ -30,31 +32,33 @@ dsock_unique_id(msock_type);
 int msend(int s, const void *buf, size_t len, int64_t deadline) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
-    struct iovec iov;
-    iov.iov_base = (void*)buf;
-    iov.iov_len = len;
-    return m->msendv(m, &iov, 1, deadline);
+    struct iolist iol;
+    iol.iol_base = (void*)buf;
+    iol.iol_len = len;
+    iol.iol_next = NULL;
+    return m->msendl(m, &iol, &iol, deadline);
 }
 
 ssize_t mrecv(int s, void *buf, size_t len, int64_t deadline) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
-    struct iovec iov;
-    iov.iov_base = buf;
-    iov.iov_len = len;
-    return m->mrecvv(m, &iov, 1, deadline);
+    struct iolist iol;
+    iol.iol_base = buf;
+    iol.iol_len = len;
+    iol.iol_next = NULL;
+    return m->mrecvl(m, &iol, &iol, deadline);
 }
 
-int msendv(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
+int msendl(int s, struct iolist *first, struct iolist *last, int64_t deadline) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
-    return m->msendv(m, iov, iovlen, deadline);
+    return m->msendl(m, first, last, deadline);
 }
 
-ssize_t mrecvv(int s, const struct iovec *iov, size_t iovlen,
+ssize_t mrecvl(int s, struct iolist *first, struct iolist *last,
       int64_t deadline) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
-    return m->mrecvv(m, iov, iovlen, deadline);
+    return m->mrecvl(m, first, last, deadline);
 }
 

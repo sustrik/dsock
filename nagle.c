@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -31,14 +31,16 @@
 #include "iov.h"
 #include "utils.h"
 
+#if 0
+
 dsock_unique_id(nagle_type);
 
 static void *nagle_hquery(struct hvfs *hvfs, const void *type);
 static void nagle_hclose(struct hvfs *hvfs);
-static int nagle_bsendv(struct bsock_vfs *bvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static int nagle_brecvv(struct bsock_vfs *bvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int nagle_bsendl(struct bsock_vfs *bvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static int nagle_brecvl(struct bsock_vfs *bvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
     uint8_t *buf, int sendch, int ackch);
 
@@ -75,8 +77,8 @@ int nagle_start(int s, size_t batch, int64_t interval) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->hvfs.query = nagle_hquery;
     obj->hvfs.close = nagle_hclose;
-    obj->bvfs.bsendv = nagle_bsendv;
-    obj->bvfs.brecvv = nagle_brecvv;
+    obj->bvfs.bsendl = nagle_bsendl;
+    obj->bvfs.brecvl = nagle_brecvl;
     obj->s = s;
     obj->buf = malloc(batch);
     if(dsock_slow(!obj->buf)) {errno = ENOMEM; goto error2;}
@@ -129,8 +131,8 @@ int nagle_stop(int s, int64_t deadline) {
     return u;
 }
 
-static int nagle_bsendv(struct bsock_vfs *bvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int nagle_bsendl(struct bsock_vfs *bvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct nagle_sock *obj = dsock_cont(bvfs, struct nagle_sock, bvfs);
     /* Send is done in a worker coroutine. */
     struct nagle_vec vec = {iov, iovlen};
@@ -215,10 +217,10 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
     }
 }
 
-static int nagle_brecvv(struct bsock_vfs *bvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int nagle_brecvl(struct bsock_vfs *bvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct nagle_sock *obj = dsock_cont(bvfs, struct nagle_sock, bvfs);
-    return brecvv(obj->s, iov, iovlen, deadline);
+    return brecvl(obj->s, first, last, deadline);
 }
 
 static void nagle_hclose(struct hvfs *hvfs) {
@@ -234,4 +236,6 @@ static void nagle_hclose(struct hvfs *hvfs) {
     dsock_assert(rc == 0);
     free(obj);
 }
+
+#endif
 

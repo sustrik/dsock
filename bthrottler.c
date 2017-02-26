@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -30,14 +30,16 @@
 #include "iov.h"
 #include "utils.h"
 
+#if 0
+
 dsock_unique_id(bthrottler_type);
 
 static void *bthrottler_hquery(struct hvfs *hvfs, const void *type);
 static void bthrottler_hclose(struct hvfs *hvfs);
-static int bthrottler_bsendv(struct bsock_vfs *bvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static int bthrottler_brecvv(struct bsock_vfs *bvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int bthrottler_bsendl(struct bsock_vfs *bvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static int bthrottler_brecvl(struct bsock_vfs *bvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 
 struct bthrottler_sock {
     struct hvfs hvfs;
@@ -76,8 +78,8 @@ int bthrottler_start(int s,
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->hvfs.query = bthrottler_hquery;
     obj->hvfs.close = bthrottler_hclose;
-    obj->bvfs.bsendv = bthrottler_bsendv;
-    obj->bvfs.brecvv = bthrottler_brecvv;
+    obj->bvfs.bsendl = bthrottler_bsendl;
+    obj->bvfs.brecvl = bthrottler_brecvl;
     obj->s = -1;
     obj->send_full = 0;
     if(send_throughput > 0) {
@@ -124,12 +126,12 @@ int bthrottler_stop(int s) {
     return u;
 }
 
-static int bthrottler_bsendv(struct bsock_vfs *bvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int bthrottler_bsendl(struct bsock_vfs *bvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct bthrottler_sock *obj =
         dsock_cont(bvfs, struct bthrottler_sock, bvfs);
     /* If send-throttling is off forward the call. */
-    if(obj->send_full == 0) return bsendv(obj->s, iov, iovlen, deadline);
+    if(obj->send_full == 0) return bsendl(obj->s, first, last, deadline);
     /* Get rid of the corner case. */
     size_t bytes = iov_size(iov, iovlen);
     if(dsock_slow(bytes == 0)) return 0;
@@ -158,7 +160,7 @@ static int bthrottler_bsendv(struct bsock_vfs *bvfs,
 }
 
 static int bthrottler_brecvv(struct bsock_vfs *bvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct bthrottler_sock *obj =
         dsock_cont(bvfs, struct bthrottler_sock, bvfs);
     /* If recv-throttling is off forward the call. */
@@ -198,4 +200,6 @@ static void bthrottler_hclose(struct hvfs *hvfs) {
     }
     free(obj);
 }
+
+#endif
 

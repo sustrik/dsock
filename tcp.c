@@ -31,6 +31,8 @@
 #include "utils.h"
 #include "tcp.h"
 
+#if 0
+
 static int tcpmakeconn(int fd);
 
 /******************************************************************************/
@@ -42,10 +44,10 @@ dsock_unique_id(tcp_type);
 static void *tcp_hquery(struct hvfs *hvfs, const void *type);
 static void tcp_hclose(struct hvfs *hvfs);
 static int tcp_hdone(struct hvfs *hvfs);
-static int tcp_bsendv(struct bsock_vfs *bvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static int tcp_brecvv(struct bsock_vfs *bvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int tcp_bsendl(struct bsock_vfs *bvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static int tcp_brecvl(struct bsock_vfs *bvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 
 struct tcp_conn {
     struct hvfs hvfs;
@@ -89,8 +91,8 @@ error1:
     return -1;
 }
 
-static int tcp_bsendv(struct bsock_vfs *bvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int tcp_bsendl(struct bsock_vfs *bvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct tcp_conn *obj = dsock_cont(bvfs, struct tcp_conn, bvfs);
     if(dsock_slow(obj->outdone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->outerr)) {errno = ECONNRESET; return -1;}
@@ -100,8 +102,8 @@ static int tcp_bsendv(struct bsock_vfs *bvfs,
     return -1;
 }
 
-static int tcp_brecvv(struct bsock_vfs *bvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int tcp_brecvl(struct bsock_vfs *bvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct tcp_conn *obj = dsock_cont(bvfs, struct tcp_conn, bvfs);
     if(dsock_slow(obj->indone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->inerr)) {errno = ECONNRESET; return -1;}
@@ -275,8 +277,8 @@ static int tcpmakeconn(int fd) {
     obj->hvfs.query = tcp_hquery;
     obj->hvfs.close = tcp_hclose;
     obj->hvfs.done = tcp_hdone;
-    obj->bvfs.bsendv = tcp_bsendv;
-    obj->bvfs.brecvv = tcp_brecvv;
+    obj->bvfs.bsendl = tcp_bsendl;
+    obj->bvfs.brecvl = tcp_brecvl;
     obj->fd = fd;
     fd_initrxbuf(&obj->rxbuf);
     obj->indone = 0;
@@ -293,4 +295,6 @@ error1:
     errno = err;
     return -1;
 }
+
+#endif
 

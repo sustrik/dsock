@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -31,14 +31,16 @@
 #include "iov.h"
 #include "utils.h"
 
+#if 0
+
 dsock_unique_id(websock_type);
 
 static void *websock_hquery(struct hvfs *hvfs, const void *type);
 static void websock_hclose(struct hvfs *hvfs);
-static int websock_msendv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static ssize_t websock_mrecvv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int websock_msendl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static ssize_t websock_mrecvl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 
 struct websock_sock {
     struct hvfs hvfs;
@@ -66,8 +68,8 @@ static int websock_start(int s, int client) {
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->hvfs.query = websock_hquery;
     obj->hvfs.close = websock_hclose;
-    obj->mvfs.msendv = websock_msendv;
-    obj->mvfs.mrecvv = websock_mrecvv;
+    obj->mvfs.msendl = websock_msendl;
+    obj->mvfs.mrecvl = websock_mrecvl;
     obj->s = s;
     obj->txerr = 0;
     obj->rxerr = 0;
@@ -105,8 +107,8 @@ int websock_stop(int s, int64_t deadline) {
     dsock_assert(0);
 }
 
-static int websock_msendv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int websock_msendl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct websock_sock *obj = dsock_cont(mvfs, struct websock_sock, mvfs);
     if(dsock_slow(obj->txerr)) {errno = obj->txerr; return -1;}
     size_t len = iov_size(iov, iovlen);
@@ -163,8 +165,8 @@ static int websock_msendv(struct msock_vfs *mvfs,
     return 0;
 }
 
-static ssize_t websock_mrecvv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static ssize_t websock_mrecvl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct websock_sock *obj = dsock_cont(mvfs, struct websock_sock, mvfs);
     if(dsock_slow(obj->rxerr)) {errno = obj->rxerr; return -1;}
     size_t pos = 0;
@@ -240,4 +242,6 @@ static void websock_hclose(struct hvfs *hvfs) {
     dsock_assert(rc == 0);
     free(obj);
 }
+
+#endif
 

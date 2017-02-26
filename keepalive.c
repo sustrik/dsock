@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -32,14 +32,16 @@
 #include "dsockimpl.h"
 #include "utils.h"
 
+#if 0
+
 dsock_unique_id(keepalive_type);
 
 static void *keepalive_hquery(struct hvfs *hvfs, const void *type);
 static void keepalive_hclose(struct hvfs *hvfs);
-static int keepalive_msendv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static ssize_t keepalive_mrecvv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int keepalive_msendl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static ssize_t keepalive_mrecvl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 static coroutine void keepalive_sender(int s, int64_t send_interval,
     int sendch, int ackch);
 
@@ -79,8 +81,8 @@ int keepalive_start(int s, int64_t send_interval, int64_t recv_interval) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->hvfs.query = keepalive_hquery;
     obj->hvfs.close = keepalive_hclose;
-    obj->mvfs.msendv = keepalive_msendv;
-    obj->mvfs.mrecvv = keepalive_mrecvv;
+    obj->mvfs.msendl = keepalive_msendl;
+    obj->mvfs.mrecvl = keepalive_mrecvl;
     obj->s = s;
     obj->send_interval = send_interval;
     obj->recv_interval = recv_interval;
@@ -149,8 +151,8 @@ int keepalive_stop(int s) {
     return keepalive_free(obj);
 }
 
-static int keepalive_msendv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int keepalive_msendl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct keepalive_sock *obj = dsock_cont(mvfs, struct keepalive_sock, mvfs);
     if(dsock_slow(obj->err)) {errno = obj->err; return -1;}
     /* Send is done in a worker coroutine. */
@@ -207,8 +209,8 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
     }
 }
 
-static ssize_t keepalive_mrecvv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static ssize_t keepalive_mrecvl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct keepalive_sock *obj = dsock_cont(mvfs, struct keepalive_sock, mvfs);
     /* If receive mode is off, just forward the call. */
     if(obj->recv_interval < 0) return mrecvv(obj->s, iov, iovlen, deadline);
@@ -249,4 +251,6 @@ static void keepalive_hclose(struct hvfs *hvfs) {
     int rc = hclose(u);
     dsock_assert(rc == 0);
 }
+
+#endif
 

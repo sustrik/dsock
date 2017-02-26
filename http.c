@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -23,6 +23,7 @@
 */
 
 #include <errno.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -110,16 +111,20 @@ int http_sendrequest(int s, const char *command, const char *resource,
     struct http_sock *obj = hquery(s, http_type);
     if(dsock_slow(!obj)) return -1;
     /* TODO: command and resource should contain no spaces! */
-    struct iovec iov[4];
-    iov[0].iov_base = (void*)command;
-    iov[0].iov_len = strlen(command);
-    iov[1].iov_base = (void*)" ";
-    iov[1].iov_len = 1;
-    iov[2].iov_base = (void*)resource;
-    iov[2].iov_len = strlen(resource);
-    iov[3].iov_base = (void*)" HTTP/1.1";
-    iov[3].iov_len = 9;
-    return msendv(obj->s, iov, 4, deadline);
+    struct iolist iol[4];
+    iol[0].iol_base = (void*)command;
+    iol[0].iol_len = strlen(command);
+    iol[0].iol_next = &iol[1];
+    iol[1].iol_base = (void*)" ";
+    iol[1].iol_len = 1;
+    iol[1].iol_next = &iol[2];
+    iol[2].iol_base = (void*)resource;
+    iol[2].iol_len = strlen(resource);
+    iol[2].iol_next = &iol[3];
+    iol[3].iol_base = (void*)" HTTP/1.1";
+    iol[3].iol_len = 9;
+    iol[4].iol_next = NULL;
+    return msendl(obj->s, &iol[0], &iol[3], deadline);
 }
 
 int http_recvrequest(int s, char *command, size_t commandlen,
@@ -170,14 +175,17 @@ int http_sendstatus(int s, int status, const char *reason, int64_t deadline) {
     status %= 10;
     buf[2] = status + '0';
     buf[3] = ' ';
-    struct iovec iov[3];
-    iov[0].iov_base = (void*)"HTTP/1.1 ";
-    iov[0].iov_len = 9;
-    iov[1].iov_base = buf;
-    iov[1].iov_len = 4;
-    iov[2].iov_base = (void*)reason;
-    iov[2].iov_len = strlen(reason);
-    return msendv(obj->s, iov, 3, deadline);
+    struct iolist iol[3];
+    iol[0].iol_base = (void*)"HTTP/1.1 ";
+    iol[0].iol_len = 9;
+    iol[0].iol_next = &iol[1];
+    iol[1].iol_base = buf;
+    iol[1].iol_len = 4;
+    iol[1].iol_next = &iol[2];
+    iol[2].iol_base = (void*)reason;
+    iol[2].iol_len = strlen(reason);
+    iol[2].iol_next = NULL;
+    return msendl(obj->s, &iol[0], &iol[2], deadline);
 }
 
 int http_recvstatus(int s, char *reason, size_t reasonlen, int64_t deadline) {
@@ -222,19 +230,23 @@ int http_sendfield(int s, const char *name, const char *value,
     struct http_sock *obj = hquery(s, http_type);
     if(dsock_slow(!obj)) return -1;
     /* TODO: Check whether name contains only valid characters! */
-    if (strpbrk(name, "(),/:;<=>?@[\\]{}\" \t") != NULL) {errno = EPROTO; return -1;}
+    if (strpbrk(name, "(),/:;<=>?@[\\]{}\" \t") != NULL) {
+        errno = EPROTO; return -1;}
     if (strlen(value) == 0) {errno = EPROTO; return -1;}
-    struct iovec iov[3];
-    iov[0].iov_base = (void*)name;
-    iov[0].iov_len = strlen(name);
-    iov[1].iov_base = (void*)": ";
-    iov[1].iov_len = 2;
+    struct iolist iol[3];
+    iol[0].iol_base = (void*)name;
+    iol[0].iol_len = strlen(name);
+    iol[0].iol_next = &iol[1];
+    iol[1].iol_base = (void*)": ";
+    iol[1].iol_len = 2;
+    iol[1].iol_next = &iol[2];
     const char *start = dsock_lstrip(value, ' ');
     const char *end = dsock_rstrip(start, ' ');
     dsock_assert(start < end);
-    iov[2].iov_base = (void*)start;
-    iov[2].iov_len = end - start;
-    return msendv(obj->s, iov, 3, deadline);
+    iol[2].iol_base = (void*)start;
+    iol[2].iol_len = end - start;
+    iol[2].iol_next = NULL;
+    return msendv(obj->s, &iol[0], &iol[2], deadline);
 }
 
 int http_recvfield(int s, char *name, size_t namelen,

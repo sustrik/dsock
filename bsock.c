@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -22,6 +22,8 @@
 
 */
 
+#include <stddef.h>
+
 #include "dsockimpl.h"
 #include "utils.h"
 
@@ -30,30 +32,32 @@ dsock_unique_id(bsock_type);
 int bsend(int s, const void *buf, size_t len, int64_t deadline) {
     struct bsock_vfs *b = hquery(s, bsock_type);
     if(dsock_slow(!b)) return -1;
-    struct iovec iov;
-    iov.iov_base = (void*)buf;
-    iov.iov_len = len;
-    return b->bsendv(b, &iov, 1, deadline);
+    struct iolist iol;
+    iol.iol_base = (void*)buf;
+    iol.iol_len = len;
+    iol.iol_next = NULL;
+    return b->bsendl(b, &iol, &iol, deadline);
 }
 
 int brecv(int s, void *buf, size_t len, int64_t deadline) {
     struct bsock_vfs *b = hquery(s, bsock_type);
     if(dsock_slow(!b)) return -1;
-    struct iovec iov;
-    iov.iov_base = buf;
-    iov.iov_len = len;
-    return b->brecvv(b, &iov, 1, deadline);
+    struct iolist iol;
+    iol.iol_base = buf;
+    iol.iol_len = len;
+    iol.iol_next = NULL;
+    return b->brecvl(b, &iol, &iol, deadline);
 }
 
-int bsendv(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
+int bsendl(int s, struct iolist *first, struct iolist *last, int64_t deadline) {
     struct bsock_vfs *b = hquery(s, bsock_type);
     if(dsock_slow(!b)) return -1;
-    return b->bsendv(b, iov, iovlen, deadline);
+    return b->bsendl(b, first, last, deadline);
 }
 
-int brecvv(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
+int brecvl(int s, struct iolist *first, struct iolist *last, int64_t deadline) {
     struct bsock_vfs *b = hquery(s, bsock_type);
     if(dsock_slow(!b)) return -1;
-    return b->brecvv(b, iov, iovlen, deadline);
+    return b->brecvl(b, first, last, deadline);
 }
 

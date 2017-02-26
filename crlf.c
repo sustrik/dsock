@@ -30,15 +30,17 @@
 #include "iov.h"
 #include "utils.h"
 
+#if 0
+
 dsock_unique_id(crlf_type);
 
 static void *crlf_hquery(struct hvfs *hvfs, const void *type);
 static void crlf_hclose(struct hvfs *hvfs);
 static int crlf_hdone(struct hvfs *hvfs);
-static int crlf_msendv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static ssize_t crlf_mrecvv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int crlf_msendl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static ssize_t crlf_mrecvl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 
 struct crlf_sock {
     struct hvfs hvfs;
@@ -48,7 +50,7 @@ struct crlf_sock {
        to bsock interface of the underlying socket to make it faster. */
     struct bsock_vfs *uvfs;
     unsigned int indone : 1;
-    unsigned int outdone: 1;
+    unsigned int outdone : 1;
     unsigned int inerr : 1;
     unsigned int outerr : 1;
 };
@@ -69,8 +71,8 @@ int crlf_start(int s) {
     obj->hvfs.query = crlf_hquery;
     obj->hvfs.close = crlf_hclose;
     obj->hvfs.done = crlf_hdone;
-    obj->mvfs.msendv = crlf_msendv;
-    obj->mvfs.mrecvv = crlf_mrecvv;
+    obj->mvfs.msendl = crlf_msendl;
+    obj->mvfs.mrecvl = crlf_mrecvl;
     obj->u = -1;
     obj->uvfs = hquery(s, bsock_type);
     if(dsock_slow(!obj->uvfs)) {err = errno; goto error2;}
@@ -120,7 +122,7 @@ int crlf_stop(int s, int64_t deadline) {
     }
     /* Drain incoming messages until termination message is received. */
     while(1) {
-        ssize_t sz = crlf_mrecvv(&obj->mvfs, NULL, 0, deadline);
+        ssize_t sz = crlf_mrecvl(&obj->mvfs, NULL, NULL, deadline);
         if(sz < 0 && errno == EPIPE) break;
         if(dsock_slow(sz < 0)) {err = errno; goto error;}
     }
@@ -134,7 +136,7 @@ error:
 }
 
 static int crlf_msendv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct crlf_sock *obj = dsock_cont(mvfs, struct crlf_sock, mvfs);
     if(dsock_slow(obj->outdone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->outerr)) {errno = ECONNRESET; return -1;}
@@ -164,7 +166,7 @@ static int crlf_msendv(struct msock_vfs *mvfs,
 }
 
 static ssize_t crlf_mrecvv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct crlf_sock *obj = dsock_cont(mvfs, struct crlf_sock, mvfs);
     if(dsock_slow(obj->indone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->inerr)) {errno = ECONNRESET; return -1;}
@@ -204,4 +206,6 @@ static void crlf_hclose(struct hvfs *hvfs) {
     }
     free(obj);
 }
+
+#endif
 

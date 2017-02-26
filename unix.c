@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -32,6 +32,8 @@
 #include "fd.h"
 #include "utils.h"
 
+#if 0
+
 static int unixresolve(const char *addr, struct sockaddr_un *su);
 static int unixmakeconn(int fd);
 
@@ -44,10 +46,10 @@ dsock_unique_id(unix_type);
 static void *unix_hquery(struct hvfs *hvfs, const void *type);
 static void unix_hclose(struct hvfs *hvfs);
 static int unix_hdone(struct hvfs *hvfs);
-static int unix_bsendv(struct bsock_vfs *bvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static int unix_brecvv(struct bsock_vfs *bvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int unix_bsendl(struct bsock_vfs *bvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static int unix_brecvl(struct bsock_vfs *bvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 
 struct unix_conn {
     struct hvfs hvfs;
@@ -95,8 +97,8 @@ error1:
     return -1;
 }
 
-static int unix_bsendv(struct bsock_vfs *bvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int unix_bsendl(struct bsock_vfs *bvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct unix_conn *obj = dsock_cont(bvfs, struct unix_conn, bvfs);
     if(dsock_slow(obj->outdone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->outerr)) {errno = ECONNRESET; return -1;}
@@ -106,8 +108,8 @@ static int unix_bsendv(struct bsock_vfs *bvfs,
     return -1;
 }
 
-static int unix_brecvv(struct bsock_vfs *bvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int unix_brecvl(struct bsock_vfs *bvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct unix_conn *obj = dsock_cont(bvfs, struct unix_conn, bvfs);
     if(dsock_slow(obj->indone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->inerr)) {errno = ECONNRESET; return -1;}
@@ -309,8 +311,8 @@ static int unixmakeconn(int fd) {
     obj->hvfs.query = unix_hquery;
     obj->hvfs.close = unix_hclose;
     obj->hvfs.done = unix_hdone;
-    obj->bvfs.bsendv = unix_bsendv;
-    obj->bvfs.brecvv = unix_brecvv;
+    obj->bvfs.bsendl = unix_bsendl;
+    obj->bvfs.brecvl = unix_brecvl;
     obj->fd = fd;
     fd_initrxbuf(&obj->rxbuf);
     obj->indone = 0;
@@ -327,4 +329,6 @@ error1:
     errno = err;
     return -1;
 }
+
+#endif
 

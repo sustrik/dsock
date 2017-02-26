@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -31,14 +31,16 @@
 #include "dsockimpl.h"
 #include "utils.h"
 
+#if 0
+
 dsock_unique_id(mtrace_type);
 
 static void *mtrace_hquery(struct hvfs *hvfs, const void *type);
 static void mtrace_hclose(struct hvfs *hvfs);
-static int mtrace_msendv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static ssize_t mtrace_mrecvv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int mtrace_msendl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static ssize_t mtrace_mrecvl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 
 struct mtrace_sock {
     struct hvfs hvfs;
@@ -65,8 +67,8 @@ int mtrace_start(int s) {
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->hvfs.query = mtrace_hquery;
     obj->hvfs.close = mtrace_hclose;
-    obj->mvfs.msendv = mtrace_msendv;
-    obj->mvfs.mrecvv = mtrace_mrecvv;
+    obj->mvfs.msendl = mtrace_msendl;
+    obj->mvfs.mrecvl = mtrace_mrecvl;
     obj->s = s;
     /* Create the handle. */
     int h = hmake(&obj->hvfs);
@@ -92,8 +94,8 @@ int mtrace_stop(int s) {
     return u;
 }
 
-static int mtrace_msendv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int mtrace_msendl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct mtrace_sock *obj = dsock_cont(mvfs, struct mtrace_sock, mvfs);
     size_t len = 0;
     size_t i, j;
@@ -105,13 +107,13 @@ static int mtrace_msendv(struct msock_vfs *mvfs,
         }
     }
     fprintf(stderr, ", %zu)\n", len);
-    return msendv(obj->s, iov, iovlen, deadline);
+    return msendl(obj->s, first, last, deadline);
 }
 
-static ssize_t mtrace_mrecvv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static ssize_t mtrace_mrecvl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct mtrace_sock *obj = dsock_cont(mvfs, struct mtrace_sock, mvfs);
-    ssize_t sz = mrecvv(obj->s, iov, iovlen, deadline);
+    ssize_t sz = mrecvl(obj->s, first, last, deadline);
     if(dsock_slow(sz < 0)) return -1;
     size_t i, j;
     fprintf(stderr, "mrecv(%d, 0x", obj->h);
@@ -132,4 +134,6 @@ static void mtrace_hclose(struct hvfs *hvfs) {
     dsock_assert(rc == 0);
     free(obj);
 }
+
+#endif
 

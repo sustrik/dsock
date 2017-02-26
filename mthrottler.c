@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -33,10 +33,10 @@ dsock_unique_id(mthrottler_type);
 
 static void *mthrottler_hquery(struct hvfs *hvfs, const void *type);
 static void mthrottler_hclose(struct hvfs *hvfs);
-static int mthrottler_msendv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static ssize_t mthrottler_mrecvv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int mthrottler_msendl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static ssize_t mthrottler_mrecvl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 
 struct mthrottler_sock {
     struct hvfs hvfs;
@@ -75,8 +75,8 @@ int mthrottler_start(int s,
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->hvfs.query = mthrottler_hquery;
     obj->hvfs.close = mthrottler_hclose;
-    obj->mvfs.msendv = mthrottler_msendv;
-    obj->mvfs.mrecvv = mthrottler_mrecvv;
+    obj->mvfs.msendl = mthrottler_msendl;
+    obj->mvfs.mrecvl = mthrottler_mrecvl;
     obj->s = -1;
     obj->send_full = 0;
     if(send_throughput > 0) {
@@ -123,12 +123,12 @@ int mthrottler_stop(int s) {
     return u;
 }
 
-static int mthrottler_msendv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int mthrottler_msendl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct mthrottler_sock *obj =
         dsock_cont(mvfs, struct mthrottler_sock, mvfs);
     /* If send-throttling is off forward the call. */
-    if(obj->send_full == 0) return msendv(obj->s, iov, iovlen, deadline);
+    if(obj->send_full == 0) return msendl(obj->s, first, last, deadline);
     /* If there's no quota wait till it is renewed. */
     if(!obj->send_remaining) {
         int rc = msleep(obj->send_last + obj->send_interval);
@@ -137,18 +137,18 @@ static int mthrottler_msendv(struct msock_vfs *mvfs,
         obj->send_last = now();
     }
     /* Send the message. */ 
-    int rc = msendv(obj->s, iov, iovlen, deadline);
+    int rc = msendl(obj->s, first, last, deadline);
     if(dsock_slow(rc < 0)) return -1;
     --obj->send_remaining;
     return 0;
 }
 
-static ssize_t mthrottler_mrecvv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static ssize_t mthrottler_mrecvl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct mthrottler_sock *obj =
         dsock_cont(mvfs, struct mthrottler_sock, mvfs);
     /* If recv-throttling is off forward the call. */
-    if(obj->recv_full == 0) return mrecvv(obj->s, iov, iovlen, deadline);
+    if(obj->recv_full == 0) return mrecvl(obj->s, first, last, deadline);
     /* If there's no quota wait till it is renewed. */
     if(!obj->recv_remaining) {
         int rc = msleep(obj->recv_last + obj->recv_interval);
@@ -157,7 +157,7 @@ static ssize_t mthrottler_mrecvv(struct msock_vfs *mvfs,
         obj->recv_last = now();
     }
     /* Receive the message. */
-    int rc = mrecvv(obj->s, iov, iovlen, deadline);
+    int rc = mrecvl(obj->s, first, last, deadline);
     if(dsock_slow(rc < 0)) return -1;
     --obj->recv_remaining;
     return 0;

@@ -29,15 +29,16 @@
 #include "iov.h"
 #include "utils.h"
 
+#if 0
+
 dsock_unique_id(inproc_type);
 
 static void *inproc_hquery(struct hvfs *hvfs, const void *type);
 static void inproc_hclose(struct hvfs *hvfs);
-static int inproc_msendv(struct msock_vfs *mvfs,
-                       const struct iovec *iov, size_t iovlen, int64_t deadline);
-static ssize_t inproc_mrecvv(struct msock_vfs *mvfs,
-                           const struct iovec *iov, size_t iovlen, int64_t deadline);
-
+static int inproc_msendl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static ssize_t inproc_mrecvl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 
 static const uint64_t MSG2BIG = UINT64_MAX;
 
@@ -71,8 +72,8 @@ static int inproc_new(int data, int ack) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->hvfs.query = inproc_hquery;
     obj->hvfs.close = inproc_hclose;
-    obj->mvfs.msendv = inproc_msendv;
-    obj->mvfs.mrecvv = inproc_mrecvv;
+    obj->mvfs.msendl = inproc_msendl;
+    obj->mvfs.mrecvl = inproc_mrecvl;
     obj->data = data;
     obj->ack = ack;
     /* Create the handle. */
@@ -125,22 +126,22 @@ int inproc_pair_start(int fds[2]) {
     return 0;
     rc = hclose(b);
     dsock_assert(rc >= 0);
-    error6:
+error6:
     rc = hclose(a);
     dsock_assert(rc >= 0);
-    error5:
+error5:
     rc = hclose(ch_ack2);
     dsock_assert(rc >= 0);
-    error4:
+error4:
     rc = hclose(ch_ack1);
     dsock_assert(rc >= 0);
-    error3:
+error3:
     rc = hclose(ch_data2);
     dsock_assert(rc >= 0);
-    error2:
+error2:
     rc = hclose(ch_data1);
     dsock_assert(rc >= 0);
-    error1:
+error1:
     errno = err;
     return -1;
 }
@@ -150,8 +151,8 @@ static void inproc_hclose(struct hvfs *hvfs) {
     inproc_destroy(obj);
 }
 
-static ssize_t inproc_mrecvv(struct msock_vfs *mvfs,
-                          const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static ssize_t inproc_mrecvl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct inproc_sock *obj = dsock_cont(mvfs, struct inproc_sock, mvfs);
     uint64_t buf_len = iov_size(iov, iovlen);
     struct inproc_vec vec;
@@ -170,8 +171,8 @@ static ssize_t inproc_mrecvv(struct msock_vfs *mvfs,
     return -1;
 }
 
-static int inproc_msendv(struct msock_vfs *mvfs,
-                         const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int inproc_msendl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct inproc_sock *obj = dsock_cont(mvfs, struct inproc_sock, mvfs);
     uint64_t data_len = iov_size(iov, iovlen);
     struct inproc_vec vec;
@@ -186,3 +187,6 @@ static int inproc_msendv(struct msock_vfs *mvfs,
     if(confirmation != data_len) {errno = EPROTO; return -1;}
     return 0;
 }
+
+#endif
+

@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -31,14 +31,16 @@
 #include "iov.h"
 #include "utils.h"
 
+#if 0
+
 dsock_unique_id(btrace_type);
 
 static void *btrace_hquery(struct hvfs *hvfs, const void *type);
 static void btrace_hclose(struct hvfs *hvfs);
-static int btrace_bsendv(struct bsock_vfs *bvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static int btrace_brecvv(struct bsock_vfs *bvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int btrace_bsendl(struct bsock_vfs *bvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static int btrace_brecvl(struct bsock_vfs *bvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 
 struct btrace_sock {
     struct hvfs hvfs;
@@ -65,8 +67,8 @@ int btrace_start(int s) {
     if(dsock_slow(!obj)) {errno = ENOMEM; return -1;}
     obj->hvfs.query = btrace_hquery;
     obj->hvfs.close = btrace_hclose;
-    obj->bvfs.bsendv = btrace_bsendv;
-    obj->bvfs.brecvv = btrace_brecvv;
+    obj->bvfs.bsendl = btrace_bsendl;
+    obj->bvfs.brecvl = btrace_brecvl;
     obj->s = s;
     /* Create the handle. */
     int h = hmake(&obj->hvfs);
@@ -93,7 +95,7 @@ int btrace_stop(int s) {
 }
 
 static int btrace_bsendv(struct bsock_vfs *bvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct btrace_sock *obj = dsock_cont(bvfs, struct btrace_sock, bvfs);
     size_t len = 0;
     size_t i, j;
@@ -105,13 +107,13 @@ static int btrace_bsendv(struct bsock_vfs *bvfs,
         }
     }
     fprintf(stderr, ", %zu)\n", len);
-    return bsendv(obj->s, iov, iovlen, deadline);
+    return bsendl(obj->s, first, last, deadline);
 }
 
 static int btrace_brecvv(struct bsock_vfs *bvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct btrace_sock *obj = dsock_cont(bvfs, struct btrace_sock, bvfs);
-    int rc = brecvv(obj->s, iov, iovlen, deadline);
+    int rc = brecvl(obj->s, first, last, deadline);
     if(dsock_slow(rc < 0)) return -1;
     size_t len = 0;
     size_t i, j;
@@ -132,4 +134,6 @@ static void btrace_hclose(struct hvfs *hvfs) {
     dsock_assert(rc == 0);
     free(obj);
 }
+
+#endif
 

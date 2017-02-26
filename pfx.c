@@ -30,15 +30,17 @@
 #include "iov.h"
 #include "utils.h"
 
+#if 0
+
 dsock_unique_id(pfx_type);
 
 static void *pfx_hquery(struct hvfs *hvfs, const void *type);
 static void pfx_hclose(struct hvfs *hvfs);
 static int pfx_hdone(struct hvfs *hvfs);
-static int pfx_msendv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static ssize_t pfx_mrecvv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int pfx_msendl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static ssize_t pfx_mrecvl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 
 struct pfx_sock {
     struct hvfs hvfs;
@@ -68,8 +70,8 @@ int pfx_start(int s) {
     obj->hvfs.query = pfx_hquery;
     obj->hvfs.close = pfx_hclose;
     obj->hvfs.done = pfx_hdone;
-    obj->mvfs.msendv = pfx_msendv;
-    obj->mvfs.mrecvv = pfx_mrecvv;
+    obj->mvfs.msendl = pfx_msendl;
+    obj->mvfs.mrecvl = pfx_mrecvl;
     obj->s = -1;
     obj->indone = 0;
     obj->outdone = 0;
@@ -118,7 +120,7 @@ int pfx_stop(int s, int64_t deadline) {
     }
     /* Drain incoming messages until termination message is received. */
     while(1) {
-        ssize_t sz = pfx_mrecvv(&obj->mvfs, NULL, 0, deadline);
+        ssize_t sz = pfx_mrecvl(&obj->mvfs, NULL, NULL, deadline);
         if(sz < 0 && errno == EPIPE) break;
         if(dsock_slow(sz < 0)) {err = errno; goto error;}
     }
@@ -131,8 +133,8 @@ error:
     return -1;
 }
 
-static int pfx_msendv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int pfx_msendl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct pfx_sock *obj = dsock_cont(mvfs, struct pfx_sock, mvfs);
     if(dsock_slow(obj->outdone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->outerr)) {errno = ECONNRESET; return -1;}
@@ -148,8 +150,8 @@ static int pfx_msendv(struct msock_vfs *mvfs,
     return 0;
 }
 
-static ssize_t pfx_mrecvv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static ssize_t pfx_mrecvl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct pfx_sock *obj = dsock_cont(mvfs, struct pfx_sock, mvfs);
     if(dsock_slow(obj->indone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->inerr)) {errno = ECONNRESET; return -1;}
@@ -177,4 +179,6 @@ static void pfx_hclose(struct hvfs *hvfs) {
     }
     free(obj);
 }
+
+#endif
 

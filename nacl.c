@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -34,14 +34,16 @@
 #include "dsockimpl.h"
 #include "utils.h"
 
+#if 0
+
 dsock_unique_id(nacl_type);
 
 static void *nacl_hquery(struct hvfs *hvfs, const void *type);
 static void nacl_hclose(struct hvfs *hvfs);
-static int nacl_msendv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static ssize_t nacl_mrecvv(struct msock_vfs *mvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int nacl_msendl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static ssize_t nacl_mrecvl(struct msock_vfs *mvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 
 #define NACL_EXTRABYTES \
     (crypto_secretbox_ZEROBYTES + crypto_secretbox_NONCEBYTES)
@@ -77,8 +79,8 @@ int nacl_start(int s, const void *key, size_t keylen, int64_t deadline) {
     if(dsock_slow(!obj)) {errno = ENOMEM; goto error1;}
     obj->hvfs.query = nacl_hquery;
     obj->hvfs.close = nacl_hclose;
-    obj->mvfs.msendv = nacl_msendv;
-    obj->mvfs.mrecvv = nacl_mrecvv;
+    obj->mvfs.msendl = nacl_msendl;
+    obj->mvfs.mrecvl = nacl_mrecvl;
     obj->s = s;
     obj->buflen = 0;
     obj->buf1 = NULL;
@@ -132,8 +134,8 @@ static int nacl_resizebufs(struct nacl_sock *obj, size_t len) {
     return 0;
 }
 
-static int nacl_msendv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int nacl_msendl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct nacl_sock *obj = dsock_cont(mvfs, struct nacl_sock, mvfs);
     /* If needed, adjust the buffers. */
     size_t len = iov_size(iov, iovlen);
@@ -160,8 +162,8 @@ static int nacl_msendv(struct msock_vfs *mvfs,
         crypto_secretbox_BOXZEROBYTES , deadline);
 }
 
-static ssize_t nacl_mrecvv(struct msock_vfs *mvfs,
-      const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static ssize_t nacl_mrecvl(struct msock_vfs *mvfs,
+      struct iolist *first, struct iolist *last, int64_t deadline) {
     struct nacl_sock *obj = dsock_cont(mvfs, struct nacl_sock, mvfs);
     /* If needed, adjust the buffers. */
     size_t len = iov_size(iov, iovlen);
@@ -198,4 +200,6 @@ static void nacl_hclose(struct hvfs *hvfs) {
     free(obj->buf2);
     free(obj);
 }
+
+#endif
 

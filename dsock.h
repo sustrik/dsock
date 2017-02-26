@@ -71,6 +71,16 @@
 #endif
 
 /******************************************************************************/
+/*  Gather/scatter list.                                                      */
+/******************************************************************************/
+
+struct iolist {
+    void *iol_base;
+    size_t iol_len;
+    struct iolist *iol_next;
+};
+
+/******************************************************************************/
 /*  Bytestream sockets.                                                       */
 /******************************************************************************/
 
@@ -86,15 +96,15 @@ DSOCK_EXPORT int brecv(
     void *buf,
     size_t len,
     int64_t deadline);
-DSOCK_EXPORT int bsendv(
+DSOCK_EXPORT int bsendl(
     int s,
-    const struct iovec *iov,
-    size_t iovlen,
+    struct iolist *first,
+    struct iolist *last,
     int64_t deadline);
-DSOCK_EXPORT int brecvv(
+DSOCK_EXPORT int brecvl(
     int s,
-    const struct iovec *iov,
-    size_t iovlen,
+    struct iolist *first,
+    struct iolist *last,
     int64_t deadline);
 
 /******************************************************************************/
@@ -113,15 +123,15 @@ DSOCK_EXPORT ssize_t mrecv(
     void *buf,
     size_t len,
     int64_t deadline);
-DSOCK_EXPORT int msendv(
+DSOCK_EXPORT int msendl(
     int s,
-    const struct iovec *iov,
-    size_t iovlen,
+    struct iolist *first,
+    struct iolist *last,
     int64_t deadline);
-DSOCK_EXPORT ssize_t mrecvv(
+DSOCK_EXPORT ssize_t mrecvl(
     int s,
-    const struct iovec *iov,
-    size_t iovlen,
+    struct iolist *first,
+    struct iolist *last,
     int64_t deadline);
 
 /******************************************************************************/
@@ -187,16 +197,16 @@ DSOCK_EXPORT ssize_t udp_recv(
     void *buf,
     size_t len,
     int64_t deadline);
-DSOCK_EXPORT int udp_sendv(
+DSOCK_EXPORT int udp_sendl(
     int s,
     const struct ipaddr *addr,
-    const struct iovec *iov,
-    size_t iovlen);
-DSOCK_EXPORT ssize_t udp_recvv(
+    struct iolist *first,
+    struct iolist *last);
+DSOCK_EXPORT ssize_t udp_recvl(
     int s,
     struct ipaddr *addr,
-    const struct iovec *iov,
-    size_t iovlen,
+    struct iolist *first,
+    struct iolist *last,
     int64_t deadline);
 
 /******************************************************************************/
