@@ -29,11 +29,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#if defined MSG_NOSIGNAL
-#define FD_NOSIGNAL MSG_NOSIGNAL
-#else
-#define FD_NOSIGNAL 0
-#endif
+#include "dsock.h"
 
 struct fd_rxbuf {
     size_t len;
@@ -57,14 +53,14 @@ int fd_accept(
     int64_t deadline);
 int fd_send(
     int s,
-    const struct iovec *iov,
-    size_t iovlen,
+    struct iolist *first,
+    struct iolist *last,
     int64_t deadline);
 int fd_recv(
     int s,
     struct fd_rxbuf *rxbuf,
-    const struct iovec *iov,
-    size_t iovlen,
+    struct iolist *first,
+    struct iolist *last,
     int64_t deadline);
 int fd_close(
     int s);

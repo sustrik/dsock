@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -28,8 +28,15 @@
 #include <unistd.h>
 
 #include "fd.h"
+#include "iol.h"
 #include "iov.h"
 #include "utils.h"
+
+#if defined MSG_NOSIGNAL
+#define FD_NOSIGNAL MSG_NOSIGNAL
+#else
+#define FD_NOSIGNAL 0
+#endif
 
 void fd_initrxbuf(struct fd_rxbuf *rxbuf) {
     dsock_assert(rxbuf);
@@ -97,44 +104,56 @@ int fd_accept(int s, struct sockaddr *addr, socklen_t *addrlen,
     return as;
 }
 
-int fd_send(int s, const struct iovec *iov, size_t iovlen, int64_t deadline) {
-    if(dsock_slow(iovlen > 0 && !iov)) {errno = EINVAL; return -1;}
+int fd_send(int s, struct iolist *first, struct iolist *last,
+      int64_t deadline) {
+    /* Make a local iovec array. */
+    /* TODO: This is dangerous, it may cause stack overflow.
+       There should probably be a on-heap per-socket buffer for that. */
+    iol_to_iov(first, iov);
+    /* Message header will act as an iterator in the following loop. */
     struct msghdr hdr;
     memset(&hdr, 0, sizeof(hdr));
-    size_t len = iov_size(iov, iovlen);
-    ssize_t sent = 0;
-    while(sent < len) {
-        struct iovec vec[iovlen];
-        size_t veclen = iov_cut(vec, iov, iovlen, sent, len - sent);
-        hdr.msg_iov = vec;
-        hdr.msg_iovlen = veclen;
+    hdr.msg_iov = iov;
+    hdr.msg_iovlen = niov;
+    while(1) {
         ssize_t sz = sendmsg(s, &hdr, FD_NOSIGNAL);
         if(sz < 0) {
             if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) {
                 if(errno == EPIPE) errno = ECONNRESET;
                 return -1;
             }
-            int rc = fdout(s, deadline);
-            if(dsock_slow(rc < 0)) {
-                if(errno == EPIPE) errno = ECONNRESET;
-                return -1;
-            }
-            continue;
+            sz = 0;
         }
-        sent += sz;
+        /* Adjust the iovec array so that it doesn't contain data
+           that was already sent. */
+        while(sz) {
+            struct iovec *head = &hdr.msg_iov[0];
+            if(head->iov_len > sz) {
+                head->iov_base += sz;
+                head->iov_len -= sz;
+                break;
+            }
+            sz -= head->iov_len;
+            hdr.msg_iov++;
+            hdr.msg_iovlen--;
+            if(!hdr.msg_iovlen) return 0;
+        }
+        /* Wait for more data. */
+        int rc = fdout(s, deadline);
+        if(dsock_slow(rc < 0)) return -1;
     }
-    return 0;
 }
 
-static ssize_t fdget(int s, struct iovec *iov, size_t iovlen, int block,
-      int64_t deadline) {
+static ssize_t fd_get(int s, struct iolist *first, struct iolist *last,
+      int block, int64_t deadline) {
+    iol_to_iov(first, iov);
     struct msghdr hdr;
     memset(&hdr, 0, sizeof(hdr));
     size_t pos = 0;
-    size_t len = iov_size(iov, iovlen);
+    size_t len = iov_size(iov, niov);
     while(1) {
-        struct iovec vec[iovlen];
-        size_t veclen = iov_cut(vec, iov, iovlen, pos, len);
+        struct iovec vec[niov];
+        size_t veclen = iov_cut(vec, iov, niov, pos, len);
         hdr.msg_iov = vec;
         hdr.msg_iovlen = veclen;
         ssize_t sz = recvmsg(s, &hdr, 0);
@@ -152,18 +171,17 @@ static ssize_t fdget(int s, struct iovec *iov, size_t iovlen, int block,
     }
 }
 
-int fd_recv(int s, struct fd_rxbuf *rxbuf, const struct iovec *iov,
-      size_t iovlen, int64_t deadline) {
-    dsock_assert(rxbuf);
-    dsock_assert(iovlen);
-    struct iovec vec[iovlen];
+int fd_recv(int s, struct fd_rxbuf *rxbuf, struct iolist *first,
+      struct iolist *last, int64_t deadline) {
+    iol_to_iov(first, iov);
+    struct iovec vec[niov];
     size_t pos = 0;
-    size_t len = iov_size(iov, iovlen);
+    size_t len = iov_size(iov, niov);
     while(1) {
         /* Use data from rxbuf. */
         size_t remaining = rxbuf->len - rxbuf->pos;
         size_t tocopy = remaining < len ? remaining : len;    
-        iov_copyto(iov, iovlen, (char*)(rxbuf->data) + rxbuf->pos, pos, tocopy);
+        iov_copyto(iov, niov, (char*)(rxbuf->data) + rxbuf->pos, pos, tocopy);
         rxbuf->pos += tocopy;
         pos += tocopy;
         len -= tocopy;
@@ -171,8 +189,8 @@ int fd_recv(int s, struct fd_rxbuf *rxbuf, const struct iovec *iov,
         /* If requested amount of data is large avoid the copy
            and read it directly into user's buffer. */
         if(len >= sizeof(rxbuf->data)) {
-            size_t veclen = iov_cut(vec, iov, iovlen, pos, len);
-            ssize_t sz = fdget(s, vec, veclen, 1, deadline);
+            size_t veclen = iov_cut(vec, iov, niov, pos, len);
+            ssize_t sz = fd_get(s, vec, veclen, 1, deadline);
             if(dsock_slow(sz < 0)) return -1;
             return 0;
         }
@@ -180,7 +198,7 @@ int fd_recv(int s, struct fd_rxbuf *rxbuf, const struct iovec *iov,
         dsock_assert(rxbuf->len == rxbuf->pos);
         vec[0].iov_base = rxbuf->data;
         vec[0].iov_len = sizeof(rxbuf->data);
-        ssize_t sz = fdget(s, vec, 1, 0, deadline);
+        ssize_t sz = fd_get(s, vec, 1, 0, deadline);
         if(dsock_slow(sz < 0)) return -1;
         rxbuf->len = sz;
         rxbuf->pos = 0;
