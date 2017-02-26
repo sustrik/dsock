@@ -62,7 +62,7 @@ coroutine void client(int port) {
 }
 
 coroutine void client2(int port) {
-    ipaddr addr;
+    struct ipaddr addr;
     int rc = ipaddr_remote(&addr, "127.0.0.1", port, 0, -1);
     assert(rc == 0);
     int cs = tcp_connect(&addr, -1);
@@ -85,7 +85,7 @@ int main() {
     char buf[16];
 
     /* Create a tcp/tls socket */
-    ipaddr addr;
+    struct ipaddr addr;
     int rc = ipaddr_local(&addr, NULL, 5555, 0);
     assert(rc == 0);
     int ls = tcp_listen(&addr, 10);
