@@ -31,8 +31,6 @@
 #include "dsockimpl.h"
 #include "utils.h"
 
-#if 0
-
 dsock_unique_id(mtrace_type);
 
 static void *mtrace_hquery(struct hvfs *hvfs, const void *type);
@@ -98,13 +96,14 @@ static int mtrace_msendl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct mtrace_sock *obj = dsock_cont(mvfs, struct mtrace_sock, mvfs);
     size_t len = 0;
-    size_t i, j;
     fprintf(stderr, "msend(%d, 0x", obj->h);
-    for(i = 0; i != iovlen; ++i) {
-        for(j = 0; j != iov[i].iov_len; ++j) {
-            fprintf(stderr, "%02x", (int)((uint8_t*)iov[i].iov_base)[j]);
-            ++len;
-        }
+    struct iolist *it = first;
+    while(it) {
+        int i;
+        for(i = 0; i != it->iol_len; ++i)
+            fprintf(stderr, "%02x", (int)((uint8_t*)it->iol_base)[i]);
+        len += it->iol_len;
+        it = it->iol_next;
     }
     fprintf(stderr, ", %zu)\n", len);
     return msendl(obj->s, first, last, deadline);
@@ -115,14 +114,16 @@ static ssize_t mtrace_mrecvl(struct msock_vfs *mvfs,
     struct mtrace_sock *obj = dsock_cont(mvfs, struct mtrace_sock, mvfs);
     ssize_t sz = mrecvl(obj->s, first, last, deadline);
     if(dsock_slow(sz < 0)) return -1;
-    size_t i, j;
     fprintf(stderr, "mrecv(%d, 0x", obj->h);
     size_t toprint = sz;
-    for(i = 0; i != iovlen && toprint; ++i) {
-        for(j = 0; j != iov[i].iov_len && toprint; ++j) {
-            fprintf(stderr, "%02x", (int)((uint8_t*)iov[i].iov_base)[j]);
+    struct iolist *it = first;
+    while(it && toprint) {
+        int i;
+        for(i = 0; i != it->iol_len && toprint; ++i) {
+            fprintf(stderr, "%02x", (int)((uint8_t*)it->iol_base)[i]);
             --toprint;
         }
+        it = it->iol_next;
     }
     fprintf(stderr, ", %zu)\n", (size_t)sz);
     return sz;
@@ -134,6 +135,4 @@ static void mtrace_hclose(struct hvfs *hvfs) {
     dsock_assert(rc == 0);
     free(obj);
 }
-
-#endif
 
