@@ -224,7 +224,7 @@ int fd_recv(int s, struct fd_rxbuf *rxbuf, struct iolist *first,
     /* Find out how much data is still missing. */
     size_t miss = 0;
     struct iolist *it = &curr;
-    while(first) {
+    while(it) {
         miss += it->iol_len;
         it = it->iol_next;
     }
