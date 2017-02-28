@@ -164,36 +164,38 @@ static int crlf_msendl(struct msock_vfs *mvfs,
 
 static ssize_t crlf_mrecvl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
-    /* TODO: The buffer must accommodate CRLF sequence.
-       That should not be the case. */
     struct crlf_sock *obj = dsock_cont(mvfs, struct crlf_sock, mvfs);
     if(dsock_slow(obj->indone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->inerr)) {errno = ECONNRESET; return -1;}
-    size_t sz = 0;
+    size_t recvd = 0;
     char c1 = 0;
     char c2 = 0;
     struct iolist iol = {&c2, 1, NULL};
     struct iolist *it = first;
     size_t column = 0;
-    while(c1 != '\r' || c2 != '\n') {
-        c1 = c2;
-        /* Message is longer than the buffer. */
+    while(1) {
+        /* The pipeline looks like this: buffer <- c1 <- c2 <- socket */
+        /* buffer <- c1 */
         if(!it) {obj->inerr = 1; errno = EMSGSIZE; return -1;}
-        /* Get one character. */
+        if(recvd > 1) {
+            if(it->iol_base) ((char*)it->iol_base)[column] = c1;
+            ++column;
+            if(column == it->iol_len) {
+                column = 0;
+                it = it->iol_next;
+            }
+        }
+        /* c1 <- c2 */
+        c1 = c2;
+        /* c2 <- socket */
         int rc = obj->uvfs->brecvl(obj->uvfs, &iol, &iol, deadline);
         if(dsock_slow(rc < 0)) {obj->inerr = -1; return -1;}
-        /* Put the character into the user's buffer. */
-        if(it->iol_base) ((char*)it->iol_base)[column] = c2;
-        ++column;
-        if(column == it->iol_len) {
-            column = 0;
-            it = it->iol_next;
-        }
-        ++sz;
+        ++recvd;
+        if(c1 == '\r' && c2 == '\n') break;
     }
     /* Empty line means that peer is terminating. */
-    if(dsock_slow(sz == 2)) {obj->indone = 1; errno = EPIPE; return -1;}
-    return sz - 2;
+    if(dsock_slow(recvd == 2)) {obj->indone = 1; errno = EPIPE; return -1;}
+    return recvd - 2;
 }
 
 static void crlf_hclose(struct hvfs *hvfs) {
