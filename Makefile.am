@@ -157,7 +157,8 @@ check_PROGRAMS = \
     tests/pfx \
     tests/btrace \
     tests/mtrace \
-    tests/http
+    tests/http \
+    tests/lz4
     # tests/bthrottler \
     # tests/mthrottler \
     # tests/nagle \

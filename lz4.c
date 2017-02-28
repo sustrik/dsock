@@ -32,8 +32,6 @@
 #include "dsockimpl.h"
 #include "utils.h"
 
-#if 0
-
 dsock_unique_id(lz4_type);
 
 static void *lz4_hquery(struct hvfs *hvfs, const void *type);
@@ -113,8 +111,12 @@ int lz4_stop(int s) {
 static int lz4_msendl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct lz4_sock *obj = dsock_cont(mvfs, struct lz4_sock, mvfs);
+    /* Compute size of the message. */
+    size_t len = 0;
+    struct iolist *it;
+    for(it = first; it; it = it->iol_next)
+        len += it->iol_len;
     /* Adjust the buffer size as needed. */
-    size_t len = iov_size(iov, iovlen);
     size_t maxlen = LZ4F_compressFrameBound(len, NULL);
     if(obj->outlen < maxlen) {
         uint8_t *newbuf = realloc(obj->outbuf, maxlen);
@@ -126,7 +128,11 @@ static int lz4_msendl(struct msock_vfs *mvfs,
     /* TODO: Avoid the extra allocations and copies. */
     uint8_t *buf = malloc(len);
     if(dsock_slow(!buf)) {errno = ENOMEM; return -1;}
-    iov_copyallfrom(buf, iov, iovlen);
+    uint8_t *pos = buf;
+    for(it = first; it; it = it->iol_next) {
+        memcpy(pos, it->iol_base, it->iol_len);
+        pos += it->iol_len;
+    }
     LZ4F_preferences_t prefs = {0};
     prefs.frameInfo.contentSize = len;
     size_t dstlen = LZ4F_compressFrame(obj->outbuf, obj->outlen,
@@ -141,8 +147,12 @@ static int lz4_msendl(struct msock_vfs *mvfs,
 static ssize_t lz4_mrecvl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct lz4_sock *obj = dsock_cont(mvfs, struct lz4_sock, mvfs);
+    /* Compute total size of the buffer. */
+    size_t len = 0;
+    struct iolist *it;
+    for(it = first; it; it = it->iol_next)
+        len += it->iol_len;
     /* Adjust the buffer size as needed. */
-    size_t len = iov_size(iov, iovlen);
     size_t maxlen = LZ4F_compressFrameBound(len, NULL);
     if(obj->inlen < maxlen) {
         uint8_t *newbuf = realloc(obj->inbuf, maxlen);
@@ -173,7 +183,11 @@ static ssize_t lz4_mrecvl(struct msock_vfs *mvfs,
     if(dsock_slow(LZ4F_isError(ec))) {errno = EPROTO; return -1;}
     if(dsock_slow(ec != 0)) {errno = EPROTO; return -1;}
     dsock_assert(srclen == sz - infolen);
-    iov_copyallto(iov, iovlen, buf);
+    uint8_t *pos = buf;
+    for(it = first; it; it = it->iol_next) {
+        if(it->iol_base) memcpy(it->iol_base, pos, it->iol_len);
+        pos += it->iol_len;
+    }
     free(buf);
     return dstlen;
 }
@@ -188,6 +202,4 @@ static void lz4_hclose(struct hvfs *hvfs) {
     dsock_assert(rc == 0);
     free(obj);
 }
-
-#endif
 
