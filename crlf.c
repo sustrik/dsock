@@ -30,8 +30,6 @@
 #include "iov.h"
 #include "utils.h"
 
-#if 0
-
 dsock_unique_id(crlf_type);
 
 static void *crlf_hquery(struct hvfs *hvfs, const void *type);
@@ -135,7 +133,7 @@ error:
     return -1;
 }
 
-static int crlf_msendv(struct msock_vfs *mvfs,
+static int crlf_msendl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct crlf_sock *obj = dsock_cont(mvfs, struct crlf_sock, mvfs);
     if(dsock_slow(obj->outdone)) {errno = EPIPE; return -1;}
@@ -143,57 +141,57 @@ static int crlf_msendv(struct msock_vfs *mvfs,
     /* Make sure that message doesn't contain CRLF sequence. */
     uint8_t c = 0;
     size_t sz = 0;
-    int i, j;
-    for(i = 0; i != iovlen; ++i) {
-        for(j = 0; j != iov[i].iov_len; ++j) {
-            uint8_t c2 = ((uint8_t*)iov[i].iov_base)[j];
+    struct iolist *it;
+    for(it = first; it; it = it->iol_next) {
+        int i;
+        for(i = 0; i != it->iol_len; ++i) {
+            uint8_t c2 = ((uint8_t*)it->iol_base)[i];
             if(dsock_slow(c == '\r' && c2 == '\n')) {
                 obj->outerr = 1; errno = EINVAL; return -1;}
             c = c2;
         }
-        sz += iov[i].iov_len;
+        sz += it->iol_len;
     }
     /* Can't send empty line. Empty line is used as protocol terminator. */
-    if(dsock_slow(sz == 0)) {
-        obj->outerr = 1; errno = EINVAL; return -1;}
-    struct iovec vec[iovlen + 1];
-    iov_copy(vec, iov, iovlen);
-    vec[iovlen].iov_base = (void*)"\r\n";
-    vec[iovlen].iov_len = 2;
-    int rc = obj->uvfs->bsendv(obj->uvfs, vec, iovlen + 1, deadline);
+    if(dsock_slow(sz == 0)) {obj->outerr = 1; errno = EINVAL; return -1;}
+    struct iolist iol = {(void*)"\r\n", 2, NULL};
+    last->iol_next = &iol;
+    int rc = obj->uvfs->bsendl(obj->uvfs, first, &iol, deadline);
+    last->iol_next = NULL;
     if(dsock_slow(rc < 0)) {obj->outerr = 1; return -1;}
     return 0;
 }
 
-static ssize_t crlf_mrecvv(struct msock_vfs *mvfs,
+static ssize_t crlf_mrecvl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
+    /* TODO: The buffer must accommodate CRLF sequence.
+       That should not be the case. */
     struct crlf_sock *obj = dsock_cont(mvfs, struct crlf_sock, mvfs);
     if(dsock_slow(obj->indone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->inerr)) {errno = ECONNRESET; return -1;}
-    size_t row = 0;
-    size_t column = 0;
     size_t sz = 0;
-    char c = 0;
-    struct iovec vec = {&c, 1};
-    char pc;
-    while(1) {
-        pc = c;
-        int rc = obj->uvfs->brecvv(obj->uvfs, &vec, 1, deadline);
+    char c1 = 0;
+    char c2 = 0;
+    struct iolist iol = {&c2, 1, NULL};
+    struct iolist *it = first;
+    size_t column = 0;
+    while(c1 != '\r' || c2 != '\n') {
+        /* Message is longer than the buffer. */
+        if(!it) {obj->inerr = 1; errno = EMSGSIZE; return -1;}
+        /* Get one character. */
+        int rc = obj->uvfs->brecvl(obj->uvfs, &iol, &iol, deadline);
         if(dsock_slow(rc < 0)) {obj->inerr = -1; return -1;}
-        if(row < iovlen && iov && iov[row].iov_base) {
-            ((char*)iov[row].iov_base)[column] = c;
-            if(column == iov[row].iov_len) {
-                ++row;
-                column = 0;
-            }
-            else {
-                ++column;
-            }
+        /* Put the character into the user's buffer. */
+        if(it->iol_base) ((char*)it->iol_base)[column] = c2;
+        ++column;
+        if(column == it->iol_len) {
+            column = 0;
+            it = it->iol_next;
         }
         ++sz;
-        if(pc == '\r' && c == '\n') break;
+        c1 = c2;
     }
-    /* Peer is terminating. */
+    /* Empty line means that peer is terminating. */
     if(dsock_slow(sz == 2)) {obj->indone = 1; errno = EPIPE; return -1;}
     return sz - 2;
 }
@@ -206,6 +204,4 @@ static void crlf_hclose(struct hvfs *hvfs) {
     }
     free(obj);
 }
-
-#endif
 

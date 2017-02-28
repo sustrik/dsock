@@ -115,6 +115,9 @@ int fd_send(int s, struct iolist *first, struct iolist *last,
     memset(&hdr, 0, sizeof(hdr));
     hdr.msg_iov = iov;
     hdr.msg_iovlen = niov;
+    /* It is very likely that at least one byte can be sent. Therefore,
+       to improve efficiency, try to send and resort to fdout() only after
+       send failed. */
     while(1) {
         ssize_t sz = sendmsg(s, &hdr, FD_NOSIGNAL);
         if(sz < 0) {
@@ -138,70 +141,124 @@ int fd_send(int s, struct iolist *first, struct iolist *last,
             hdr.msg_iovlen--;
             if(!hdr.msg_iovlen) return 0;
         }
-        /* Wait for more data. */
+        /* Wait till more data can be sent. */
         int rc = fdout(s, deadline);
         if(dsock_slow(rc < 0)) return -1;
     }
 }
 
-static ssize_t fd_get(int s, struct iolist *first, struct iolist *last,
-      int block, int64_t deadline) {
+/* Same as fd_recv() but with no rx buffering. */
+static int fd_recv_(int s, struct iolist *first, struct iolist *last,
+      int64_t deadline) {
     iol_to_iov(first, iov);
+    /* Message header will act as an iterator in the following loop. */
     struct msghdr hdr;
     memset(&hdr, 0, sizeof(hdr));
-    size_t pos = 0;
-    size_t len = iov_size(iov, niov);
+    hdr.msg_iov = iov;
+    hdr.msg_iovlen = niov;
     while(1) {
-        struct iovec vec[niov];
-        size_t veclen = iov_cut(vec, iov, niov, pos, len);
-        hdr.msg_iov = vec;
-        hdr.msg_iovlen = veclen;
         ssize_t sz = recvmsg(s, &hdr, 0);
-        if(dsock_fast(sz == len)) return pos + sz;
         if(dsock_slow(sz == 0)) {errno = EPIPE; return -1;}
-        if(dsock_slow(sz < 0 && errno != EWOULDBLOCK && errno != EAGAIN))
-            return -1;
-        if(dsock_fast(sz > 0)) {
-            if(!block) return sz;
-            pos += sz;
-            len -= sz;
+        if(sz < 0) {
+            if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) {
+                if(errno == EPIPE) errno = ECONNRESET;
+                return -1;
+            }
+            sz = 0;
         }
+        /* Adjust the iovec array so that it doesn't contain buffers
+           that ware already filled in. */
+        while(sz) {
+            struct iovec *head = &hdr.msg_iov[0];
+            if(head->iov_len > sz) {
+                head->iov_base += sz;
+                head->iov_len -= sz;
+                break;
+            }
+            sz -= head->iov_len;
+            hdr.msg_iov++;
+            hdr.msg_iovlen--;
+            if(!hdr.msg_iovlen) return 0;
+        }
+        /* Wait for more data. */
         int rc = fdin(s, deadline);
         if(dsock_slow(rc < 0)) return -1;
     }
 }
 
+/* Copy data from rxbuf to one iolist structure.
+   Returns number of bytes copied. */
+static size_t fd_copy(struct fd_rxbuf *rxbuf, struct iolist *iol) {
+    size_t rmn = rxbuf->len  - rxbuf->pos;
+    if(rmn < iol->iol_len) {
+        if(dsock_fast(iol->iol_base))
+            memcpy(iol->iol_base, rxbuf->data + rxbuf->pos, rmn);
+        rxbuf->len = 0;
+        rxbuf->pos = 0;
+        return rmn;
+    }
+    else {
+        if(dsock_fast(iol->iol_base))
+            memcpy(iol->iol_base, rxbuf->data + rxbuf->pos, iol->iol_len);
+        rxbuf->pos += iol->iol_len;
+        return iol->iol_len;
+    }
+}
+
 int fd_recv(int s, struct fd_rxbuf *rxbuf, struct iolist *first,
       struct iolist *last, int64_t deadline) {
-    iol_to_iov(first, iov);
-    struct iovec vec[niov];
-    size_t pos = 0;
-    size_t len = iov_size(iov, niov);
+    /* Fill in data from the rxbuf. */
+    size_t sz;
     while(1) {
-        /* Use data from rxbuf. */
-        size_t remaining = rxbuf->len - rxbuf->pos;
-        size_t tocopy = remaining < len ? remaining : len;    
-        iov_copyto(iov, niov, (char*)(rxbuf->data) + rxbuf->pos, pos, tocopy);
-        rxbuf->pos += tocopy;
-        pos += tocopy;
-        len -= tocopy;
-        if(!len) return 0;
-        /* If requested amount of data is large avoid the copy
-           and read it directly into user's buffer. */
-        if(len >= sizeof(rxbuf->data)) {
-            size_t veclen = iov_cut(vec, iov, niov, pos, len);
-            ssize_t sz = fd_get(s, vec, veclen, 1, deadline);
-            if(dsock_slow(sz < 0)) return -1;
-            return 0;
+        sz = fd_copy(rxbuf, first);
+        if(sz < first->iol_len) break;
+        first = first->iol_next;
+        if(!first) return 0;
+    }
+    /* Copy the current iolist element so that we can modify it without
+       changing the original list. */
+    struct iolist curr;
+    curr.iol_base = first->iol_base + sz;
+    curr.iol_len = first->iol_len - sz;
+    curr.iol_next = first->iol_next;
+    /* Find out how much data is still missing. */
+    size_t miss = 0;
+    struct iolist *it = &curr;
+    while(first) {
+        miss += it->iol_len;
+        it = it->iol_next;
+    }
+    /* If requested amount of data is larger than rx buffer avoid the copy
+       and read it directly into user's buffer. */
+    if(miss > sizeof(rxbuf->data)) return fd_recv_(s, &curr, last, deadline);
+    /* If small amount of data is requested use rx buffer. */
+    while(1) {
+        /* Read as much data as possible to the buffer to avoid extra
+           syscalls. Do the speculative recv() first to avoid extra
+           polling. Do fdin() only after recv() fails to get data. */
+        ssize_t sz = recv(s, rxbuf->data, sizeof(rxbuf->data), 0);
+        if(dsock_slow(sz == 0)) {errno = EPIPE; return -1;}
+        if(sz < 0) {
+            if(dsock_slow(errno != EWOULDBLOCK && errno != EAGAIN)) {
+                if(errno == EPIPE) errno = ECONNRESET;
+                return -1;
+            }
+            sz = 0;
         }
-        /* Read as much data as possible into rxbuf. */
-        dsock_assert(rxbuf->len == rxbuf->pos);
-        vec[0].iov_base = rxbuf->data;
-        vec[0].iov_len = sizeof(rxbuf->data);
-        ssize_t sz = fd_get(s, vec, 1, 0, deadline);
-        if(dsock_slow(sz < 0)) return -1;
         rxbuf->len = sz;
         rxbuf->pos = 0;
+        /* Copy the data from rxbuffer to the iolist. */
+        while(1) {
+            sz = fd_copy(rxbuf, &curr);
+            if(sz < curr.iol_len) break;
+            if(!curr.iol_next) return 0;
+            curr = *curr.iol_next;
+        }
+        curr.iol_base += sz;
+        curr.iol_len -= sz;
+        /* Wait for more data. */
+        int rc = fdin(s, deadline);
+        if(dsock_slow(rc < 0)) return -1;
     }
 }
 

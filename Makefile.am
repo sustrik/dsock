@@ -151,23 +151,23 @@ endif
 
 check_PROGRAMS = \
     tests/tcp \
-    tests/udp \
-    tests/unix \
-    tests/pfx \
-    tests/crlf \
-    tests/bthrottler \
-    tests/mthrottler \
-    tests/nagle \
-    tests/lz4 \
-    tests/btrace \
-    tests/mtrace \
-    tests/nacl \
-    tests/keepalive \
-    tests/fullstack \
-    tests/iovec \
-    tests/http \
-    tests/websock \
-    tests/inproc
+    tests/udp
+    # tests/unix \
+    # tests/pfx \
+    # tests/crlf \
+    # tests/bthrottler \
+    # tests/mthrottler \
+    # tests/nagle \
+    # tests/lz4 \
+    # tests/btrace \
+    # tests/mtrace \
+    # tests/nacl \
+    # tests/keepalive \
+    # tests/fullstack \
+    # tests/iovec \
+    # tests/http \
+    # tests/websock \
+    # tests/inproc
 
 if HAVE_TLS
 

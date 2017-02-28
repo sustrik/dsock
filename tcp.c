@@ -31,8 +31,6 @@
 #include "utils.h"
 #include "tcp.h"
 
-#if 0
-
 static int tcpmakeconn(int fd);
 
 /******************************************************************************/
@@ -96,7 +94,7 @@ static int tcp_bsendl(struct bsock_vfs *bvfs,
     struct tcp_conn *obj = dsock_cont(bvfs, struct tcp_conn, bvfs);
     if(dsock_slow(obj->outdone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->outerr)) {errno = ECONNRESET; return -1;}
-    ssize_t sz = fd_send(obj->fd, iov, iovlen, deadline);
+    ssize_t sz = fd_send(obj->fd, first, last, deadline);
     if(dsock_fast(sz >= 0)) return sz;
     obj->outerr = 1;
     return -1;
@@ -107,7 +105,7 @@ static int tcp_brecvl(struct bsock_vfs *bvfs,
     struct tcp_conn *obj = dsock_cont(bvfs, struct tcp_conn, bvfs);
     if(dsock_slow(obj->indone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->inerr)) {errno = ECONNRESET; return -1;}
-    int rc = fd_recv(obj->fd, &obj->rxbuf, iov, iovlen, deadline);
+    int rc = fd_recv(obj->fd, &obj->rxbuf, first, last, deadline);
     if(dsock_fast(rc == 0)) return 0;
     if(errno == EPIPE) obj->indone = 1;
     else obj->inerr = 1;
@@ -141,10 +139,11 @@ int tcp_stop(int s, int64_t deadline) {
        data or consciously closed the connection without reading all of it. */
     while(1) {
         char buf[128];
-        struct iovec iov;
-        iov.iov_base = buf;
-        iov.iov_len = sizeof(buf);
-        int rc = tcp_brecvv(&obj->bvfs, &iov, 1, deadline);
+        struct iolist iol;
+        iol.iol_base = buf;
+        iol.iol_len = sizeof(buf);
+        iol.iol_next = NULL;
+        int rc = tcp_brecvl(&obj->bvfs, &iol, &iol, deadline);
         if(rc < 0 && errno == EPIPE) break;
         if(dsock_slow(rc < 0)) {err = errno; goto error;}
     }
@@ -295,6 +294,4 @@ error1:
     errno = err;
     return -1;
 }
-
-#endif
 
