@@ -176,13 +176,15 @@ static ssize_t crlf_mrecvl(struct msock_vfs *mvfs,
     while(1) {
         /* The pipeline looks like this: buffer <- c1 <- c2 <- socket */
         /* buffer <- c1 */
-        if(!it) {obj->inerr = 1; errno = EMSGSIZE; return -1;}
-        if(recvd > 1) {
-            if(it->iol_base) ((char*)it->iol_base)[column] = c1;
-            ++column;
-            if(column == it->iol_len) {
-                column = 0;
-                it = it->iol_next;
+        if(first) {
+            if(!it) {obj->inerr = 1; errno = EMSGSIZE; return -1;}
+            if(recvd > 1) {
+                if(it->iol_base) ((char*)it->iol_base)[column] = c1;
+                ++column;
+                if(column == it->iol_len) {
+                    column = 0;
+                    it = it->iol_next;
+                }
             }
         }
         /* c1 <- c2 */
