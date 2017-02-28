@@ -159,9 +159,9 @@ check_PROGRAMS = \
     tests/mtrace \
     tests/http \
     tests/lz4 \
-    tests/nacl
+    tests/nacl \
+    tests/mthrottler
     # tests/bthrottler \
-    # tests/mthrottler \
     # tests/nagle \
     # tests/keepalive \
     # tests/fullstack \
