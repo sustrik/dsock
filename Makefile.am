@@ -158,11 +158,11 @@ check_PROGRAMS = \
     tests/btrace \
     tests/mtrace \
     tests/http \
-    tests/lz4
+    tests/lz4 \
+    tests/nacl
     # tests/bthrottler \
     # tests/mthrottler \
     # tests/nagle \
-    # tests/nacl \
     # tests/keepalive \
     # tests/fullstack \
     # tests/iovec \

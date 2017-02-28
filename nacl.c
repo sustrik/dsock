@@ -34,8 +34,6 @@
 #include "dsockimpl.h"
 #include "utils.h"
 
-#if 0
-
 dsock_unique_id(nacl_type);
 
 static void *nacl_hquery(struct hvfs *hvfs, const void *type);
@@ -137,8 +135,12 @@ static int nacl_resizebufs(struct nacl_sock *obj, size_t len) {
 static int nacl_msendl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct nacl_sock *obj = dsock_cont(mvfs, struct nacl_sock, mvfs);
+    /* Compute size of the message. */
+    size_t len = 0;
+    struct iolist *it;
+    for(it = first; it; it = it->iol_next)
+        len += it->iol_len;
     /* If needed, adjust the buffers. */
-    size_t len = iov_size(iov, iovlen);
     int rc = nacl_resizebufs(obj, NACL_EXTRABYTES + len);
     if(dsock_slow(rc < 0)) return -1;
     /* Increase nonce. */
@@ -150,7 +152,11 @@ static int nacl_msendl(struct msock_vfs *mvfs,
     /* Encrypt and authenticate the message. */
     size_t mlen = len + crypto_secretbox_ZEROBYTES;
     memset(obj->buf1, 0, crypto_secretbox_ZEROBYTES);
-    iov_copyallfrom(obj->buf1 + crypto_secretbox_ZEROBYTES, iov, iovlen);
+    uint8_t *pos = obj->buf1 + crypto_secretbox_ZEROBYTES;
+    for(it = first; it; it = it->iol_next) {
+        memcpy(pos, it->iol_base, it->iol_len);
+        pos += it->iol_len;
+    }
     crypto_secretbox(obj->buf2, obj->buf1, mlen, obj->send_nonce, obj->key);
     /* Prepare the message: nonce + ciphertext */
     memcpy(obj->buf1, obj->send_nonce, crypto_secretbox_NONCEBYTES);
@@ -165,8 +171,12 @@ static int nacl_msendl(struct msock_vfs *mvfs,
 static ssize_t nacl_mrecvl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct nacl_sock *obj = dsock_cont(mvfs, struct nacl_sock, mvfs);
+    /* Compute size of the message. */
+    size_t len = 0;
+    struct iolist *it;
+    for(it = first; it; it = it->iol_next)
+        len += it->iol_len;
     /* If needed, adjust the buffers. */
-    size_t len = iov_size(iov, iovlen);
     int rc = nacl_resizebufs(obj, NACL_EXTRABYTES + len);
     /* Read the encrypted message. */
     ssize_t sz = mrecv(obj->s, obj->buf1, NACL_EXTRABYTES + len, deadline);
@@ -185,8 +195,18 @@ static ssize_t nacl_mrecvl(struct msock_vfs *mvfs,
         obj->recv_nonce, obj->key);
     if(dsock_slow(rc < 0)) {errno = EACCES; return -1;}
     /* Copy the message into user's buffer. */
-    iov_copyto(iov, iovlen, obj->buf1 + crypto_secretbox_ZEROBYTES, 0,
-        clen - crypto_secretbox_ZEROBYTES);
+    sz = clen - crypto_secretbox_ZEROBYTES;
+    uint8_t *pos = obj->buf1 + crypto_secretbox_ZEROBYTES;
+    it = first;
+    while(1) {
+        size_t tocopy = sz < it->iol_len ? sz : it->iol_len;
+        if(it->iol_base) memcpy(it->iol_base, pos, tocopy);
+        sz -= tocopy;
+        if(sz == 0) break;
+        pos += it->iol_len;
+        it = it->iol_next;
+    }
+
     return clen - crypto_secretbox_ZEROBYTES;
 }
 
@@ -200,6 +220,4 @@ static void nacl_hclose(struct hvfs *hvfs) {
     free(obj->buf2);
     free(obj);
 }
-
-#endif
 
