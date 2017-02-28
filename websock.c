@@ -111,7 +111,11 @@ static int websock_msendl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct websock_sock *obj = dsock_cont(mvfs, struct websock_sock, mvfs);
     if(dsock_slow(obj->txerr)) {errno = obj->txerr; return -1;}
-    size_t len = iov_size(iov, iovlen);
+    /* Compute payload size. */
+    size_t len = 0;
+    struct iolist *it;
+    for(it = first; it; it = it->iol_next)
+        len += it->iol_len;
     /* Construct message header. */
     uint8_t buf[12];
     size_t sz;
@@ -132,11 +136,8 @@ static int websock_msendl(struct msock_vfs *mvfs,
     }
     /* Server sends unmasked message. */
     if(!obj->client) {
-        struct iovec vec[iovlen + 1];
-        vec[0].iov_base = buf;
-        vec[0].iov_len = sz;
-        iov_copy(vec + 1, iov, iovlen);
-        int rc = bsendv(obj->s, vec, iovlen + 1, deadline);
+        struct iolist hdr = {buf, sz, first};
+        int rc = bsendl(obj->s, &hdr, last, deadline);
         if(dsock_slow(rc < 0)) {obj->txerr = errno; return -1;}
         return 0;
     }

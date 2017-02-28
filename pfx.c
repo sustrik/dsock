@@ -30,8 +30,6 @@
 #include "iov.h"
 #include "utils.h"
 
-#if 0
-
 dsock_unique_id(pfx_type);
 
 static void *pfx_hquery(struct hvfs *hvfs, const void *type);
@@ -139,13 +137,13 @@ static int pfx_msendl(struct msock_vfs *mvfs,
     if(dsock_slow(obj->outdone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->outerr)) {errno = ECONNRESET; return -1;}
     uint8_t szbuf[8];
-    size_t len = iov_size(iov, iovlen);
-    dsock_putll(szbuf, (uint64_t)len);
-    struct iovec vec[iovlen + 1];
-    vec[0].iov_base = szbuf;
-    vec[0].iov_len = 8;
-    iov_copy(vec + 1, iov, iovlen);
-    int rc = bsendv(obj->s, vec, iovlen + 1, deadline);
+    size_t sz = 0;
+    struct iolist *it;
+    for(it = first; it; it = it->iol_next)
+        sz += it->iol_len;
+    dsock_putll(szbuf, (uint64_t)sz);
+    struct iolist hdr = {szbuf, 8, first};
+    int rc = bsendl(obj->s, &hdr, last, deadline);
     if(dsock_slow(rc < 0)) {obj->outerr = 1; return -1;}
     return 0;
 }
@@ -162,11 +160,23 @@ static ssize_t pfx_mrecvl(struct msock_vfs *mvfs,
     /* Peer is terminating. */
     if(dsock_slow(sz == 0xffffffffffffffff)) {
         obj->indone = 1; errno = EPIPE; return -1;}
-    size_t len = iov_size(iov, iovlen);
-    if(dsock_slow(len < sz)) {obj->inerr = 1; errno = EMSGSIZE; return -1;}
-    struct iovec vec[iovlen];
-    size_t veclen = iov_cut(vec, iov, iovlen, 0, sz);
-    rc = brecvv(obj->s, vec, veclen, deadline);
+    /* Trim iolist to reflect the size of the message. */
+    size_t rmn = sz;
+    struct iolist *it = first;
+    while(1) {
+        if(it->iol_len >= rmn) break;
+        rmn -= it->iol_len;
+        it = it->iol_next;
+        if(dsock_slow(!it)) {obj->inerr = 1; errno = EMSGSIZE; return -1;}
+    }
+    size_t old_len = it->iol_len;
+    struct iolist *old_next = it->iol_next;
+    it->iol_len = rmn;
+    it->iol_next = NULL;
+    rc = brecvl(obj->s, first, last, deadline);
+    /* Get iolist to its original state. */
+    it->iol_len = old_len;
+    it->iol_next = old_next;
     if(dsock_slow(rc < 0)) {obj->inerr = 1; return -1;}
     return sz;
 }
@@ -179,6 +189,4 @@ static void pfx_hclose(struct hvfs *hvfs) {
     }
     free(obj);
 }
-
-#endif
 

@@ -123,7 +123,7 @@ int http_sendrequest(int s, const char *command, const char *resource,
     iol[2].iol_next = &iol[3];
     iol[3].iol_base = (void*)" HTTP/1.1";
     iol[3].iol_len = 9;
-    iol[4].iol_next = NULL;
+    iol[3].iol_next = NULL;
     return msendl(obj->s, &iol[0], &iol[3], deadline);
 }
 
