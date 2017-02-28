@@ -151,8 +151,8 @@ endif
 
 check_PROGRAMS = \
     tests/tcp \
-    tests/udp
-    # tests/unix \
+    tests/udp \
+    tests/unix
     # tests/pfx \
     # tests/crlf \
     # tests/bthrottler \

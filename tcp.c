@@ -139,10 +139,7 @@ int tcp_stop(int s, int64_t deadline) {
        data or consciously closed the connection without reading all of it. */
     while(1) {
         char buf[128];
-        struct iolist iol;
-        iol.iol_base = buf;
-        iol.iol_len = sizeof(buf);
-        iol.iol_next = NULL;
+        struct iolist iol = {buf, sizeof(buf), NULL};
         int rc = tcp_brecvl(&obj->bvfs, &iol, &iol, deadline);
         if(rc < 0 && errno == EPIPE) break;
         if(dsock_slow(rc < 0)) {err = errno; goto error;}
