@@ -176,6 +176,7 @@ static ssize_t crlf_mrecvl(struct msock_vfs *mvfs,
     struct iolist *it = first;
     size_t column = 0;
     while(c1 != '\r' || c2 != '\n') {
+        c1 = c2;
         /* Message is longer than the buffer. */
         if(!it) {obj->inerr = 1; errno = EMSGSIZE; return -1;}
         /* Get one character. */
@@ -189,7 +190,6 @@ static ssize_t crlf_mrecvl(struct msock_vfs *mvfs,
             it = it->iol_next;
         }
         ++sz;
-        c1 = c2;
     }
     /* Empty line means that peer is terminating. */
     if(dsock_slow(sz == 2)) {obj->indone = 1; errno = EPIPE; return -1;}

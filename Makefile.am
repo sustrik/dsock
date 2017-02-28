@@ -152,9 +152,9 @@ endif
 check_PROGRAMS = \
     tests/tcp \
     tests/udp \
-    tests/unix
+    tests/unix \
+    tests/crlf
     # tests/pfx \
-    # tests/crlf \
     # tests/bthrottler \
     # tests/mthrottler \
     # tests/nagle \
