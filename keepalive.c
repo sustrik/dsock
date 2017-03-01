@@ -28,7 +28,6 @@
 #include <string.h>
 #include <sys/uio.h>
 
-#include "iov.h"
 #include "dsockimpl.h"
 #include "utils.h"
 

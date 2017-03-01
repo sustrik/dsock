@@ -27,7 +27,6 @@
 #include <stdlib.h>
 
 #include "dsockimpl.h"
-#include "iov.h"
 #include "utils.h"
 
 dsock_unique_id(pfx_type);

@@ -41,8 +41,6 @@ libdsock_la_SOURCES = \
     http.c \
     iol.h \
     iol.c \
-    iov.h \
-    iov.c \
     keepalive.c \
     lz4.c \
     msock.c \
@@ -165,7 +163,6 @@ check_PROGRAMS = \
     # tests/bthrottler \
     # tests/nagle \
     # tests/fullstack \
-    # tests/iovec \
     # tests/websock \
     # tests/inproc
 

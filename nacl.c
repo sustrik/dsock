@@ -30,7 +30,6 @@
 
 #include "tweetnacl/tweetnacl.h"
 
-#include "iov.h"
 #include "dsockimpl.h"
 #include "utils.h"
 

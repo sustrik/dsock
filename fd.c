@@ -29,7 +29,6 @@
 
 #include "fd.h"
 #include "iol.h"
-#include "iov.h"
 #include "utils.h"
 
 #if defined MSG_NOSIGNAL
