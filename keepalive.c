@@ -32,8 +32,6 @@
 #include "dsockimpl.h"
 #include "utils.h"
 
-#if 0
-
 dsock_unique_id(keepalive_type);
 
 static void *keepalive_hquery(struct hvfs *hvfs, const void *type);
@@ -59,8 +57,8 @@ struct keepalive_sock {
 };
 
 struct keepalive_vec {
-    const struct iovec *iov;
-    size_t iovlen;
+    struct iolist *first;
+    struct iolist *last;
 };
 
 static void *keepalive_hquery(struct hvfs *hvfs, const void *type) {
@@ -156,7 +154,7 @@ static int keepalive_msendl(struct msock_vfs *mvfs,
     struct keepalive_sock *obj = dsock_cont(mvfs, struct keepalive_sock, mvfs);
     if(dsock_slow(obj->err)) {errno = obj->err; return -1;}
     /* Send is done in a worker coroutine. */
-    struct keepalive_vec vec = {iov, iovlen};
+    struct keepalive_vec vec = {first, last};
     int rc = chsend(obj->sendch, &vec, sizeof(vec), deadline);
     if(dsock_slow(rc < 0)) return -1;
     /* Wait till worker is done. */
@@ -186,12 +184,9 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
             continue;
         }
         dsock_assert(rc == 0);
-        struct iovec iov[vec.iovlen + 1];
         uint8_t c = 'D';
-        iov[0].iov_base = &c;
-        iov[0].iov_len = 1;
-        iov_copy(iov + 1, vec.iov, vec.iovlen);
-        rc = msendv(s, iov, vec.iovlen + 1, -1);
+        struct iolist iol = {&c, 1, vec.first};
+        rc = msendl(s, &iol, vec.last, -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         /* Pass the error to the user. */
         if(dsock_slow(rc < 0)) {
@@ -213,7 +208,7 @@ static ssize_t keepalive_mrecvl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct keepalive_sock *obj = dsock_cont(mvfs, struct keepalive_sock, mvfs);
     /* If receive mode is off, just forward the call. */
-    if(obj->recv_interval < 0) return mrecvv(obj->s, iov, iovlen, deadline);
+    if(obj->recv_interval < 0) return mrecvl(obj->s, first, last, deadline);
     if(dsock_slow(obj->err)) {errno = obj->err; return -1;}
 retry:;
     /* Compute the deadline. Take keepalive interval into consideration. */
@@ -223,12 +218,9 @@ retry:;
        dd = deadline;
        fail_on_deadline = 0;
     }
-    struct iovec vec[iovlen + 1];
     uint8_t c;
-    vec[0].iov_base = &c;
-    vec[0].iov_len = 1;
-    iov_copy(vec + 1, iov, iovlen);
-    ssize_t sz = mrecvv(obj->s, vec, iovlen + 1, dd);
+    struct iolist iol = {&c, 1, first};
+    ssize_t sz = mrecvl(obj->s, &iol, last, dd);
     if(dsock_slow(fail_on_deadline && sz < 0 && errno == ETIMEDOUT)) {
         obj->err = errno = ECONNRESET; return -1;}
     if(dsock_slow(sz < 0)) return -1;
@@ -251,6 +243,4 @@ static void keepalive_hclose(struct hvfs *hvfs) {
     int rc = hclose(u);
     dsock_assert(rc == 0);
 }
-
-#endif
 

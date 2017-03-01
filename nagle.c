@@ -45,8 +45,8 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
     uint8_t *buf, int sendch, int ackch);
 
 struct nagle_vec {
-    const struct iovec *iov;
-    size_t iovlen;
+    struct iolist *first;
+    struct iolist *last;
 };
 
 struct nagle_sock {
@@ -135,7 +135,7 @@ static int nagle_bsendl(struct bsock_vfs *bvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct nagle_sock *obj = dsock_cont(bvfs, struct nagle_sock, bvfs);
     /* Send is done in a worker coroutine. */
-    struct nagle_vec vec = {iov, iovlen};
+    struct nagle_vec vec = {first, last};
     int rc = chsend(obj->sendch, &vec, sizeof(vec), deadline);
     if(dsock_slow(rc < 0)) return -1;
     /* Wait till worker is done. */
@@ -168,8 +168,12 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
             continue;
         }
         dsock_assert(rc == 0);
+        /* Compute size of the message. */
+        size_t bytes = 0;
+        struct iolist *it;
+        for(it = vec.first; it; it = it->iol_next)
+            bytes += it->iol_len;
         /* If data fit into the buffer, store them there. */
-        size_t bytes = iov_size(vec.iov, vec.iovlen);
         if(len + bytes < batch) {
             iov_copyallfrom(buf + len, vec.iov, vec.iovlen);
             len += bytes;

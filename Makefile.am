@@ -160,10 +160,10 @@ check_PROGRAMS = \
     tests/http \
     tests/lz4 \
     tests/nacl \
-    tests/mthrottler
+    tests/mthrottler \
+    tests/keepalive
     # tests/bthrottler \
     # tests/nagle \
-    # tests/keepalive \
     # tests/fullstack \
     # tests/iovec \
     # tests/websock \
