@@ -110,10 +110,7 @@ static int websock_msendl(struct msock_vfs *mvfs,
     struct websock_sock *obj = dsock_cont(mvfs, struct websock_sock, mvfs);
     if(dsock_slow(obj->txerr)) {errno = obj->txerr; return -1;}
     /* Compute payload size. */
-    size_t len = 0;
-    struct iolist *it;
-    for(it = first; it; it = it->iol_next)
-        len += it->iol_len;
+    size_t len = iol_size(first);
     /* Construct message header. */
     uint8_t buf[12];
     size_t sz;
@@ -150,7 +147,7 @@ static int websock_msendl(struct msock_vfs *mvfs,
        batch of data. */
     rc = bsend(obj->s, buf, sz, deadline);
     if(dsock_slow(rc < 0)) {obj->txerr = errno; return -1;}
-    it = first;
+    struct iolist *it = first;
     size_t srcoff = 0;
     size_t dstoff = 0;
     int pos = 0;
@@ -186,10 +183,7 @@ static ssize_t websock_mrecvl(struct msock_vfs *mvfs,
     if(dsock_slow(obj->rxerr)) {errno = obj->rxerr; return -1;}
     size_t pos = 0;
     /* Compute size of the iolist buffer. */
-    size_t len = 0;
-    struct iolist *it;
-    for(it = first; it; it = it->iol_next)
-        len += it->iol_len;
+    size_t len = iol_size(first);
     while(1) {
         uint8_t hdr1[2];
         int rc = brecv(obj->s, hdr1, 2, deadline);
@@ -244,6 +238,7 @@ dataframe:
         if(!obj->client) {
             /* Unmask the frame data. */
             size_t i, mpos = 0;
+            struct iolist *it;
             for(it = first; it; it = it->iol_next)
                 for(i = 0; i != it->iol_len; ++i)
                     ((uint8_t*)it->iol_base)[i] ^= mask[mpos++ % 4];

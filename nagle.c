@@ -168,10 +168,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         }
         dsock_assert(rc == 0);
         /* Compute size of the message. */
-        size_t bytes = 0;
-        struct iolist *it;
-        for(it = vec.first; it; it = it->iol_next)
-            bytes += it->iol_len;
+        size_t bytes = iol_size(vec.first);
         /* If data fit into the buffer, store them there. */
         if(len + bytes < batch) {
             iov_copyallfrom(buf + len, vec.iov, vec.iovlen);

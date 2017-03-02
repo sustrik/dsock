@@ -44,6 +44,8 @@
         it_##iovarg = it_##iovarg->iol_next;\
     }
 
+size_t iol_size(struct iolist *first);
+
 struct iol_slice {
     struct iolist first;
     struct iolist *last;

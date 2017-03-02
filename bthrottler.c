@@ -27,6 +27,7 @@
 #include <stdlib.h>
 
 #include "dsockimpl.h"
+#include "iol.h"
 #include "utils.h"
 
 #if 0
@@ -131,12 +132,8 @@ static int bthrottler_bsendl(struct bsock_vfs *bvfs,
         dsock_cont(bvfs, struct bthrottler_sock, bvfs);
     /* If send-throttling is off forward the call. */
     if(obj->send_full == 0) return bsendl(obj->s, first, last, deadline);
-    /* Compute size of the message. */
-    size_t bytes = 0;
-    struct iolist *it;
-    for(it = first; it; it = it->iol_next)
-        bytes += it->iol_len;
     /* Get rid of the corner case. */
+    size_t bytes = iol_size(first);
     if(dsock_slow(bytes == 0)) return 0;
     size_t pos = 0;
     while(1) {
@@ -168,12 +165,8 @@ static int bthrottler_brecvv(struct bsock_vfs *bvfs,
         dsock_cont(bvfs, struct bthrottler_sock, bvfs);
     /* If recv-throttling is off forward the call. */
     if(obj->recv_full == 0) return brecvv(obj->s, iov, iovlen, deadline);
-    /* Compute size of the message. */
-    size_t bytes = 0;
-    struct iolist *it;
-    for(it = first; it; it = it->iol_next)
-        bytes += it->iol_len;
     /* Get rid of the corner case. */
+    size_t bytes = iol_size(first);
     if(dsock_slow(bytes == 0)) return 0;
     size_t pos = 0;
     while(1) {

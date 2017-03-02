@@ -25,6 +25,15 @@
 #include "iol.h"
 #include "utils.h"
 
+size_t iol_size(struct iolist *first) {
+    size_t sz = 0;
+    while(first) {
+        sz += first->iol_len;
+        first = first->iol_next;
+    }
+    return sz;
+}
+
 void iol_slice_init(struct iol_slice *self, struct iolist *first,
       struct iolist *last, size_t offset, size_t len) {
     struct iolist *it = first;

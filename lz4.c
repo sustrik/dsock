@@ -29,6 +29,7 @@
 #include "lz4/lz4frame.h"
 
 #include "dsockimpl.h"
+#include "iol.h"
 #include "utils.h"
 
 dsock_unique_id(lz4_type);
@@ -110,12 +111,8 @@ int lz4_stop(int s) {
 static int lz4_msendl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct lz4_sock *obj = dsock_cont(mvfs, struct lz4_sock, mvfs);
-    /* Compute size of the message. */
-    size_t len = 0;
-    struct iolist *it;
-    for(it = first; it; it = it->iol_next)
-        len += it->iol_len;
     /* Adjust the buffer size as needed. */
+    size_t len = iol_size(first);
     size_t maxlen = LZ4F_compressFrameBound(len, NULL);
     if(obj->outlen < maxlen) {
         uint8_t *newbuf = realloc(obj->outbuf, maxlen);
@@ -128,6 +125,7 @@ static int lz4_msendl(struct msock_vfs *mvfs,
     uint8_t *buf = malloc(len);
     if(dsock_slow(!buf)) {errno = ENOMEM; return -1;}
     uint8_t *pos = buf;
+    struct iolist *it;
     for(it = first; it; it = it->iol_next) {
         memcpy(pos, it->iol_base, it->iol_len);
         pos += it->iol_len;
@@ -146,12 +144,8 @@ static int lz4_msendl(struct msock_vfs *mvfs,
 static ssize_t lz4_mrecvl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct lz4_sock *obj = dsock_cont(mvfs, struct lz4_sock, mvfs);
-    /* Compute total size of the buffer. */
-    size_t len = 0;
-    struct iolist *it;
-    for(it = first; it; it = it->iol_next)
-        len += it->iol_len;
     /* Adjust the buffer size as needed. */
+    size_t len = iol_size(first);
     size_t maxlen = LZ4F_compressFrameBound(len, NULL);
     if(obj->inlen < maxlen) {
         uint8_t *newbuf = realloc(obj->inbuf, maxlen);
@@ -183,6 +177,7 @@ static ssize_t lz4_mrecvl(struct msock_vfs *mvfs,
     if(dsock_slow(ec != 0)) {errno = EPROTO; return -1;}
     dsock_assert(srclen == sz - infolen);
     uint8_t *pos = buf;
+    struct iolist *it;
     for(it = first; it; it = it->iol_next) {
         if(it->iol_base) memcpy(it->iol_base, pos, it->iol_len);
         pos += it->iol_len;
