@@ -28,9 +28,8 @@
 #include <string.h>
 
 #include "dsockimpl.h"
+#include "iol.h"
 #include "utils.h"
-
-#if 0
 
 dsock_unique_id(websock_type);
 
@@ -147,20 +146,36 @@ static int websock_msendl(struct msock_vfs *mvfs,
     buf[1] |= 0x80;
     memcpy(buf + sz, mask, 4);
     sz += 4;
+    /* TODO: It should be worth sending the header together with the first
+       batch of data. */
     rc = bsend(obj->s, buf, sz, deadline);
     if(dsock_slow(rc < 0)) {obj->txerr = errno; return -1;}
-    size_t pos = 0;
-    while(len) {
-        size_t tosend = sizeof(obj->txbuf);
-        if(len < tosend) tosend = len;
-        iov_copyfrom(obj->txbuf, iov, iovlen, pos, tosend); 
-        size_t i;
-        for(i = 0; i != tosend; ++i)
-            obj->txbuf[i] ^= mask[i % 4];
-        pos += tosend;
-        len -= tosend;
-        rc = bsend(obj->s, obj->txbuf, tosend, deadline);
+    it = first;
+    size_t srcoff = 0;
+    size_t dstoff = 0;
+    int pos = 0;
+    while(it) {
+        size_t srcrmn = it->iol_len - srcoff;
+        size_t dstrmn = sizeof(obj->txbuf) - dstoff;
+        if(srcrmn < dstrmn) {
+            memcpy(obj->txbuf + dstoff, it->iol_base + srcoff, srcrmn);
+            dstoff += srcrmn;
+            it = it->iol_next;
+            srcoff = 0;
+            if(it) continue;
+        }
+        else {
+            memcpy(obj->txbuf + dstoff, it->iol_base + srcoff, dstrmn);
+            srcoff += dstrmn;
+            dstoff += dstrmn;
+        }
+        /* Either txbuf is full or there's no more data to send. */
+        int i;
+        for(i = 0; i != dstoff; ++i, ++pos)
+            obj->txbuf[i] ^= mask[pos % 4];
+        rc = bsend(obj->s, obj->txbuf, dstoff, deadline);
         if(dsock_slow(rc < 0)) {obj->txerr = errno; return -1;}
+        dstoff = 0; 
     }
     return 0;
 }
@@ -170,7 +185,11 @@ static ssize_t websock_mrecvl(struct msock_vfs *mvfs,
     struct websock_sock *obj = dsock_cont(mvfs, struct websock_sock, mvfs);
     if(dsock_slow(obj->rxerr)) {errno = obj->rxerr; return -1;}
     size_t pos = 0;
-    size_t len = iov_size(iov, iovlen);
+    /* Compute size of the iolist buffer. */
+    size_t len = 0;
+    struct iolist *it;
+    for(it = first; it; it = it->iol_next)
+        len += it->iol_len;
     while(1) {
         uint8_t hdr1[2];
         int rc = brecv(obj->s, hdr1, 2, deadline);
@@ -217,16 +236,17 @@ dataframe:
             if(dsock_slow(rc < 0)) {obj->rxerr = errno; return -1;}
         }
         if(dsock_slow(sz > len)) {errno = obj->rxerr = EMSGSIZE; return -1;}
-        struct iovec vec[iovlen];
-        size_t veclen = iov_cut(vec, iov, iovlen, pos, sz);
-        rc = brecvv(obj->s, vec, veclen, deadline);
+        struct iol_slice slc;
+        iol_slice_init(&slc, first, last, pos, sz);
+        rc = brecvl(obj->s, &slc.first, slc.last, deadline);
+        iol_slice_term(&slc);
         if(dsock_slow(rc < 0)) {obj->rxerr = errno; return -1;}
         if(!obj->client) {
             /* Unmask the frame data. */
-            size_t i, j, mpos = 0;
-            for(i = 0; i != veclen; ++i)
-                for(j = 0; j != vec[i].iov_len; ++j)
-                    ((uint8_t*)vec[i].iov_base)[j] ^= mask[mpos++ % 4];
+            size_t i, mpos = 0;
+            for(it = first; it; it = it->iol_next)
+                for(i = 0; i != it->iol_len; ++i)
+                    ((uint8_t*)it->iol_base)[i] ^= mask[mpos++ % 4];
         }
         pos += sz;
         len -= sz;
@@ -242,6 +262,4 @@ static void websock_hclose(struct hvfs *hvfs) {
     dsock_assert(rc == 0);
     free(obj);
 }
-
-#endif
 

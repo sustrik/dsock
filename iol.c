@@ -23,3 +23,32 @@
 */
 
 #include "iol.h"
+#include "utils.h"
+
+void iol_slice_init(struct iol_slice *self, struct iolist *first,
+      struct iolist *last, size_t offset, size_t len) {
+    struct iolist *it = first;
+    while(offset >= it->iol_len) {
+        offset -= it->iol_len;
+        it = it->iol_next;
+        dsock_assert(it);
+    }
+    self->first = *it;
+    self->first.iol_base += offset;
+    self->first.iol_len -= offset;
+    it = &self->first;
+    while(len > it->iol_len) {
+        len -= it->iol_len;
+        it = it->iol_next;
+        dsock_assert(it);
+    }
+    self->oldlast = *it;
+    self->last = it;
+    it->iol_len = len;
+    it->iol_next = NULL;
+}
+
+void iol_slice_term(struct iol_slice *self) {
+    *self->last = self->oldlast;
+}
+

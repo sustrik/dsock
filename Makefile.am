@@ -159,11 +159,11 @@ check_PROGRAMS = \
     tests/lz4 \
     tests/nacl \
     tests/mthrottler \
-    tests/keepalive
+    tests/keepalive \
+    tests/websock
     # tests/bthrottler \
     # tests/nagle \
     # tests/fullstack \
-    # tests/websock \
     # tests/inproc
 
 if HAVE_TLS

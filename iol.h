@@ -44,5 +44,15 @@
         it_##iovarg = it_##iovarg->iol_next;\
     }
 
+struct iol_slice {
+    struct iolist first;
+    struct iolist *last;
+    struct iolist oldlast;
+};
+
+void iol_slice_init(struct iol_slice *self, struct iolist *first,
+    struct iolist *last, size_t offset, size_t len);
+void iol_slice_term(struct iol_slice *self);
+
 #endif
 
