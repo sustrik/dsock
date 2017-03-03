@@ -26,9 +26,8 @@
 #include <stdlib.h>
 
 #include "dsockimpl.h"
+#include "iol.h"
 #include "utils.h"
-
-#if 0
 
 dsock_unique_id(inproc_type);
 
@@ -49,8 +48,8 @@ struct inproc_sock {
 };
 
 struct inproc_vec {
-    const struct iovec *iov;
-    size_t iovlen;
+    struct iolist *first;
+    struct iolist *last;
 };
 
 static void *inproc_hquery(struct hvfs *hvfs, const void *type) {
@@ -153,13 +152,13 @@ static void inproc_hclose(struct hvfs *hvfs) {
 static ssize_t inproc_mrecvl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct inproc_sock *obj = dsock_cont(mvfs, struct inproc_sock, mvfs);
-    uint64_t buf_len = iov_size(iov, iovlen);
+    uint64_t buf_len = iol_size(first);
     struct inproc_vec vec;
     int rc = chrecv(obj->data, &vec, sizeof(struct inproc_vec), deadline);
     if(rc < 0) return -1;
-    uint64_t recv_len = iov_size(vec.iov, vec.iovlen);
+    uint64_t recv_len = iol_size(vec.first);
     if (recv_len > buf_len) { goto msg2big; }
-    iov_deep_copy(iov, iovlen, vec.iov, vec.iovlen);
+    iol_deep_copy(first, vec.first);
     rc = chsend(obj->ack, &recv_len, 8, deadline);
     if(rc < 0) return -1;
     return recv_len;
@@ -173,10 +172,10 @@ static ssize_t inproc_mrecvl(struct msock_vfs *mvfs,
 static int inproc_msendl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct inproc_sock *obj = dsock_cont(mvfs, struct inproc_sock, mvfs);
-    uint64_t data_len = iov_size(iov, iovlen);
+    uint64_t data_len = iol_size(first);
     struct inproc_vec vec;
-    vec.iov = iov;
-    vec.iovlen = iovlen;
+    vec.first = first;
+    vec.last = last;
     int rc = chsend(obj->data, &vec, sizeof(struct inproc_vec), deadline);
     if(rc < 0) return -1;
     uint64_t confirmation;
@@ -186,6 +185,4 @@ static int inproc_msendl(struct msock_vfs *mvfs,
     if(confirmation != data_len) {errno = EPROTO; return -1;}
     return 0;
 }
-
-#endif
 

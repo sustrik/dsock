@@ -71,3 +71,36 @@ void iol_slice_term(struct iol_slice *self) {
     *self->last = self->oldlast;
 }
 
+int iol_deep_copy(struct iolist *dst, struct iolist *src) {
+    if(!dst || !src) {errno = EINVAL; return -1;}
+    size_t dst_size = iol_size(dst);
+    size_t src_size = iol_size(src);
+    if(dst_size < src_size) {errno = EINVAL; return -1;}
+    size_t remaining = src_size;
+    struct iolist *src_it = src;
+    size_t src_block_remain = src_it->iol_len;
+    struct iolist *dst_it = dst;
+    size_t dst_block_remain = dst_it->iol_len;
+    while(1) {
+        size_t to_copy = MIN(src_block_remain, dst_block_remain);
+        memcpy(dst_it->iol_base + dst_it->iol_len - dst_block_remain,
+               src_it->iol_base + src_it->iol_len - src_block_remain,
+               to_copy);
+        dst_block_remain -= to_copy;
+        src_block_remain -= to_copy;
+        remaining -= to_copy;
+        if(remaining == 0)
+            break;
+        dsock_assert(dst_block_remain == 0 || src_block_remain == 0);
+        if(dst_block_remain == 0) {
+            dst_it = dst_it->iol_next;
+            dst_block_remain = dst_it->iol_len;
+        }
+        if(src_block_remain == 0) {
+            src_it = src_it->iol_next;
+            src_block_remain = src_it->iol_len;
+        }
+    }
+    return 0;
+}
+

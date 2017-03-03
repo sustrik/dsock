@@ -163,8 +163,8 @@ check_PROGRAMS = \
     tests/websock \
     tests/nagle \
     tests/bthrottler \
-    tests/fullstack
-    # tests/inproc
+    tests/fullstack \
+    tests/inproc
 
 if HAVE_TLS
 
