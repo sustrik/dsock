@@ -162,7 +162,7 @@ check_PROGRAMS = \
     tests/keepalive \
     tests/websock \
     tests/nagle \
-    # tests/bthrottler \
+    tests/bthrottler
     # tests/fullstack \
     # tests/inproc
 

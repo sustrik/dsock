@@ -30,8 +30,6 @@
 #include "iol.h"
 #include "utils.h"
 
-#if 0
-
 dsock_unique_id(bthrottler_type);
 
 static void *bthrottler_hquery(struct hvfs *hvfs, const void *type);
@@ -141,9 +139,10 @@ static int bthrottler_bsendl(struct bsock_vfs *bvfs,
         if(obj->send_remaining) {
             size_t tosend = bytes < obj->send_remaining ?
                 bytes : obj->send_remaining;
-            struct iovec vec[iovlen];
-            size_t veclen = iov_cut(vec, iov, iovlen, pos, tosend);
-            int rc = bsendv(obj->s, vec, veclen, deadline);
+            struct iol_slice slc;
+            iol_slice_init(&slc, first, last, pos, tosend);
+            int rc = bsendl(obj->s, &slc.first, slc.last, deadline);
+            iol_slice_term(&slc);
             if(dsock_slow(rc < 0)) return -1;
             obj->send_remaining -= tosend;
             pos += tosend;
@@ -159,12 +158,12 @@ static int bthrottler_bsendl(struct bsock_vfs *bvfs,
     }
 }
 
-static int bthrottler_brecvv(struct bsock_vfs *bvfs,
+static int bthrottler_brecvl(struct bsock_vfs *bvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct bthrottler_sock *obj =
         dsock_cont(bvfs, struct bthrottler_sock, bvfs);
     /* If recv-throttling is off forward the call. */
-    if(obj->recv_full == 0) return brecvv(obj->s, iov, iovlen, deadline);
+    if(obj->recv_full == 0) return brecvl(obj->s, first, last, deadline);
     /* Get rid of the corner case. */
     size_t bytes = iol_size(first);
     if(dsock_slow(bytes == 0)) return 0;
@@ -174,9 +173,10 @@ static int bthrottler_brecvv(struct bsock_vfs *bvfs,
         if(obj->recv_remaining) {
             size_t torecv = bytes < obj->recv_remaining ?
                 bytes : obj->recv_remaining;
-            struct iovec vec[iovlen];
-            size_t veclen = iov_cut(vec, iov, iovlen, pos, torecv);
-            int rc = brecvv(obj->s, vec, veclen, deadline);
+            struct iol_slice slc;
+            iol_slice_init(&slc, first, last, pos, torecv);
+            int rc = brecvl(obj->s, &slc.first, slc.last, deadline);
+            iol_slice_term(&slc);
             if(dsock_slow(rc < 0)) return -1;
             obj->recv_remaining -= torecv;
             pos += torecv;
@@ -200,6 +200,4 @@ static void bthrottler_hclose(struct hvfs *hvfs) {
     }
     free(obj);
 }
-
-#endif
 
