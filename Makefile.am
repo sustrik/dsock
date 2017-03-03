@@ -160,9 +160,9 @@ check_PROGRAMS = \
     tests/nacl \
     tests/mthrottler \
     tests/keepalive \
-    tests/websock
+    tests/websock \
+    tests/nagle \
     # tests/bthrottler \
-    # tests/nagle \
     # tests/fullstack \
     # tests/inproc
 

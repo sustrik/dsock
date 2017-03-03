@@ -22,6 +22,8 @@
 
 */
 
+#include <string.h>
+
 #include "iol.h"
 #include "utils.h"
 
@@ -32,6 +34,14 @@ size_t iol_size(struct iolist *first) {
         first = first->iol_next;
     }
     return sz;
+}
+
+void iol_copyallfrom(uint8_t *dst, struct iolist *first) {
+    while(first) {
+        memcpy(dst, first->iol_base, first->iol_len);
+        dst += first->iol_len;
+        first = first->iol_next;
+    }
 }
 
 void iol_slice_init(struct iol_slice *self, struct iolist *first,

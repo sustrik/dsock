@@ -28,9 +28,8 @@
 #include <string.h>
 
 #include "dsockimpl.h"
+#include "iol.h"
 #include "utils.h"
-
-#if 0
 
 dsock_unique_id(nagle_type);
 
@@ -171,7 +170,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         size_t bytes = iol_size(vec.first);
         /* If data fit into the buffer, store them there. */
         if(len + bytes < batch) {
-            iov_copyallfrom(buf + len, vec.iov, vec.iovlen);
+            iol_copyallfrom(buf + len, vec.first);
             len += bytes;
             int err = 0;
             rc = chsend(ackch, &err, sizeof(err), -1);
@@ -196,7 +195,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         }
         /* Once again: If data fit into buffer store them there. */
         if(bytes < batch) {
-            iov_copyallfrom(buf, vec.iov, vec.iovlen);
+            iol_copyallfrom(buf, vec.first);
             len = bytes;
             int err = 0;
             rc = chsend(ackch, &err, sizeof(err), -1);
@@ -206,7 +205,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         }
         /* This is a big chunk of data, no need to Nagle it.
            We'll send it straight away. */
-        rc = bsendv(s, vec.iov, vec.iovlen, -1);
+        rc = bsendl(s, vec.first, vec.last, -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         dsock_assert(rc == 0);
         last = now();
@@ -236,6 +235,4 @@ static void nagle_hclose(struct hvfs *hvfs) {
     dsock_assert(rc == 0);
     free(obj);
 }
-
-#endif
 
