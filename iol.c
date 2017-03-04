@@ -47,6 +47,7 @@ int iol_check(struct iolist *first, struct iolist *last,
 error:;
     struct iolist *it2;
     for(it2 = first; it2 != it; it2 = it2->iol_next) it->iol_rsvd = 0;
+    errno = EINVAL;
     return -1;
 }
 

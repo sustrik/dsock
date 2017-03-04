@@ -156,6 +156,22 @@ int main() {
     rc = hclose(cr);
     assert(rc == 0);
 
+    /* Try some invalid inputs. */
+    rc = unix_pair(s);
+    assert(rc == 0);
+    struct iolist iol1 = {(void*)"ABC", 3, NULL, 0};
+    struct iolist iol2 = {(void*)"DEF", 3, NULL, 0};
+    rc = bsendl(s[0], &iol1, &iol2, -1);
+    assert(rc == -1 && errno == EINVAL);
+    iol1.iol_next = &iol2;
+    iol2.iol_next = &iol1;
+    rc = bsendl(s[0], &iol1, &iol2, -1);
+    assert(rc == -1 && errno == EINVAL);
+    rc = hclose(s[0]);
+    assert(rc == 0);
+    rc = hclose(s[1]);
+    assert(rc == 0);
+
     return 0;
 }
 
