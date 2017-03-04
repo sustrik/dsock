@@ -114,15 +114,19 @@ int http_sendrequest(int s, const char *command, const char *resource,
     iol[0].iol_base = (void*)command;
     iol[0].iol_len = strlen(command);
     iol[0].iol_next = &iol[1];
+    iol[0].iol_rsvd = 0;
     iol[1].iol_base = (void*)" ";
     iol[1].iol_len = 1;
     iol[1].iol_next = &iol[2];
+    iol[1].iol_rsvd = 0;
     iol[2].iol_base = (void*)resource;
     iol[2].iol_len = strlen(resource);
     iol[2].iol_next = &iol[3];
+    iol[2].iol_rsvd = 0;
     iol[3].iol_base = (void*)" HTTP/1.1";
     iol[3].iol_len = 9;
     iol[3].iol_next = NULL;
+    iol[3].iol_rsvd = 0;
     return msendl(obj->s, &iol[0], &iol[3], deadline);
 }
 
@@ -178,12 +182,15 @@ int http_sendstatus(int s, int status, const char *reason, int64_t deadline) {
     iol[0].iol_base = (void*)"HTTP/1.1 ";
     iol[0].iol_len = 9;
     iol[0].iol_next = &iol[1];
+    iol[0].iol_rsvd = 0;
     iol[1].iol_base = buf;
     iol[1].iol_len = 4;
     iol[1].iol_next = &iol[2];
+    iol[1].iol_rsvd = 0;
     iol[2].iol_base = (void*)reason;
     iol[2].iol_len = strlen(reason);
     iol[2].iol_next = NULL;
+    iol[2].iol_rsvd = 0;
     return msendl(obj->s, &iol[0], &iol[2], deadline);
 }
 
@@ -236,15 +243,18 @@ int http_sendfield(int s, const char *name, const char *value,
     iol[0].iol_base = (void*)name;
     iol[0].iol_len = strlen(name);
     iol[0].iol_next = &iol[1];
+    iol[0].iol_rsvd = 0;
     iol[1].iol_base = (void*)": ";
     iol[1].iol_len = 2;
     iol[1].iol_next = &iol[2];
+    iol[1].iol_rsvd = 0;
     const char *start = dsock_lstrip(value, ' ');
     const char *end = dsock_rstrip(start, ' ');
     dsock_assert(start < end);
     iol[2].iol_base = (void*)start;
     iol[2].iol_len = end - start;
     iol[2].iol_next = NULL;
+    iol[2].iol_rsvd = 0;
     return msendl(obj->s, &iol[0], &iol[2], deadline);
 }
 

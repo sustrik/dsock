@@ -184,7 +184,7 @@ static coroutine void keepalive_sender(int s, int64_t send_interval,
         }
         dsock_assert(rc == 0);
         uint8_t c = 'D';
-        struct iolist iol = {&c, 1, vec.first};
+        struct iolist iol = {&c, 1, vec.first, 0};
         rc = msendl(s, &iol, vec.last, -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         /* Pass the error to the user. */
@@ -218,7 +218,7 @@ retry:;
        fail_on_deadline = 0;
     }
     uint8_t c;
-    struct iolist iol = {&c, 1, first};
+    struct iolist iol = {&c, 1, first, 0};
     ssize_t sz = mrecvl(obj->s, &iol, last, dd);
     if(dsock_slow(fail_on_deadline && sz < 0 && errno == ETIMEDOUT)) {
         obj->err = errno = ECONNRESET; return -1;}

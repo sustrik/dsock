@@ -27,6 +27,38 @@
 #include "iol.h"
 #include "utils.h"
 
+int iol_check(struct iolist *first, struct iolist *last,
+      size_t *nbufs, size_t *nbytes) {
+    if(dsock_slow(!first || !last || last->iol_next)) {
+        errno = EINVAL; return -1;}
+    size_t nbf = 0, nbt = 0, res = 0;
+    struct iolist *it;
+    for(it = first; it; it = it->iol_next) {
+        if(dsock_slow(it->iol_rsvd || (!it->iol_next && it != last)))
+            goto error;
+        it->iol_rsvd = 1;
+        nbf++;
+        nbt += it->iol_len;
+    }
+    for(it = first; it; it = it->iol_next) it->iol_rsvd = 0;
+    if(nbufs) *nbufs = nbf;
+    if(nbytes) *nbytes = nbt;
+    return 0;
+error:;
+    struct iolist *it2;
+    for(it2 = first; it2 != it; it2 = it2->iol_next) it->iol_rsvd = 0;
+    return -1;
+}
+
+void iol_toiov(struct iolist *first, struct iovec *iov) {
+    while(first) {
+        iov->iov_base = first->iol_base;
+        iov->iov_len = first->iol_len;
+        ++iov;
+        first = first->iol_next;
+    }
+}
+
 size_t iol_size(struct iolist *first) {
     size_t sz = 0;
     while(first) {
@@ -55,6 +87,7 @@ void iol_slice_init(struct iol_slice *self, struct iolist *first,
     self->first = *it;
     self->first.iol_base += offset;
     self->first.iol_len -= offset;
+    self->first.iol_rsvd = 0;
     it = &self->first;
     while(len > it->iol_len) {
         len -= it->iol_len;

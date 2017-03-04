@@ -33,20 +33,14 @@ dsock_unique_id(msock_type);
 int msend(int s, const void *buf, size_t len, int64_t deadline) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
-    struct iolist iol;
-    iol.iol_base = (void*)buf;
-    iol.iol_len = len;
-    iol.iol_next = NULL;
+    struct iolist iol = {(void*)buf, len, NULL, 0};
     return m->msendl(m, &iol, &iol, deadline);
 }
 
 ssize_t mrecv(int s, void *buf, size_t len, int64_t deadline) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
-    struct iolist iol;
-    iol.iol_base = buf;
-    iol.iol_len = len;
-    iol.iol_next = NULL;
+    struct iolist iol = {buf, len, NULL, 0};
     return m->mrecvl(m, &iol, &iol, deadline);
 }
 

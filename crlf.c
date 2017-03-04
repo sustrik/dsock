@@ -153,7 +153,7 @@ static int crlf_msendl(struct msock_vfs *mvfs,
     }
     /* Can't send empty line. Empty line is used as protocol terminator. */
     if(dsock_slow(sz == 0)) {obj->outerr = 1; errno = EINVAL; return -1;}
-    struct iolist iol = {(void*)"\r\n", 2, NULL};
+    struct iolist iol = {(void*)"\r\n", 2, NULL, 0};
     last->iol_next = &iol;
     int rc = obj->uvfs->bsendl(obj->uvfs, first, &iol, deadline);
     last->iol_next = NULL;
@@ -169,7 +169,7 @@ static ssize_t crlf_mrecvl(struct msock_vfs *mvfs,
     size_t recvd = 0;
     char c1 = 0;
     char c2 = 0;
-    struct iolist iol = {&c2, 1, NULL};
+    struct iolist iol = {&c2, 1, NULL, 0};
     struct iolist *it = first;
     size_t column = 0;
     while(1) {

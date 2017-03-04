@@ -30,7 +30,6 @@
 #include <stdint.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <sys/uio.h>
 
 /******************************************************************************/
 /*  ABI versioning support.                                                   */
@@ -78,6 +77,7 @@ struct iolist {
     void *iol_base;
     size_t iol_len;
     struct iolist *iol_next;
+    int iol_rsvd;
 };
 
 /******************************************************************************/

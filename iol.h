@@ -25,24 +25,19 @@
 #ifndef DSOCK_IOL_H_INCLUDED
 #define DSOCK_IOL_H_INCLUDED
 
-#include <dsock.h>
+#include <sys/uio.h>
 
-#define iol_to_iov(iolarg, iovarg) \
-    size_t n##iovarg = 0;\
-    struct iolist *it_##iovarg = iolarg;\
-    while(it_##iovarg) {\
-        n##iovarg++;\
-        it_##iovarg = it_##iovarg->iol_next;\
-    }\
-    struct iovec iovarg[n##iovarg];\
-    it_##iovarg = iolarg;\
-    int idx_##iovarg = 0;\
-    while(it_##iovarg) {\
-        iovarg[idx_##iovarg].iov_base = it_##iovarg->iol_base;\
-        iovarg[idx_##iovarg].iov_len = it_##iovarg->iol_len;\
-        idx_##iovarg++;\
-        it_##iovarg = it_##iovarg->iol_next;\
-    }
+#include "dsock.h"
+
+/* Checks whether iolist is valid. Returns 0 in case of success or -1 in case
+   of error. Fills in number of buffers in the list and overall number of bytes
+   if requested. */
+int iol_check(struct iolist *first, struct iolist *last,
+    size_t *nbufs, size_t *nbytes);
+
+/* Copy the iolist into an iovec. Iovec must have at least as much elements
+   as the iolist, otherwise undefined behaviour ensues. */
+void iol_toiov(struct iolist *first, struct iovec *iov);
 
 size_t iol_size(struct iolist *first);
 

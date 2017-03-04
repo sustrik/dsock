@@ -108,7 +108,11 @@ int fd_send(int s, struct iolist *first, struct iolist *last,
     /* Make a local iovec array. */
     /* TODO: This is dangerous, it may cause stack overflow.
        There should probably be a on-heap per-socket buffer for that. */
-    iol_to_iov(first, iov);
+    size_t niov;
+    int rc = iol_check(first, last, &niov, NULL);
+    if(dsock_slow(rc < 0)) return -1;
+    struct iovec iov[niov];
+    iol_toiov(first, iov);
     /* Message header will act as an iterator in the following loop. */
     struct msghdr hdr;
     memset(&hdr, 0, sizeof(hdr));
@@ -149,7 +153,14 @@ int fd_send(int s, struct iolist *first, struct iolist *last,
 /* Same as fd_recv() but with no rx buffering. */
 static int fd_recv_(int s, struct iolist *first, struct iolist *last,
       int64_t deadline) {
-    iol_to_iov(first, iov);
+    /* Make a local iovec array. */
+    /* TODO: This is dangerous, it may cause stack overflow.
+       There should probably be a on-heap per-socket buffer for that. */
+    size_t niov;
+    int rc = iol_check(first, last, &niov, NULL);
+    if(dsock_slow(rc < 0)) return -1;
+    struct iovec iov[niov];
+    iol_toiov(first, iov);
     /* Message header will act as an iterator in the following loop. */
     struct msghdr hdr;
     memset(&hdr, 0, sizeof(hdr));
@@ -220,6 +231,7 @@ int fd_recv(int s, struct fd_rxbuf *rxbuf, struct iolist *first,
     curr.iol_base = first->iol_base + sz;
     curr.iol_len = first->iol_len - sz;
     curr.iol_next = first->iol_next;
+    curr.iol_rsvd = 0;
     /* Find out how much data is still missing. */
     size_t miss = 0;
     struct iolist *it = &curr;

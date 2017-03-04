@@ -123,7 +123,14 @@ int udp_sendl_(struct msock_vfs *mvfs, const struct ipaddr *addr,
     memset(&hdr, 0, sizeof(hdr));
     hdr.msg_name = (void*)ipaddr_sockaddr(dstaddr);
     hdr.msg_namelen = ipaddr_len(dstaddr);
-    iol_to_iov(first, iov);
+    /* Make a local iovec array. */
+    /* TODO: This is dangerous, it may cause stack overflow.
+       There should probably be a on-heap per-socket buffer for that. */
+    size_t niov;
+    int rc = iol_check(first, last, &niov, NULL);
+    if(dsock_slow(rc < 0)) return -1;
+    struct iovec iov[niov];
+    iol_toiov(first, iov);
     hdr.msg_iov = (struct iovec*)iov;
     hdr.msg_iovlen = niov;
     ssize_t sz = sendmsg(obj->fd, &hdr, 0);
@@ -135,18 +142,25 @@ int udp_sendl_(struct msock_vfs *mvfs, const struct ipaddr *addr,
 ssize_t udp_recvl_(struct msock_vfs *mvfs, struct ipaddr *addr,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct udp_sock *obj = dsock_cont(mvfs, struct udp_sock, mvfs);
+    struct msghdr hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.msg_name = (void*)addr;
+    hdr.msg_namelen = sizeof(struct ipaddr);
+    /* Make a local iovec array. */
+    /* TODO: This is dangerous, it may cause stack overflow.
+       There should probably be a on-heap per-socket buffer for that. */
+    size_t niov;
+    int rc = iol_check(first, last, &niov, NULL);
+    if(dsock_slow(rc < 0)) return -1;
+    struct iovec iov[niov];
+    iol_toiov(first, iov);
+    hdr.msg_iov = (struct iovec*)iov;
+    hdr.msg_iovlen = niov;
     while(1) {
-        struct msghdr hdr;
-        memset(&hdr, 0, sizeof(hdr));
-        hdr.msg_name = (void*)addr;
-        hdr.msg_namelen = sizeof(struct ipaddr);
-        iol_to_iov(first, iov);
-        hdr.msg_iov = (struct iovec*)iov;
-        hdr.msg_iovlen = niov;
         ssize_t sz = recvmsg(obj->fd, &hdr, 0);
         if(sz >= 0) return sz;
         if(errno != EAGAIN && errno != EWOULDBLOCK) return -1;
-        int rc = fdin(obj->fd, deadline);
+        rc = fdin(obj->fd, deadline);
         if(dsock_slow(rc < 0)) return -1;
     }
 }
@@ -154,7 +168,7 @@ ssize_t udp_recvl_(struct msock_vfs *mvfs, struct ipaddr *addr,
 int udp_send(int s, const struct ipaddr *addr, const void *buf, size_t len) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
-    struct iolist iol = {(void*)buf, len, NULL};
+    struct iolist iol = {(void*)buf, len, NULL, 0};
     return udp_sendl_(m, addr, &iol, &iol);
 }
 
@@ -162,7 +176,7 @@ ssize_t udp_recv(int s, struct ipaddr *addr, void *buf, size_t len,
       int64_t deadline) {
     struct msock_vfs *m = hquery(s, msock_type);
     if(dsock_slow(!m)) return -1;
-    struct iolist iol = {(void*)buf, len, NULL};
+    struct iolist iol = {(void*)buf, len, NULL, 0};
     return udp_recvl_(m, addr, &iol, &iol, deadline);
 }
 

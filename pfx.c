@@ -141,7 +141,7 @@ static int pfx_msendl(struct msock_vfs *mvfs,
     for(it = first; it; it = it->iol_next)
         sz += it->iol_len;
     dsock_putll(szbuf, (uint64_t)sz);
-    struct iolist hdr = {szbuf, 8, first};
+    struct iolist hdr = {szbuf, 8, first, 0};
     int rc = bsendl(obj->s, &hdr, last, deadline);
     if(dsock_slow(rc < 0)) {obj->outerr = 1; return -1;}
     return 0;

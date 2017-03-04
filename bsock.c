@@ -33,20 +33,14 @@ dsock_unique_id(bsock_type);
 int bsend(int s, const void *buf, size_t len, int64_t deadline) {
     struct bsock_vfs *b = hquery(s, bsock_type);
     if(dsock_slow(!b)) return -1;
-    struct iolist iol;
-    iol.iol_base = (void*)buf;
-    iol.iol_len = len;
-    iol.iol_next = NULL;
+    struct iolist iol = {(void*)buf, len, NULL, 0};
     return b->bsendl(b, &iol, &iol, deadline);
 }
 
 int brecv(int s, void *buf, size_t len, int64_t deadline) {
     struct bsock_vfs *b = hquery(s, bsock_type);
     if(dsock_slow(!b)) return -1;
-    struct iolist iol;
-    iol.iol_base = buf;
-    iol.iol_len = len;
-    iol.iol_next = NULL;
+    struct iolist iol = {buf, len, NULL, 0};
     return b->brecvl(b, &iol, &iol, deadline);
 }
 
