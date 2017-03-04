@@ -52,7 +52,5 @@ void iol_slice_term(struct iol_slice *self);
 
 void iol_copyallfrom(uint8_t *dst, struct iolist *first);
 
-int iol_deep_copy(struct iolist *dst, struct iolist *src);
-
 #endif
 
