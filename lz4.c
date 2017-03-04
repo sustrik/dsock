@@ -111,8 +111,10 @@ int lz4_stop(int s) {
 static int lz4_msendl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct lz4_sock *obj = dsock_cont(mvfs, struct lz4_sock, mvfs);
+    size_t len;
+    int rc = iol_check(first, last, NULL, &len);
+    if(dsock_slow(rc < 0)) return -1;
     /* Adjust the buffer size as needed. */
-    size_t len = iol_size(first);
     size_t maxlen = LZ4F_compressFrameBound(len, NULL);
     if(obj->outlen < maxlen) {
         uint8_t *newbuf = realloc(obj->outbuf, maxlen);
@@ -144,8 +146,10 @@ static int lz4_msendl(struct msock_vfs *mvfs,
 static ssize_t lz4_mrecvl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct lz4_sock *obj = dsock_cont(mvfs, struct lz4_sock, mvfs);
+    size_t len;
+    int rc = iol_check(first, last, NULL, &len);
+    if(dsock_slow(rc < 0)) return -1;
     /* Adjust the buffer size as needed. */
-    size_t len = iol_size(first);
     size_t maxlen = LZ4F_compressFrameBound(len, NULL);
     if(obj->inlen < maxlen) {
         uint8_t *newbuf = realloc(obj->inbuf, maxlen);

@@ -36,7 +36,8 @@ int iol_check(struct iolist *first, struct iolist *last,
     size_t *nbufs, size_t *nbytes);
 
 /* Copy the iolist into an iovec. Iovec must have at least as much elements
-   as the iolist, otherwise undefined behaviour ensues. */
+   as the iolist, otherwise undefined behaviour ensues. The data buffers
+   as such are not affected by this operation .*/
 void iol_toiov(struct iolist *first, struct iovec *iov);
 
 size_t iol_size(struct iolist *first);

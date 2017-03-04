@@ -135,9 +135,11 @@ static int nacl_resizebufs(struct nacl_sock *obj, size_t len) {
 static int nacl_msendl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct nacl_sock *obj = dsock_cont(mvfs, struct nacl_sock, mvfs);
+    size_t len;
+    int rc = iol_check(first, last, NULL, &len);
+    if(dsock_slow(rc < 0)) return -1;
     /* If needed, adjust the buffers. */
-    size_t len = iol_size(first);
-    int rc = nacl_resizebufs(obj, NACL_EXTRABYTES + len);
+    rc = nacl_resizebufs(obj, NACL_EXTRABYTES + len);
     if(dsock_slow(rc < 0)) return -1;
     /* Increase nonce. */
     int i;
@@ -168,9 +170,11 @@ static int nacl_msendl(struct msock_vfs *mvfs,
 static ssize_t nacl_mrecvl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct nacl_sock *obj = dsock_cont(mvfs, struct nacl_sock, mvfs);
+    size_t len;
+    int rc = iol_check(first, last, NULL, &len);
+    if(dsock_slow(rc < 0)) return -1;
     /* If needed, adjust the buffers. */
-    size_t len = iol_size(first);
-    int rc = nacl_resizebufs(obj, NACL_EXTRABYTES + len);
+    rc = nacl_resizebufs(obj, NACL_EXTRABYTES + len);
     /* Read the encrypted message. */
     ssize_t sz = mrecv(obj->s, obj->buf1, NACL_EXTRABYTES + len, deadline);
     if(dsock_slow(sz < 0)) return -1;
