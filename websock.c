@@ -109,8 +109,9 @@ static int websock_msendl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct websock_sock *obj = dsock_cont(mvfs, struct websock_sock, mvfs);
     if(dsock_slow(obj->txerr)) {errno = obj->txerr; return -1;}
-    /* Compute payload size. */
-    size_t len = iol_size(first);
+    size_t len;
+    int rc = iol_check(first, last, NULL, &len);
+    if(dsock_slow(rc < 0)) return -1;
     /* Construct message header. */
     uint8_t buf[12];
     size_t sz;
@@ -138,7 +139,7 @@ static int websock_msendl(struct msock_vfs *mvfs,
     }
     /* Client sends masked message. */
     uint8_t mask[4];
-    int rc = dsock_random(mask, 4, deadline);
+    rc = dsock_random(mask, 4, deadline);
     if(dsock_slow(rc < 0)) return -1;
     buf[1] |= 0x80;
     memcpy(buf + sz, mask, 4);
@@ -181,9 +182,10 @@ static ssize_t websock_mrecvl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct websock_sock *obj = dsock_cont(mvfs, struct websock_sock, mvfs);
     if(dsock_slow(obj->rxerr)) {errno = obj->rxerr; return -1;}
+    size_t len;
+    int rc = iol_check(first, last, NULL, &len);
+    if(dsock_slow(rc < 0)) return -1;
     size_t pos = 0;
-    /* Compute size of the iolist buffer. */
-    size_t len = iol_size(first);
     while(1) {
         uint8_t hdr1[2];
         int rc = brecv(obj->s, hdr1, 2, deadline);

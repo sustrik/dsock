@@ -131,7 +131,9 @@ static int bthrottler_bsendl(struct bsock_vfs *bvfs,
     /* If send-throttling is off forward the call. */
     if(obj->send_full == 0) return bsendl(obj->s, first, last, deadline);
     /* Get rid of the corner case. */
-    size_t bytes = iol_size(first);
+    size_t bytes;
+    int rc = iol_check(first, last, NULL, &bytes);
+    if(dsock_slow(rc < 0)) return -1;
     if(dsock_slow(bytes == 0)) return 0;
     size_t pos = 0;
     while(1) {
@@ -165,7 +167,9 @@ static int bthrottler_brecvl(struct bsock_vfs *bvfs,
     /* If recv-throttling is off forward the call. */
     if(obj->recv_full == 0) return brecvl(obj->s, first, last, deadline);
     /* Get rid of the corner case. */
-    size_t bytes = iol_size(first);
+    size_t bytes;
+    int rc = iol_check(first, last, NULL, &bytes);
+    if(dsock_slow(rc < 0)) return -1;
     if(dsock_slow(bytes == 0)) return 0;
     size_t pos = 0;
     while(1) {

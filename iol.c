@@ -59,15 +59,6 @@ void iol_toiov(struct iolist *first, struct iovec *iov) {
     }
 }
 
-size_t iol_size(struct iolist *first) {
-    size_t sz = 0;
-    while(first) {
-        sz += first->iol_len;
-        first = first->iol_next;
-    }
-    return sz;
-}
-
 void iol_copyallfrom(uint8_t *dst, struct iolist *first) {
     while(first) {
         memcpy(dst, first->iol_base, first->iol_len);
@@ -102,6 +93,15 @@ void iol_slice_init(struct iol_slice *self, struct iolist *first,
 
 void iol_slice_term(struct iol_slice *self) {
     *self->last = self->oldlast;
+}
+
+static size_t iol_size(struct iolist *first) {
+    size_t sz = 0;
+    while(first) {
+        sz += first->iol_len;
+        first = first->iol_next;
+    }
+    return sz;
 }
 
 int iol_deep_copy(struct iolist *dst, struct iolist *src) {

@@ -50,6 +50,7 @@ struct inproc_sock {
 struct inproc_vec {
     struct iolist *first;
     struct iolist *last;
+    size_t len;
 };
 
 static void *inproc_hquery(struct hvfs *hvfs, const void *type) {
@@ -152,17 +153,18 @@ static void inproc_hclose(struct hvfs *hvfs) {
 static ssize_t inproc_mrecvl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct inproc_sock *obj = dsock_cont(mvfs, struct inproc_sock, mvfs);
-    uint64_t buf_len = iol_size(first);
+    size_t len;
+    int rc = iol_check(first, last, NULL, &len);
+    if(dsock_slow(rc < 0)) return -1;
     struct inproc_vec vec;
-    int rc = chrecv(obj->data, &vec, sizeof(struct inproc_vec), deadline);
+    rc = chrecv(obj->data, &vec, sizeof(struct inproc_vec), deadline);
     if(rc < 0) return -1;
-    uint64_t recv_len = iol_size(vec.first);
-    if (recv_len > buf_len) { goto msg2big; }
+    if(vec.len > len) {goto msg2big;}
     iol_deep_copy(first, vec.first);
-    rc = chsend(obj->ack, &recv_len, 8, deadline);
+    rc = chsend(obj->ack, &vec.len, 8, deadline);
     if(rc < 0) return -1;
-    return recv_len;
-    msg2big:
+    return vec.len;
+msg2big:
     rc = chsend(obj->ack, &MSG2BIG, 8 , deadline);
     if(rc < 0) return -1;
     errno = EMSGSIZE;
@@ -172,17 +174,17 @@ static ssize_t inproc_mrecvl(struct msock_vfs *mvfs,
 static int inproc_msendl(struct msock_vfs *mvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct inproc_sock *obj = dsock_cont(mvfs, struct inproc_sock, mvfs);
-    uint64_t data_len = iol_size(first);
-    struct inproc_vec vec;
-    vec.first = first;
-    vec.last = last;
-    int rc = chsend(obj->data, &vec, sizeof(struct inproc_vec), deadline);
+    size_t len;
+    int rc = iol_check(first, last, NULL, &len);
+    if(dsock_slow(rc < 0)) return -1;
+    struct inproc_vec vec = {first, last, len};     
+    rc = chsend(obj->data, &vec, sizeof(struct inproc_vec), deadline);
     if(rc < 0) return -1;
     uint64_t confirmation;
     rc = chrecv(obj->ack, &confirmation, 8, deadline);
     if(rc < 0) return -1;
     if(confirmation == MSG2BIG) {errno = EMSGSIZE; return -1;}
-    if(confirmation != data_len) {errno = EPROTO; return -1;}
+    if(confirmation != len) {errno = EPROTO; return -1;}
     return 0;
 }
 

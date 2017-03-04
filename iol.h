@@ -40,8 +40,6 @@ int iol_check(struct iolist *first, struct iolist *last,
    as such are not affected by this operation .*/
 void iol_toiov(struct iolist *first, struct iovec *iov);
 
-size_t iol_size(struct iolist *first);
-
 struct iol_slice {
     struct iolist first;
     struct iolist *last;
