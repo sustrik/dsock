@@ -59,7 +59,7 @@ void iol_toiov(struct iolist *first, struct iovec *iov) {
     }
 }
 
-void iol_copyallfrom(uint8_t *dst, struct iolist *first) {
+void iol_copy(struct iolist *first, uint8_t *dst) {
     while(first) {
         memcpy(dst, first->iol_base, first->iol_len);
         dst += first->iol_len;

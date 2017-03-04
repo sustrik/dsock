@@ -172,7 +172,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         dsock_assert(rc == 0);
         /* If data fit into the buffer, store them there. */
         if(len + vec.len < batch) {
-            iol_copyallfrom(buf + len, vec.first);
+            iol_copy(vec.first, buf + len);
             len += vec.len;
             int err = 0;
             rc = chsend(ackch, &err, sizeof(err), -1);
@@ -197,7 +197,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         }
         /* Once again: If data fit into buffer store them there. */
         if(vec.len < batch) {
-            iol_copyallfrom(buf, vec.first);
+            iol_copy(vec.first, buf);
             len = vec.len;
             int err = 0;
             rc = chsend(ackch, &err, sizeof(err), -1);

@@ -50,7 +50,7 @@ void iol_slice_init(struct iol_slice *self, struct iolist *first,
     struct iolist *last, size_t offset, size_t len);
 void iol_slice_term(struct iol_slice *self);
 
-void iol_copyallfrom(uint8_t *dst, struct iolist *first);
+void iol_copy(struct iolist *first, uint8_t *dst);
 
 #endif
 
