@@ -167,6 +167,8 @@ int main() {
     iol2.iol_next = &iol1;
     rc = bsendl(s[0], &iol1, &iol2, -1);
     assert(rc == -1 && errno == EINVAL);
+    assert(iol1.iol_rsvd == 0);
+    assert(iol2.iol_rsvd == 0);
     rc = hclose(s[0]);
     assert(rc == 0);
     rc = hclose(s[1]);
