@@ -45,6 +45,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
 struct nagle_vec {
     struct iolist *first;
     struct iolist *last;
+    size_t len;
 };
 
 struct nagle_sock {
@@ -132,9 +133,12 @@ int nagle_stop(int s, int64_t deadline) {
 static int nagle_bsendl(struct bsock_vfs *bvfs,
       struct iolist *first, struct iolist *last, int64_t deadline) {
     struct nagle_sock *obj = dsock_cont(bvfs, struct nagle_sock, bvfs);
+    size_t len;
+    int rc = iol_check(first, last, NULL, &len);
+    if(dsock_slow(rc < 0)) return -1;
     /* Send is done in a worker coroutine. */
-    struct nagle_vec vec = {first, last};
-    int rc = chsend(obj->sendch, &vec, sizeof(vec), deadline);
+    struct nagle_vec vec = {first, last, len};
+    rc = chsend(obj->sendch, &vec, sizeof(vec), deadline);
     if(dsock_slow(rc < 0)) return -1;
     /* Wait till worker is done. */
     int err;
@@ -166,12 +170,10 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
             continue;
         }
         dsock_assert(rc == 0);
-        /* Compute size of the message. */
-        size_t bytes = iol_size(vec.first);
         /* If data fit into the buffer, store them there. */
-        if(len + bytes < batch) {
+        if(len + vec.len < batch) {
             iol_copyallfrom(buf + len, vec.first);
-            len += bytes;
+            len += vec.len;
             int err = 0;
             rc = chsend(ackch, &err, sizeof(err), -1);
             if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
@@ -194,9 +196,9 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
             last = now();
         }
         /* Once again: If data fit into buffer store them there. */
-        if(bytes < batch) {
+        if(vec.len < batch) {
             iol_copyallfrom(buf, vec.first);
-            len = bytes;
+            len = vec.len;
             int err = 0;
             rc = chsend(ackch, &err, sizeof(err), -1);
             if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
