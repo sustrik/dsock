@@ -91,13 +91,6 @@ int websock_server(int s) {
     return websock_start(s, 0);
 }
 
-int websock_done(int s, int64_t deadline) {
-    struct websock_sock *obj = hquery(s, websock_type);
-    if(dsock_slow(!obj)) return -1;
-    if(dsock_slow(obj->txerr)) {errno = obj->txerr; return -1;}
-    dsock_assert(0);
-}
-
 int websock_stop(int s, int64_t deadline) {
     int err;
     struct websock_sock *obj = hquery(s, websock_type);

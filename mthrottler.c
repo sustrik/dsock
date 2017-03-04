@@ -111,10 +111,6 @@ error1:
     return -1;
 }
 
-int mthrottler_done(int s) {
-    dsock_assert(0);
-}
-
 int mthrottler_stop(int s) {
     struct mthrottler_sock *obj = hquery(s, mthrottler_type);
     if(dsock_slow(!obj)) return -1;

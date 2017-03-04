@@ -123,10 +123,6 @@ error1:
     return -1;
 }
 
-int keepalive_done(int s) {
-    dsock_assert(0);
-}
-
 static int keepalive_free(struct keepalive_sock *obj) {
     if(obj->send_interval >= 0) {
         int rc = hclose(obj->sender);

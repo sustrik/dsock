@@ -36,6 +36,7 @@ dsock_unique_id(http_type);
 
 static void *http_hquery(struct hvfs *hvfs, const void *type);
 static void http_hclose(struct hvfs *hvfs);
+static int http_hdone(struct hvfs *hvfs);
 
 struct http_sock {
     struct hvfs hvfs;
@@ -61,6 +62,7 @@ int http_start(int s) {
     if(dsock_slow(!obj)) {err = ENOMEM; goto error1;}
     obj->hvfs.query = http_hquery;
     obj->hvfs.close = http_hclose;
+    obj->hvfs.done = http_hdone;
     obj->s = -1;
     obj->rxerr = 0;
     /* Create the handle. */
@@ -90,11 +92,11 @@ error1:
 
 }
 
-int http_done(int s, int64_t deadline) {
-    struct http_sock *obj = hquery(s, http_type);
-    if(dsock_slow(!obj)) return -1;
+static int http_hdone(struct hvfs *hvfs) {
+    struct http_sock *obj = (struct http_sock*)hvfs;
     return hdone(obj->s);
 }
+
 
 int http_stop(int s, int64_t deadline) {
     struct http_sock *obj = hquery(s, http_type);

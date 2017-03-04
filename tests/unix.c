@@ -159,6 +159,8 @@ int main() {
     /* Try some invalid inputs. */
     rc = unix_pair(s);
     assert(rc == 0);
+    rc = bsendl(s[0], NULL, NULL, -1);
+    assert(rc == -1 && errno == EINVAL);
     struct iolist iol1 = {(void*)"ABC", 3, NULL, 0};
     struct iolist iol2 = {(void*)"DEF", 3, NULL, 0};
     rc = bsendl(s[0], &iol1, &iol2, -1);

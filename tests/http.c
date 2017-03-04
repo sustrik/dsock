@@ -93,7 +93,7 @@ int main() {
     assert(strcmp(name, "valid-field-name") == 0);
     assert(strcmp(value, "both pad") == 0);
 
-    rc = http_done(s0, -1);
+    rc = hdone(s0);
     assert(rc == 0);
     rc = http_recvfield(s1, name, sizeof(name), value, sizeof(value), -1);
     assert(rc < 0 && errno == EPIPE);
@@ -104,7 +104,7 @@ int main() {
     assert(rc == 0);
     rc = http_sendfield(s1, "one", "two", -1);
     assert(rc == 0);
-    rc = http_done(s1, -1);
+    rc = hdone(s1);
     assert(rc == 0);
     /* Receive response. */
     char reason[16];

@@ -92,10 +92,6 @@ error1:
     return -1;
 }
 
-int lz4_done(int s) {
-    dsock_assert(0);
-}
-
 int lz4_stop(int s) {
     struct lz4_sock *obj = hquery(s, lz4_type);
     if(dsock_slow(!obj)) return -1;
