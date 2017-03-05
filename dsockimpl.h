@@ -33,6 +33,8 @@
 /*  Bytestream sockets.                                                       */
 /******************************************************************************/
 
+extern const void *bsock_type;
+
 struct bsock_vfs {
     int (*bsendl)(struct bsock_vfs *vfs,
         struct iolist *first, struct iolist *last, int64_t deadline);
@@ -43,6 +45,8 @@ struct bsock_vfs {
 /******************************************************************************/
 /*  Message sockets.                                                          */
 /******************************************************************************/
+
+extern const void *msock_type;
 
 struct msock_vfs {
     int (*msendl)(struct msock_vfs *vfs,

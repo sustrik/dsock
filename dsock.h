@@ -84,8 +84,6 @@ struct iolist {
 /*  Bytestream sockets.                                                       */
 /******************************************************************************/
 
-extern const void *bsock_type;
-
 DSOCK_EXPORT int bsend(
     int s,
     const void *buf,
@@ -110,8 +108,6 @@ DSOCK_EXPORT int brecvl(
 /******************************************************************************/
 /*  Message sockets.                                                          */
 /******************************************************************************/
-
-extern const void *msock_type;
 
 DSOCK_EXPORT int msend(
     int s,
@@ -138,9 +134,6 @@ DSOCK_EXPORT ssize_t mrecvl(
 /*  TCP protocol.                                                             */
 /******************************************************************************/
 
-extern const void *tcp_type;
-extern const void *tcp_listener_type;
-
 DSOCK_EXPORT int tcp_listen(
     struct ipaddr *addr,
     int backlog);
@@ -158,9 +151,6 @@ DSOCK_EXPORT int tcp_stop(
 /******************************************************************************/
 /*  UNIX protocol.                                                            */
 /******************************************************************************/
-
-extern const void *unix_type;
-extern const void *unix_listener_type;
 
 DSOCK_EXPORT int unix_listen(
     const char *addr,
@@ -180,8 +170,6 @@ DSOCK_EXPORT int unix_pair(
 /******************************************************************************/
 /*  UDP protocol.                                                             */
 /******************************************************************************/
-
-extern const void *udp_type;
 
 DSOCK_EXPORT int udp_socket(
     struct ipaddr *local,
@@ -214,8 +202,6 @@ DSOCK_EXPORT ssize_t udp_recvl(
 /*  Messages are prefixed by 8-byte size in network byte order.               */
 /******************************************************************************/
 
-extern const void *pfx_type;
-
 DSOCK_EXPORT int pfx_start(
     int s);
 DSOCK_EXPORT int pfx_stop(
@@ -227,8 +213,6 @@ DSOCK_EXPORT int pfx_stop(
 /*  Messages are delimited by CRLF (0x0d 0x0a) sequences.                     */
 /******************************************************************************/
 
-extern const void *crlf_type;
-
 DSOCK_EXPORT int crlf_start(
     int s);
 DSOCK_EXPORT int crlf_stop(
@@ -238,8 +222,6 @@ DSOCK_EXPORT int crlf_stop(
 /******************************************************************************/
 /*  HTTP                                                                      */
 /******************************************************************************/
-
-extern const void *http_type;
 
 DSOCK_EXPORT int http_start(
     int s);
@@ -285,8 +267,6 @@ DSOCK_EXPORT int http_recvfield(
 /*  WebSocket protocol.                                                       */
 /******************************************************************************/
 
-extern const void *websock_type;
-
 DSOCK_EXPORT int websock_client(
     int s);
 DSOCK_EXPORT int websock_server(
@@ -299,8 +279,6 @@ DSOCK_EXPORT int websock_stop(
 /*  NaCl encryption and authentication protocol.                              */
 /*  Uses crypto_secretbox_xsalsa20poly1305 algorithm. Key is 32B long.        */
 /******************************************************************************/
-
-extern const void *nacl_type;
 
 DSOCK_EXPORT int nacl_start(
     int s,
@@ -315,8 +293,6 @@ DSOCK_EXPORT int nacl_stop(
 /*  Compresses data using LZ4 compression algorithm.                          */
 /******************************************************************************/
 
-extern const void *lz4_type;
-
 DSOCK_EXPORT int lz4_start(
     int s);
 DSOCK_EXPORT int lz4_stop(
@@ -326,8 +302,6 @@ DSOCK_EXPORT int lz4_stop(
 /*  Bytestream tracing.                                                       */
 /*  Logs both inbound and outbound data into stderr.                          */
 /******************************************************************************/
-
-extern const void *btrace_type;
 
 DSOCK_EXPORT int btrace_start(
     int s);
@@ -339,8 +313,6 @@ DSOCK_EXPORT int btrace_stop(
 /*  Logs both inbound and outbound messages into stderr.                      */
 /******************************************************************************/
 
-extern const void *mtrace_type;
-
 DSOCK_EXPORT int mtrace_start(
     int s);
 DSOCK_EXPORT int mtrace_stop(
@@ -351,8 +323,6 @@ DSOCK_EXPORT int mtrace_stop(
 /*  Delays small sends until buffer of size 'batch' is full or timeout        */
 /*  'interval' expires.                                                       */
 /******************************************************************************/
-
-extern const void *nagle_type;
 
 DSOCK_EXPORT int nagle_start(
     int s,
@@ -368,8 +338,6 @@ DSOCK_EXPORT int nagle_stop(
 /*  Throttles the inbound bytestream to recv_throughput bytes per second.     */
 /*  Receiving quota is recomputed every recv_interval milliseconds.           */
 /******************************************************************************/
-
-extern const void *bthrottler_type;
 
 DSOCK_EXPORT int bthrottler_start(
     int s,
@@ -388,8 +356,6 @@ DSOCK_EXPORT int bthrottler_stop(
 /*  Receiving quota is recomputed every recv_interval milliseconds.           */
 /******************************************************************************/
 
-extern const void *mthrottler_type;
-
 DSOCK_EXPORT int mthrottler_start(
     int s,
     uint64_t send_throughput,
@@ -406,8 +372,6 @@ DSOCK_EXPORT int mthrottler_stop(
 /*  recv_interval milliseconds an error is reported.                          */
 /******************************************************************************/
 
-extern const void *keepalive_type;
-
 DSOCK_EXPORT int keepalive_start(
     int s,
     int64_t send_interval,
@@ -418,9 +382,6 @@ DSOCK_EXPORT int keepalive_stop(
 /******************************************************************************/
 /*  TLS sockets                                                               */
 /******************************************************************************/
-
-extern const void *btls_conn_type;
-extern const void *btls_listener_type;
 
 #define DSOCK_BTLS_PROTO_BTLSV1_0         (1 << 1)
 #define DSOCK_BTLS_PROTO_BTLSV1_1         (1 << 2)
@@ -617,8 +578,6 @@ DSOCK_EXPORT const char *btls_connversion(
 /******************************************************************************/
 /*  inproc sockets                                                            */
 /******************************************************************************/
-
-extern const void *inproc_type;
 
 DSOCK_EXPORT int inproc_pair_start(int fds[2]);
 
