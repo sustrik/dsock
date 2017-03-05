@@ -145,7 +145,7 @@ static int inproc_destroy(struct inproc_sock *obj) {
     free(obj);
 }
 
-int inproc_pair_start(int fds[2]) {
+int inproc_pair(int fds[2]) {
     int err, rc;
     if(!fds) {err = EINVAL; goto error1;}
     /* Setup channels */

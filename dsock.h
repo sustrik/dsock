@@ -579,7 +579,7 @@ DSOCK_EXPORT const char *btls_connversion(
 /*  inproc sockets                                                            */
 /******************************************************************************/
 
-DSOCK_EXPORT int inproc_pair_start(int fds[2]);
+DSOCK_EXPORT int inproc_pair(int fds[2]);
 
 #endif
 

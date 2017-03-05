@@ -46,7 +46,7 @@ int main() {
     ssize_t rc;
     char buf[32];
     int fds[2];
-    rc = inproc_pair_start(fds);
+    rc = inproc_pair(fds);
     assert(rc >= 0);
     int g = go(echo_sink(fds[1]));
     rc = msend(fds[0], "ABC", 3, now() + 100);
