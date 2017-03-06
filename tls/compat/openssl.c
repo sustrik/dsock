@@ -23,6 +23,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 int SSL_CTX_load_verify_mem(SSL_CTX *ctx, void *buf, int len)
 {
