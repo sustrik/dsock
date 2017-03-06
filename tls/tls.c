@@ -245,7 +245,7 @@ tls_configure_ssl_keypair(struct tls *ctx, SSL_CTX *ssl_ctx,
 		}
 
 		if ((bio = BIO_new_mem_buf(keypair->cert_mem,
-		    keypair->key_len)) == NULL) {
+		    keypair->cert_len)) == NULL) {
 			tls_set_errorx(ctx, "failed to create buffer");
 			goto err;
 		}
