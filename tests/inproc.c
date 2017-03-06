@@ -41,7 +41,6 @@ coroutine void echo_sink(int s) {
     assert(rc == 0);
 }
 
-
 int main() {
     ssize_t rc;
     char buf[32];
@@ -66,3 +65,4 @@ int main() {
     assert(rc == 0);
     return 0;
 }
+

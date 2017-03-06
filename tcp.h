@@ -22,4 +22,7 @@
 
 */
 
+extern const void *tcp_listener_type;
+extern const void *tcp_type;
+
 int tcp_fd(int s);

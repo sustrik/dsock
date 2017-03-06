@@ -32,7 +32,7 @@
 #include "tls/tls.h"
 
 #include "dsockimpl.h"
-#include "iov.h"
+#include "iol.h"
 #include "tcp.h"
 #include "utils.h"
 
@@ -59,10 +59,10 @@ dsock_unique_id(btls_conn_type);
 
 static void *btls_conn_hquery(struct hvfs *hvfs, const void *type);
 static void btls_conn_hclose(struct hvfs *hvfs);
-static int btls_conn_bsendv(struct bsock_vfs *bvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
-static int btls_conn_brecvv(struct bsock_vfs *bvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline);
+static int btls_conn_bsendl(struct bsock_vfs *bvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
+static int btls_conn_brecvl(struct bsock_vfs *bvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline);
 
 struct btls_conn {
     struct hvfs hvfs;
@@ -148,33 +148,38 @@ static ssize_t btls_conn_get(struct btls_conn *obj, void *buf, size_t len,
     }
 }
 
-static int btls_conn_bsendv(struct bsock_vfs *bvfs, const struct iovec *iov,
-      size_t iovlen, int64_t deadline) {
+static int btls_conn_bsendl(struct bsock_vfs *bvfs, struct iolist *first,
+      struct  iolist *last, int64_t deadline) {
     struct btls_conn *obj = dsock_cont(bvfs, struct btls_conn, bvfs);
-    if(dsock_slow(iovlen > 0 && !iov)) {errno = EINVAL; return -1;}
+    int rc = iol_check(first, last, NULL, NULL);
+    if(dsock_slow(rc < 0)) return -1;
     if(btls_conn_handshake(obj, deadline)) return -1;
-    size_t len = iov_size(iov, iovlen);
-    ssize_t sent = 0;
-    while(sent < len) {
-        struct iovec vec[iovlen];
-        size_t veclen = iov_cut(vec, iov, iovlen, sent, len - sent);
-        ssize_t sz = 0;
-        ssize_t rc = 0;
-        for(size_t i = 0; i < veclen; i++) {
-            rc = tls_write(obj->tls, vec[i].iov_base, vec[i].iov_len);
-            if(rc == TLS_WANT_POLLIN || rc == TLS_WANT_POLLOUT) break;
-            else if(rc < 0) return -1;
-            else sz += rc;
+    struct iolist *it;
+    for(it = first; it; it = it->iol_next) {
+        uint8_t *base = it->iol_base;
+        size_t len = it->iol_len;
+        while(len) {
+            rc = tls_write(obj->tls, base, len);
+            if(rc == TLS_WANT_POLLIN) {
+                rc = fdin(obj->fd, deadline);
+                if(dsock_slow(rc < 0)) return -1;
+                continue;
+            }
+            if(rc == TLS_WANT_POLLOUT) {
+                rc = fdout(obj->fd, deadline);
+                if(dsock_slow(rc < 0)) return -1;
+                continue;
+            }
+            if(dsock_slow(rc < 0)) return -1;
+            base += rc;
+            len -= rc;
         }
-        if(rc == TLS_WANT_POLLIN) rc = fdin(obj->fd, deadline);
-        else if(rc == TLS_WANT_POLLOUT) rc = fdout(obj->fd, deadline);
-        if(dsock_slow(rc < 0)) return -1;
-        sent += sz;
     }
     return 0;
 }
 
-static int btls_conn_brecv(struct btls_conn *obj, void *buf, size_t len, int64_t deadline) {
+static int btls_conn_brecv(struct btls_conn *obj, void *buf, size_t len,
+      int64_t deadline) {
     size_t pos = 0;
     struct btls_rxbuf *rxbuf = &obj->rxbuf;
     while(1) {
@@ -203,13 +208,16 @@ static int btls_conn_brecv(struct btls_conn *obj, void *buf, size_t len, int64_t
     }
 }
 
-static int btls_conn_brecvv(struct bsock_vfs *bvfs,
-    const struct iovec *iov, size_t iovlen, int64_t deadline) {
+static int btls_conn_brecvl(struct bsock_vfs *bvfs,
+    struct iolist *first, struct iolist *last, int64_t deadline) {
     struct btls_conn *obj = dsock_cont(bvfs, struct btls_conn, bvfs);
-    if(dsock_slow(iovlen > 0 && !iov)) {errno = EINVAL; return -1;}
-    for(size_t i = 0; i < iovlen; i++)
-        if(btls_conn_brecv(obj, iov[i].iov_base, iov[i].iov_len, deadline))
-            return -1;
+    int rc = iol_check(first, last, NULL, NULL);
+    if(dsock_slow(rc < 0)) return -1;
+    struct iolist *it;
+    for(it = first; it; it = it->iol_next) {
+        rc = btls_conn_brecv(obj, it->iol_base, it->iol_len, deadline);
+        if(dsock_slow(rc < 0)) return -1;
+    }
     return 0;
 }
 
@@ -220,8 +228,8 @@ static int btls_conn_create(int s, struct tls *t, struct tls_config *c,
     struct btls_conn *obj = malloc(sizeof(struct btls_conn));
     obj->hvfs.query = btls_conn_hquery;
     obj->hvfs.close = btls_conn_hclose;
-    obj->bvfs.bsendv = btls_conn_bsendv;
-    obj->bvfs.brecvv = btls_conn_brecvv;
+    obj->bvfs.bsendl = btls_conn_bsendl;
+    obj->bvfs.brecvl = btls_conn_brecvl;
     obj->tls = t;
     obj->s = s;
     obj->c = c;
@@ -243,7 +251,8 @@ static int btls_conn_create(int s, struct tls *t, struct tls_config *c,
 
 int btls_start_client(int s, uint64_t flags, uint64_t ciphers,
       struct btls_ca *ca, const char *alpn, const char *servername) {
-    return btls_start_client_kp(s, flags, ciphers, NULL, 0, ca, alpn, servername);
+    return btls_start_client_kp(s, flags, ciphers, NULL, 0, ca, alpn,
+        servername);
 }
 
 int btls_start_client_kp(int s, uint64_t flags, uint64_t ciphers,
@@ -578,9 +587,12 @@ static struct tls_config *btls_configure(uint64_t flags, uint64_t ciphers,
     }
     tls_config_set_ecdhecurve(c, ecdhecurve);
     switch(DSOCK_BTLS_CIPHERS_VALUE(flags)) {
-        case DSOCK_BTLS_CIPHERS_COMPAT: tls_config_set_ciphers(c, "compat"); break;
-        case DSOCK_BTLS_CIPHERS_LEGACY: tls_config_set_ciphers(c, "legacy"); break;
-        case DSOCK_BTLS_CIPHERS_INSECURE: tls_config_set_ciphers(c, "insecure"); break;
+        case DSOCK_BTLS_CIPHERS_COMPAT:
+            tls_config_set_ciphers(c, "compat"); break;
+        case DSOCK_BTLS_CIPHERS_LEGACY:
+            tls_config_set_ciphers(c, "legacy"); break;
+        case DSOCK_BTLS_CIPHERS_INSECURE:
+            tls_config_set_ciphers(c, "insecure"); break;
         case DSOCK_BTLS_CIPHERS_SPECIFIC: {
             char cl[2048]; char *p = cl;
             if(ciphers & DSOCK_BTLS_CIPHERS_ECDHE_RSA_AES256_GCM_SHA384)
