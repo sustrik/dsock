@@ -173,7 +173,7 @@ check_PROGRAMS += \
 
 endif
 
-LDADD = libdsock.la libdsock_la-iov.lo
+LDADD = libdsock.la
 
 TESTS = $(check_PROGRAMS)
 
