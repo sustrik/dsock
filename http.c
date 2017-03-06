@@ -23,13 +23,14 @@
 */
 
 #include <errno.h>
+#include <libdillimpl.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "dsockimpl.h"
+#include "dsock.h"
 #include "utils.h"
 
 dsock_unique_id(http_type);

@@ -23,11 +23,12 @@
 */
 
 #include <errno.h>
+#include <libdillimpl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "dsockimpl.h"
+#include "dsock.h"
 #include "utils.h"
 
 dsock_unique_id(btrace_type);

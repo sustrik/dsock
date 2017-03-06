@@ -27,12 +27,11 @@ ACLOCAL_AMFLAGS = -I m4
 ################################################################################
 
 dsockincludedir = $(includedir)
-dsockinclude_HEADERS = dsock.h dsockimpl.h
+dsockinclude_HEADERS = dsock.h
 
 lib_LTLIBRARIES = libdsock.la
 
 libdsock_la_SOURCES = \
-    bsock.c \
     bthrottler.c \
     btrace.c \
     crlf.c \
@@ -43,7 +42,6 @@ libdsock_la_SOURCES = \
     iol.c \
     keepalive.c \
     lz4.c \
-    msock.c \
     mthrottler.c \
     mtrace.c \
     nacl.c \

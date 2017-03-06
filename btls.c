@@ -25,13 +25,14 @@
 #if defined HAVE_TLS
 
 #include <errno.h>
+#include <libdillimpl.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "tls/tls.h"
 
-#include "dsockimpl.h"
+#include "dsock.h"
 #include "iol.h"
 #include "tcp.h"
 #include "utils.h"

@@ -23,11 +23,12 @@
 */
 
 #include <errno.h>
+#include <libdillimpl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "dsockimpl.h"
+#include "dsock.h"
 #include "fd.h"
 #include "iol.h"
 #include "utils.h"

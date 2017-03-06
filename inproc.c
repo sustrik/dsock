@@ -21,11 +21,13 @@
   IN THE SOFTWARE.
 
 */
+
 #include <errno.h>
+#include <libdillimpl.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "dsockimpl.h"
+#include "dsock.h"
 #include "iol.h"
 #include "utils.h"
 
@@ -104,8 +106,8 @@ static void *inproc_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-/* Create new inproc socket with the channels data<inproc_vec> and ack<uint64_t>.
-   Ownership of the channels is transferred to the socket */
+/* Create new inproc socket with the channels data<inproc_vec> and
+   ack<uint64_t>. Ownership of the channels is transferred to the socket */
 static int inproc_new(int data, int ack) {
     int err, rc;
     if(data < 0 || ack < 0) {err = EBADF; goto error1;}

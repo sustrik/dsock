@@ -23,6 +23,7 @@
 */
 
 #include <errno.h>
+#include <libdillimpl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,7 +31,7 @@
 
 #include "tweetnacl/tweetnacl.h"
 
-#include "dsockimpl.h"
+#include "dsock.h"
 #include "iol.h"
 #include "utils.h"
 

@@ -23,12 +23,12 @@
 */
 
 #include <errno.h>
+#include <libdillimpl.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 #include "lz4/lz4frame.h"
 
-#include "dsockimpl.h"
 #include "iol.h"
 #include "utils.h"
 
