@@ -106,6 +106,8 @@ AC_CHECK_FUNCS([dill_prologue])
 # SunOS has sockets in a separate library.
 AC_CHECK_LIB([socket], [socket])
 
+AC_CHECK_FUNCS([mkstemp])
+
 ################################################################################
 #  Libtool                                                                     #
 ################################################################################
