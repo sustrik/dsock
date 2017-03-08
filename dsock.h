@@ -70,24 +70,6 @@
 #endif
 
 /******************************************************************************/
-/*  TCP protocol.                                                             */
-/******************************************************************************/
-
-DSOCK_EXPORT int tcp_listen(
-    struct ipaddr *addr,
-    int backlog);
-DSOCK_EXPORT int tcp_accept(
-    int s,
-    struct ipaddr *addr,
-    int64_t deadline);
-DSOCK_EXPORT int tcp_connect(
-    const struct ipaddr *addr,
-    int64_t deadline);
-DSOCK_EXPORT int tcp_stop(
-    int s,
-    int64_t deadline);
-
-/******************************************************************************/
 /*  UNIX protocol.                                                            */
 /******************************************************************************/
 
