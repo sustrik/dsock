@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -28,7 +28,7 @@
 
 static void keepalive_pair(int h[2], int both) {
     int s[2];
-    int rc = unix_pair(s);
+    int rc = ipc_pair(s);
     assert(rc == 0);
     int pfx0 = pfx_start(s[0]);
     assert(pfx0 >= 0);

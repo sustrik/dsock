@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -33,7 +33,7 @@ int main() {
     const char key[] = "01234567890123456789012345678901";
 
     int h1[2];
-    rc = unix_pair(h1);
+    rc = ipc_pair(h1);
     assert(rc == 0);
     int h2_0 = btrace_start(h1[0]);
     assert(h2_0 >= 0);

@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -30,7 +30,7 @@ int main() {
 
     /* Test whether big chunk gets through. */
     int s[2];
-    int rc = unix_pair(s);
+    int rc = ipc_pair(s);
     assert(rc == 0);
     int n = nagle_start(s[0], 5, -1);
     assert(n >= 0);
@@ -45,7 +45,7 @@ int main() {
     assert(rc == 0);
 
     /* Test whether several small chunks get through. */
-    rc = unix_pair(s);
+    rc = ipc_pair(s);
     assert(rc == 0);
     n = nagle_start(s[0], 5, -1);
     assert(n >= 0);
@@ -61,7 +61,7 @@ int main() {
     assert(rc == 0);
 
     /* Infinite interval: Test that single small chunk doesn't get through. */
-    rc = unix_pair(s);
+    rc = ipc_pair(s);
     assert(rc == 0);
     n = nagle_start(s[0], 5, -1);
     assert(n >= 0);
@@ -75,7 +75,7 @@ int main() {
     assert(rc == 0);
 
     /* Finite interval: Test that single small chunk does get through. */
-    rc = unix_pair(s);
+    rc = ipc_pair(s);
     assert(rc == 0);
     n = nagle_start(s[0], 5, 50);
     assert(n >= 0);

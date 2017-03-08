@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -76,7 +76,7 @@ int main() {
     assert(rc == 0);
 
     int h[2];
-    rc = unix_pair(h);
+    rc = ipc_pair(h);
     assert(rc == 0);
     int s0 = crlf_start(h[0]);
     assert(s0 >= 0);

@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -29,7 +29,7 @@
 int main() {
 
     int s[2];
-    int rc = unix_pair(s);
+    int rc = ipc_pair(s);
     assert(rc == 0);
     int b0 = btrace_start(s[0]);
     assert(b0 >= 0);

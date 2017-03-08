@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -30,7 +30,7 @@ int main() {
     int s[2];
 
     /* Send-throttling. */
-    int rc = unix_pair(s);
+    int rc = ipc_pair(s);
     assert(rc == 0);
     int pfx0 = pfx_start(s[0]);
     assert(pfx0 >= 0);
@@ -55,7 +55,7 @@ int main() {
     hclose(pfx1);
 
     /* Recv-throttling. */
-    rc = unix_pair(s);
+    rc = ipc_pair(s);
     assert(rc == 0);
     int crlf0 = crlf_start(s[0]);
     assert(pfx0 >= 0);

@@ -70,25 +70,6 @@
 #endif
 
 /******************************************************************************/
-/*  UNIX protocol.                                                            */
-/******************************************************************************/
-
-DSOCK_EXPORT int unix_listen(
-    const char *addr,
-    int backlog);
-DSOCK_EXPORT int unix_accept(
-    int s,
-    int64_t deadline);
-DSOCK_EXPORT int unix_connect(
-    const char *addr,
-    int64_t deadline);
-DSOCK_EXPORT int unix_stop(
-    int s,
-    int64_t deadline);
-DSOCK_EXPORT int unix_pair(
-    int s[2]);
-
-/******************************************************************************/
 /*  UDP protocol.                                                             */
 /******************************************************************************/
 

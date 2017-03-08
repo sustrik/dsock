@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -30,7 +30,7 @@ int main() {
     int s[2];
 
     /* send-throttling: One big batch split into multiple bursts. */
-    int rc = unix_pair(s);
+    int rc = ipc_pair(s);
     assert(rc == 0);
     int thr = bthrottler_start(s[0], 1000, 10, 0, 0);
     assert(thr >= 0);
@@ -46,7 +46,7 @@ int main() {
     hclose(s[1]);
 
     /* send-throttling: Multiple small batches in two bursts. */
-    rc = unix_pair(s);
+    rc = ipc_pair(s);
     assert(rc == 0);
     thr = bthrottler_start(s[0], 1000, 10, 0, 0);
     assert(thr >= 0);
@@ -64,7 +64,7 @@ int main() {
     hclose(s[1]);
 
     /* recv-throttling: One big batch split into multiple bursts. */
-    rc = unix_pair(s);
+    rc = ipc_pair(s);
     assert(rc == 0);
     thr = bthrottler_start(s[0], 0, 0, 1000, 10);
     assert(thr >= 0);
@@ -79,7 +79,7 @@ int main() {
     hclose(s[1]);
 
     /* recv-throttling: Multiple small batches in two bursts. */
-    rc = unix_pair(s);
+    rc = ipc_pair(s);
     assert(rc == 0);
     thr = bthrottler_start(s[0], 0, 0, 1000, 10);
     assert(thr >= 0);

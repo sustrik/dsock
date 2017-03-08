@@ -48,7 +48,6 @@ libdsock_la_SOURCES = \
     nagle.c \
     pfx.c \
     udp.c \
-    unix.c \
     utils.h \
     utils.c \
     websock.c \
@@ -145,7 +144,6 @@ endif
 
 check_PROGRAMS = \
     tests/udp \
-    tests/unix \
     tests/crlf \
     tests/pfx \
     tests/btrace \

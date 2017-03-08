@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2016 Martin Sustrik
+  Copyright (c) 2017 Martin Sustrik
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"),
@@ -33,7 +33,7 @@ int main() {
     
     /* Test normal communication. */
     int s[2];
-    int rc = unix_pair(s);
+    int rc = ipc_pair(s);
     assert(rc == 0);
     int log0 = btrace_start(s[0]);
     assert(log0 >= 0);
@@ -69,7 +69,7 @@ int main() {
     assert(rc == 0);
 
     /* Test communication with wrong key. */
-    rc = unix_pair(s);
+    rc = ipc_pair(s);
     assert(rc == 0);
     log0 = btrace_start(s[0]);
     assert(log0 >= 0);
