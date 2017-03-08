@@ -27,22 +27,31 @@
 
 int SSL_CTX_load_verify_mem(SSL_CTX *ctx, void *buf, int len)
 {
+    char fname[] = "/tmp/dsockcompatXXXXXX";
     int rc;
-#ifdef __linux__
-    int fd = mkstemp("dsockcompatXXXXXX");
+    int fd;
+#ifdef HAVE_MKSTEMP
+    fd = mkstemp(fname);
 #else
-    const char *fname = mktemp("dsockcompatXXXXXX");
-    int fd = open(fname, O_EXCL | O_WRONLY | O_SYNC, S_IRUSR | S_IWUSR);
+    const char *tmp_fname = mktemp(fname);
+    int fd;
+    if(tmp_fname) {
+        fd = open(tmp_fname, O_EXCL | O_WRONLY | O_SYNC, S_IRUSR | S_IWUSR);
+    } else {
+        fd = -1;
+    }
 #endif
     if (fd < 0)
         return -1;
-    write(fd, buf, len);
-#ifdef __linux__
-    char proclnk[PATH_MAX], fname[PATH_MAX];
-    sprintf(proclnk, "/proc/self/fd/%d", fd);
-    if (readlink(proclnk, fname, sizeof(fname)) < 0)
-        return -1;
-#endif
+    do {
+        ssize_t wrote = write(fd, buf, len);
+        if(wrote == -1) {
+            break;
+        } else {
+            buf = (char *)buf + wrote;
+            len -= wrote;
+        }
+    } while(len);
     close(fd);
 	rc = SSL_CTX_load_verify_locations(ctx, fname, NULL);
     remove(fname);
