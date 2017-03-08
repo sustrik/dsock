@@ -47,8 +47,6 @@ libdsock_la_SOURCES = \
     nacl.c \
     nagle.c \
     pfx.c \
-    tcp.h \
-    tcp.c \
     udp.c \
     unix.c \
     utils.h \
@@ -146,7 +144,6 @@ endif
 ################################################################################
 
 check_PROGRAMS = \
-    tests/tcp \
     tests/udp \
     tests/unix \
     tests/crlf \
