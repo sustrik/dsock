@@ -22,6 +22,7 @@
 
     <keyword>BSD sockets</keyword>
     <keyword>API</keyword>
+    <keyword>composability</keyword>
 
     <abstract>
       <t>This memo describes new API for network sockets. Compared to classic
@@ -51,8 +52,8 @@
          thing with network protocols. You can't take framing from WebSockets,
          add multihoming from SCTP, keep-alives from TCP and congestion control
          from DCCP. You have to write most of the code yourself which requires
-         a lot of time, often more than a single hobbyist programmer can
-         realistically afford.</t>
+         a lot of time, often more than a single programmer can realistically
+         afford.</t>
       <t>This memo proposes to fix the reusability problem by revamping the
          old BSD socket API and while doing so strongly focusing on
          composability of protocols.</t>
@@ -73,7 +74,8 @@
               in most cases, only in the kernel space. While that makes
               implementation a little bit harder the real problem is deployment.
               Kernel is rarely deployed with the application and waiting for a
-              kernel patch to be widely deployed can take many years.</t>
+              kernel implementation of a protocol to be widely deployed can take
+              many years.</t>
            <t>The API hook-in API is not standardized meaning that a protocol
               has to be implemented for each operating system separately.</t>
            <t>The usability of the original blocking BSD socket API is dependent
@@ -749,76 +751,19 @@
 
     </section>
 
-    <section title="Examples">
-      <t>To give an example of microprotocols that can be implemented using
-         proposed API, here's the list of what's implemented in the
-         proof-of-concept project:
-        <list style="sybmols">
-          <t>compressor: compresses messages</t>
-          <t>crlf: takes a bytestream protocol and turns it into message
-             protocol by delimiting message by CRLF sequences</t>
-          <t>encryptor: encrypts and authenticates messages</t>
-          <t>keepalive: sends a keepalive message once in a while, on receiving
-             side it check whether keepalives are arriving</t>
-          <t>log: logs all data to the console (used for debugging)</t>
-          <t>nagle: batches outgoing data to improve performance</t>
-          <t>pfx: turns a bytestream protocol into message-based protocol by
-             prefixing each message by its size</t>
-          <t>tcp: wraps system implementation of TCP protocol</t>
-          <t>throttler: imposes a limit of amount of data that can be sent
-             and/or recevied per second</t>
-          <t>udp: wraps system implementation of UDP protocol</t>
-          <t>unix: wraps system implementation of UNIX domain sockets</t>
-        </list>
-      </t>
-      <t>And here's an example of how the microprotocols can be combined to
-         achieve complex functionality:</t>
-      <figure>
-        <artwork>
-    /* Create a TCP connection. */
-    h1 = tcp_connect(addr, -1);
-    /* Limits outgoing traffic to 1MB/sec. Check every 1000ms. */
-    h2 = throttler_start(h1, 1024 * 1024, 1000, 0, 0);
-    /* Batch up to 2000 bytes of outgoing traffic. */
-    h3 = nagle_start(h2, 2000, 100);
-    /* Convert bytes into messages. */
-    h4 = pfx_start(h3);
-    /* Send keepalives message every 1000ms. */
-    h5 = keepalive_start(h4, 1000, 4000, "KEEPALIVE", 9);
-    /* Encrypt and authenticate messages. */
-    h6 = encrypt_start(h5, key, sizeof(key), -1);
-    /* Compress the messages. */
-    h7 = compress_start(h6);
-        </artwork>
-      </figure>
-      <t>Let's have a look at what happens to a message sent by the end user.
-         It traverses the stack from level 7 to level 1. First it gets
-         compressed, then it gets encrypted. Keepalive protocol doesn't modify
-         the message but may interject keepalive messages. Then the message is
-         transformed to a stream of bytes. In this case it's the size
-         of the message in network byte order followed by the body
-         of the message. Nagle protocol doesn't modify the data but it may
-         delay it by at most 100ms and batch it with preceding and/or
-         following data. Throttler once again doesn't modify the data but may
-         delay it so as not to violate the bandwidth limit. Finally, the data is
-         sent to the network via TCP protocol.</t>
-      <t>In the opposite direction, message traverses the stack from level 1 to
-         level 7. Bytes are read from TCP protocol. Throttler doesn't have
-         limit set for incoming data and thus the data are just silently
-         passed through it. Nagle doesn't do anything with incoming data.
-         Then, the bytes are parsed and converted into a message. Keepalive
-         layer doesn't do anything with the message itself, but it checks
-         whether there have been any messages in last 4 seconds and if not so
-         it raises an error. Finally, message is decrypted and authenticated at
-         level 6 and decompressed at level 7.</t>
-    </section>
-
     <section anchor="IANA" title="IANA Considerations">
       <t>This memo includes no request to IANA.</t>
     </section>
 
     <section anchor="Security" title="Security Considerations">
-      <t>This memo addresses possible DoS attack at several places.</t>
+      <t>Network APIs can facilitate DoS attacks by allowing for unlimited
+         buffer sizes and for infinite deadlines.</t>
+      <t>This proposal avoids the first issue by requiring the user to allocate
+         all the buffers. It addresses the second problem by always making the
+         deadline explicit. Also, by not requiring recomputation of timeout
+         intervals it makes the deadlines easy to use. The user should take
+         advantage of that and set reasonable timeout for every network
+         operation.</t>
       <t>Other than that, the security implications of the new API don't differ
          from security implications of classic BSD socket API. Still, it may be
          worth passing the design through a security audit.</t>
