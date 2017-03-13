@@ -60,7 +60,7 @@ static void *lz4_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int lz4_start(int s) {
+int lz4_attach(int s) {
     int err;
     /* Check whether underlying socket is message-based. */
     if(dsock_slow(!hquery(s, msock_type))) {err = errno; goto error1;}
@@ -92,7 +92,7 @@ error1:
     return -1;
 }
 
-int lz4_stop(int s) {
+int lz4_detach(int s) {
     struct lz4_sock *obj = hquery(s, lz4_type);
     if(dsock_slow(!obj)) return -1;
     size_t ec = LZ4F_freeDecompressionContext(obj->dctx);

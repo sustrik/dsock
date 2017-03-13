@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
     while(1) {
         int s = tcp_accept(ls, NULL, -1);
         assert(s >= 0);
-        s = crlf_start(s);
+        s = crlf_attach(s);
         assert(s >= 0);
         rc = msend(s, "What's your name?", 17, -1);
         if(rc != 0) goto cleanup;

@@ -250,13 +250,13 @@ static int btls_conn_create(int s, struct tls *t, struct tls_config *c,
     return h;
 }
 
-int btls_start_client(int s, uint64_t flags, uint64_t ciphers,
+int btls_attach_client(int s, uint64_t flags, uint64_t ciphers,
       struct btls_ca *ca, const char *alpn, const char *servername) {
-    return btls_start_client_kp(s, flags, ciphers, NULL, 0, ca, alpn,
+    return btls_attach_client_kp(s, flags, ciphers, NULL, 0, ca, alpn,
         servername);
 }
 
-int btls_start_client_kp(int s, uint64_t flags, uint64_t ciphers,
+int btls_attach_client_kp(int s, uint64_t flags, uint64_t ciphers,
       struct btls_kp *kp, size_t kplen, struct btls_ca *ca, const char *alpn,
       const char *servername) {
     struct tls *t = NULL;
@@ -349,7 +349,7 @@ static int btls_listener_create(int s, struct tls *tls, struct tls_config *c,
     return h;
 }
 
-int btls_start_server(int s, uint64_t flags, uint64_t ciphers,
+int btls_attach_server(int s, uint64_t flags, uint64_t ciphers,
       struct btls_kp *kp, size_t kplen, struct btls_ca *ca, const char *alpn) {
     struct tls *t = NULL;
     struct tls_config *c = NULL;
@@ -383,7 +383,7 @@ error:
     return -1;
 }
 
-int btls_start_accept(int s, int l) {
+int btls_attach_accept(int s, int l) {
     /* Check whether underlying socket is a TCP socket. */
     if(dsock_slow(!hquery(s, tcp_type))) return -1;
     /* Check whether passed socket is a configured btls. */
@@ -443,7 +443,7 @@ const char *btls_error(int s) {
     return NULL;
 }
 
-int btls_stop(int s, int64_t deadline) {
+int btls_detach(int s, int64_t deadline) {
     struct btls_conn *c = hquery(s, btls_conn_type);
     if(c) {
         int rc = btls_wait_close(c->tls, c->fd, deadline);

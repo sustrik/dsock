@@ -62,7 +62,7 @@ static void *bthrottler_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int bthrottler_start(int s,
+int bthrottler_attach(int s,
       uint64_t send_throughput, int64_t send_interval,
       uint64_t recv_throughput, int64_t recv_interval) {
     int err;
@@ -113,7 +113,7 @@ error1:
     return -1;
 }
 
-int bthrottler_stop(int s) {
+int bthrottler_detach(int s) {
     struct bthrottler_sock *obj = hquery(s, bthrottler_type);
     if(dsock_slow(!obj)) return -1;
     int u = obj->s;

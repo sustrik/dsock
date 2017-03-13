@@ -58,7 +58,7 @@ static void *udp_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int udp_socket(struct ipaddr *local, const struct ipaddr *remote) {
+int udp_open(struct ipaddr *local, const struct ipaddr *remote) {
     int err;
     /* Sanity checking. */
     if(dsock_slow(local && remote &&

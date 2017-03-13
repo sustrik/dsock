@@ -34,7 +34,7 @@ coroutine void client(void) {
     int s = tcp_connect(&addr, -1);
     assert(s >= 0);
 
-    cs = crlf_start(s);
+    cs = crlf_attach(s);
     assert(cs >= 0);
     rc = msend(cs, "ABC", 3, -1);
     assert(rc == 0);
@@ -44,7 +44,7 @@ coroutine void client(void) {
     assert(buf[0] == 'G' && buf[1] == 'H' && buf[2] == 'I');
     rc = msend(cs, "DEF", 3, -1);
     assert(rc == 0);
-    s = crlf_stop(cs, -1);
+    s = crlf_detach(cs, -1);
     assert(s >= 0);
     rc = hclose(s);
     assert(rc == 0);
@@ -59,7 +59,7 @@ int main() {
     go(client());
     int as = tcp_accept(ls, NULL, -1);
 
-    int cs = crlf_start(as);
+    int cs = crlf_attach(as);
     assert(cs >= 0);
     char buf[16];
     ssize_t sz = mrecv(cs, buf, sizeof(buf), -1);
@@ -70,7 +70,7 @@ int main() {
     sz = mrecv(cs, buf, sizeof(buf), -1);
     assert(sz == 3);
     assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
-    int ts = crlf_stop(cs, -1);
+    int ts = crlf_detach(cs, -1);
     assert(ts >= 0);
     rc = hclose(ts);
     assert(rc == 0);
@@ -78,9 +78,9 @@ int main() {
     int h[2];
     rc = ipc_pair(h);
     assert(rc == 0);
-    int s0 = crlf_start(h[0]);
+    int s0 = crlf_attach(h[0]);
     assert(s0 >= 0);
-    int s1 = crlf_start(h[1]);
+    int s1 = crlf_attach(h[1]);
     assert(s1 >= 0);
     rc = msend(s0, "First", 5, -1);
     assert(rc == 0);
@@ -102,7 +102,7 @@ int main() {
     assert(rc == 0);
     rc = msend(s1, "Blue", 4, -1);
     assert(rc == 0);
-    int ts1 = crlf_stop(s1, -1);
+    int ts1 = crlf_detach(s1, -1);
     assert(ts1 >= 0);
     sz = mrecv(s0, buf, sizeof(buf), -1);
     assert(sz == 3 && memcmp(buf, "Red", 3) == 0);
@@ -110,7 +110,7 @@ int main() {
     assert(sz == 4 && memcmp(buf, "Blue", 4) == 0);
     sz = mrecv(s0, buf, sizeof(buf), -1);
     assert(sz < 0 && errno == EPIPE);
-    int ts0 = crlf_stop(s0, -1);
+    int ts0 = crlf_detach(s0, -1);
     assert(ts0 >= 0);
     rc = hclose(ts1);
     assert(rc == 0);

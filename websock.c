@@ -59,7 +59,7 @@ static void *websock_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-static int websock_start(int s, int client) {
+int websock_attach(int s, int client) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hquery(s, bsock_type))) return -1;
     /* Create the object. */
@@ -84,15 +84,7 @@ static int websock_start(int s, int client) {
     return h;
 }
 
-int websock_client(int s) {
-    return websock_start(s, 1);
-}
-
-int websock_server(int s) {
-    return websock_start(s, 0);
-}
-
-int websock_stop(int s, int64_t deadline) {
+int websock_detach(int s, int64_t deadline) {
     int err;
     struct websock_sock *obj = hquery(s, websock_type);
     if(dsock_slow(!obj)) return -1;

@@ -30,12 +30,12 @@ int main(void) {
     struct ipaddr addr1;
     int rc = ipaddr_local(&addr1, NULL, 5555, 0);
     assert(rc == 0);
-    int s1 = udp_socket(&addr1, NULL);
+    int s1 = udp_open(&addr1, NULL);
     assert(s1 >= 0);
     struct ipaddr addr2;
     rc = ipaddr_local(&addr2, NULL, 5556, 0);
     assert(rc == 0);
-    int s2 = udp_socket(&addr2, &addr1);
+    int s2 = udp_open(&addr2, &addr1);
     assert(s2 >= 0);
 
     while(1) {

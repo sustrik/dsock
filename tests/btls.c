@@ -37,7 +37,7 @@ coroutine void client(int port) {
     assert(rc == 0);
     int cs = tcp_connect(&addr, -1);
     assert(cs >= 0);
-    int tcs = btls_start_client(cs,
+    int tcs = btls_attach_client(cs,
             DSOCK_BTLS_DEFAULT |
             DSOCK_BTLS_NO_VERIFY_NAME |
             DSOCK_BTLS_NO_VERIFY_CERT |
@@ -67,7 +67,7 @@ coroutine void client2(int port) {
     assert(rc == 0);
     int cs = tcp_connect(&addr, -1);
     assert(cs >= 0);
-    int tcs = btls_start_client(cs,
+    int tcs = btls_attach_client(cs,
             DSOCK_BTLS_DEFAULT |
             DSOCK_BTLS_NO_VERIFY_NAME |
             DSOCK_BTLS_NO_VERIFY_CERT |
@@ -100,14 +100,14 @@ int main() {
     assert(rc == 0);
 
     /* Start the tls server listener */
-    int tls = btls_start_server(ls, DSOCK_BTLS_DEFAULT, 0, &kp, 1, NULL, NULL);
+    int tls = btls_attach_server(ls, DSOCK_BTLS_DEFAULT, 0, &kp, 1, NULL, NULL);
     assert(tls >= 0);
 
     go(client(5555));
 
     int as = tcp_accept(ls, NULL, -1);
     assert(as >= 0);
-    int tas = btls_start_accept(as, tls);
+    int tas = btls_attach_accept(as, tls);
     assert(tas >= 0);
 
     /* Test deadline. */
@@ -132,11 +132,11 @@ int main() {
 
     /* Test whether we perform correctly when faced with TCP pushback. */
     ls = tcp_listen(&addr, 10);
-    tls = btls_start_server(ls, DSOCK_BTLS_DEFAULT, 0, &kp, 1, NULL, NULL);
+    tls = btls_attach_server(ls, DSOCK_BTLS_DEFAULT, 0, &kp, 1, NULL, NULL);
     go(client2(5555));
     as = tcp_accept(ls, NULL, -1);
     assert(as >= 0);
-    tas = btls_start_accept(as, tls);
+    tas = btls_attach_accept(as, tls);
     assert(tas >= 0);
     char buffer[2048];
     while(1) {

@@ -61,7 +61,7 @@ static void *crlf_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int crlf_start(int s) {
+int crlf_attach(int s) {
     int err;
     /* Create the object. */
     struct crlf_sock *obj = malloc(sizeof(struct crlf_sock));
@@ -108,7 +108,7 @@ static int crlf_hdone(struct hvfs *hvfs) {
     return 0;
 }
 
-int crlf_stop(int s, int64_t deadline) {
+int crlf_detach(int s, int64_t deadline) {
     int err;
     struct crlf_sock *obj = hquery(s, crlf_type);
     if(dsock_slow(!obj)) return -1;

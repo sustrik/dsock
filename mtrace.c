@@ -57,7 +57,7 @@ static void *mtrace_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int mtrace_start(int s) {
+int mtrace_attach(int s) {
     /* Check whether underlying socket is message-based. */
     if(dsock_slow(!hquery(s, msock_type))) return -1;
     /* Create the object. */
@@ -80,7 +80,7 @@ int mtrace_start(int s) {
     return h;
 }
 
-int mtrace_stop(int s) {
+int mtrace_detach(int s) {
     struct mtrace_sock *obj = hquery(s, mtrace_type);
     if(dsock_slow(!obj)) return -1;
     int u = obj->s;

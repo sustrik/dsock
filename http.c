@@ -54,7 +54,7 @@ static void *http_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int http_start(int s) {
+int http_attach(int s) {
     int err;
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hquery(s, bsock_type))) {err = errno; goto error1;}
@@ -73,7 +73,7 @@ int http_start(int s) {
     int tmp = hdup(s);
     if(dsock_slow(tmp < 0)) {err = errno; goto error3;}
     /* Wrap the underlying socket into CRLF protocol. */
-    obj->s = crlf_start(tmp);
+    obj->s = crlf_attach(tmp);
     if(dsock_slow(obj->s < 0)) {err = errno; goto error4;}
     /* Function succeeded. We can now close original undelying handle. */
     int rc = hclose(s);
@@ -99,10 +99,10 @@ static int http_hdone(struct hvfs *hvfs) {
 }
 
 
-int http_stop(int s, int64_t deadline) {
+int http_detach(int s, int64_t deadline) {
     struct http_sock *obj = hquery(s, http_type);
     if(dsock_slow(!obj)) return -1;
-    int u = crlf_stop(obj->s, deadline);
+    int u = crlf_detach(obj->s, deadline);
     /* TODO: Handle errors. */
     free(obj);
     return u;

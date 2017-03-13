@@ -34,7 +34,7 @@ coroutine void client(void) {
     int s = tcp_connect(&addr, -1);
     assert(s >= 0);
 
-    int cs = pfx_start(s);
+    int cs = pfx_attach(s);
     assert(cs >= 0);
     rc = msend(cs, "ABC", 3, -1);
     assert(rc == 0);
@@ -44,7 +44,7 @@ coroutine void client(void) {
     assert(buf[0] == 'G' && buf[1] == 'H' && buf[2] == 'I');
     rc = msend(cs, "DEF", 3, -1);
     assert(rc == 0);
-    int ts = pfx_stop(cs, -1);
+    int ts = pfx_detach(cs, -1);
     assert(ts >= 0);
     rc = hclose(ts);
     assert(rc == 0);
@@ -59,7 +59,7 @@ int main(void) {
     go(client());
     int as = tcp_accept(ls, NULL, -1);
 
-    int cs = pfx_start(as);
+    int cs = pfx_attach(as);
     assert(cs >= 0);
     char buf[16];
     ssize_t sz = mrecv(cs, buf, sizeof(buf), -1);
@@ -70,7 +70,7 @@ int main(void) {
     sz = mrecv(cs, buf, sizeof(buf), -1);
     assert(sz == 3);
     assert(buf[0] == 'D' && buf[1] == 'E' && buf[2] == 'F');
-    int ts = pfx_stop(cs, -1);
+    int ts = pfx_detach(cs, -1);
     assert(ts >= 0);
     rc = hclose(ts);
     assert(rc == 0);
@@ -78,9 +78,9 @@ int main(void) {
     int h[2];
     rc = ipc_pair(h);
     assert(rc == 0);
-    int s0 = pfx_start(h[0]);
+    int s0 = pfx_attach(h[0]);
     assert(s0 >= 0);
-    int s1 = pfx_start(h[1]);
+    int s1 = pfx_attach(h[1]);
     assert(s1 >= 0);
     rc = msend(s0, "First", 5, -1);
     assert(rc == 0);
@@ -102,7 +102,7 @@ int main(void) {
     assert(rc == 0);
     rc = msend(s1, "Blue", 4, -1);
     assert(rc == 0);
-    int ts1 = pfx_stop(s1, -1);
+    int ts1 = pfx_detach(s1, -1);
     assert(ts1 >= 0);
     sz = mrecv(s0, buf, sizeof(buf), -1);
     assert(sz == 3 && memcmp(buf, "Red", 3) == 0);
@@ -110,7 +110,7 @@ int main(void) {
     assert(sz == 4 && memcmp(buf, "Blue", 4) == 0);
     sz = mrecv(s0, buf, sizeof(buf), -1);
     assert(sz < 0 && errno == EPIPE);
-    int ts0 = pfx_stop(s0, -1);
+    int ts0 = pfx_detach(s0, -1);
     assert(ts0 >= 0);
     rc = hclose(ts1);
     assert(rc == 0);

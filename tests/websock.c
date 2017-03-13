@@ -31,9 +31,9 @@ int main() {
     int h[2];
     int rc = ipc_pair(h);
     assert(rc == 0);
-    int s0 = websock_client(h[0]);
+    int s0 = websock_attach(h[0], 1);
     assert(s0 >= 0);
-    int s1 = websock_server(h[1]);
+    int s1 = websock_attach(h[1], 0);
 
     rc = msend(s0, "ABC", 3, -1);
     assert(rc == 0);

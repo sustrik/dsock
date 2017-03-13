@@ -67,7 +67,7 @@ static void *nagle_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int nagle_start(int s, size_t batch, int64_t interval) {
+int nagle_attach(int s, size_t batch, int64_t interval) {
     int rc;
     int err;
     /* Check whether underlying socket is a bytestream. */
@@ -111,7 +111,7 @@ error1:
     return -1;
 }
 
-int nagle_stop(int s, int64_t deadline) {
+int nagle_detach(int s, int64_t deadline) {
     struct nagle_sock *obj = hquery(s, nagle_type);
     if(dsock_slow(!obj)) return -1;
     /* TODO: Flush the data from the buffer! */

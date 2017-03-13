@@ -61,7 +61,7 @@ static void *mthrottler_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int mthrottler_start(int s,
+int mthrottler_attach(int s,
       uint64_t send_throughput, int64_t send_interval,
       uint64_t recv_throughput, int64_t recv_interval) {
     int err;
@@ -112,7 +112,7 @@ error1:
     return -1;
 }
 
-int mthrottler_stop(int s) {
+int mthrottler_detach(int s) {
     struct mthrottler_sock *obj = hquery(s, mthrottler_type);
     if(dsock_slow(!obj)) return -1;
     int u = obj->s;

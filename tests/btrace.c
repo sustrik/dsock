@@ -31,9 +31,9 @@ int main() {
     int s[2];
     int rc = ipc_pair(s);
     assert(rc == 0);
-    int b0 = btrace_start(s[0]);
+    int b0 = btrace_attach(s[0]);
     assert(b0 >= 0);
-    int b1 = btrace_start(s[1]);
+    int b1 = btrace_attach(s[1]);
     assert(b1 >= 0);
     rc = bsend(b0, "\x03" "BC", 3, -1);
     assert(rc == 0);

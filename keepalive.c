@@ -69,7 +69,7 @@ static void *keepalive_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int keepalive_start(int s, int64_t send_interval, int64_t recv_interval) {
+int keepalive_attach(int s, int64_t send_interval, int64_t recv_interval) {
     int rc;
     int err;
     /* Check whether underlying socket is message-based. */
@@ -138,7 +138,7 @@ static int keepalive_free(struct keepalive_sock *obj) {
     return u;
 }
 
-int keepalive_stop(int s) {
+int keepalive_detach(int s) {
     int err;
     struct keepalive_sock *obj = hquery(s, keepalive_type);
     if(dsock_slow(!obj)) return -1;

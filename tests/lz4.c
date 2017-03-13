@@ -32,17 +32,17 @@ int main() {
     int s[2];
     int rc = ipc_pair(s);
     assert(rc == 0);
-    int pfx0 = pfx_start(s[0]);
+    int pfx0 = pfx_attach(s[0]);
     assert(pfx0 >= 0);
-    int pfx1 = pfx_start(s[1]);
+    int pfx1 = pfx_attach(s[1]);
     assert(pfx1 >= 0);
-    int mtrace0 = mtrace_start(pfx0);
+    int mtrace0 = mtrace_attach(pfx0);
     assert(mtrace0 >= 0);
-    int mtrace1 = mtrace_start(pfx1);
+    int mtrace1 = mtrace_attach(pfx1);
     assert(mtrace0 >= 0);
-    int lz0 = lz4_start(mtrace0);
+    int lz0 = lz4_attach(mtrace0);
     assert(lz0 >= 0);
-    int lz1 = lz4_start(mtrace1);
+    int lz1 = lz4_attach(mtrace1);
     assert(lz1 >= 0);
     
     rc = msend(lz0, "123456789012345678901234567890", 30, -1);

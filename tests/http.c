@@ -31,9 +31,9 @@ int main() {
     int h[2];
     int rc = ipc_pair(h);
     assert(rc == 0);
-    int s0 = http_start(h[0]);
+    int s0 = http_attach(h[0]);
     assert(s0 >= 0);
-    int s1 = http_start(h[1]);
+    int s1 = http_attach(h[1]);
     /* Send request. */
     rc = http_sendrequest(s0, "GET", "/a/b/c", -1);
     assert(rc == 0);
@@ -118,9 +118,9 @@ int main() {
     rc = http_recvfield(s1, name, sizeof(name), value, sizeof(value), -1);
     assert(rc < 0 && errno == EPIPE);
     /* Close the sockets. */
-    h[0] = http_stop(s0, -1);
+    h[0] = http_detach(s0, -1);
     assert(h[0] >= 0);
-    h[1] = http_stop(s1, -1);
+    h[1] = http_detach(s1, -1);
     assert(h[1] >= 0);
     rc = hclose(h[1]);
     assert(rc == 0);

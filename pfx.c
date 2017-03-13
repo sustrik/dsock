@@ -58,7 +58,7 @@ static void *pfx_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int pfx_start(int s) {
+int pfx_attach(int s) {
     int err;
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hquery(s, bsock_type))) {err = errno; goto error1;}
@@ -106,7 +106,7 @@ static int pfx_hdone(struct hvfs *hvfs) {
     return 0;
 }
 
-int pfx_stop(int s, int64_t deadline) {
+int pfx_detach(int s, int64_t deadline) {
     int err;
     struct pfx_sock *obj = hquery(s, pfx_type);
     if(dsock_slow(!obj)) return -1;

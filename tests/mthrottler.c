@@ -32,11 +32,11 @@ int main() {
     /* Send-throttling. */
     int rc = ipc_pair(s);
     assert(rc == 0);
-    int pfx0 = pfx_start(s[0]);
+    int pfx0 = pfx_attach(s[0]);
     assert(pfx0 >= 0);
-    int pfx1 = pfx_start(s[1]);
+    int pfx1 = pfx_attach(s[1]);
     assert(pfx1 >= 0);
-    int thr = mthrottler_start(pfx0, 1000, 10, 0, 0);
+    int thr = mthrottler_attach(pfx0, 1000, 10, 0, 0);
     assert(thr >= 0);
     int64_t start = now();
     int i;
@@ -57,11 +57,11 @@ int main() {
     /* Recv-throttling. */
     rc = ipc_pair(s);
     assert(rc == 0);
-    int crlf0 = crlf_start(s[0]);
+    int crlf0 = crlf_attach(s[0]);
     assert(pfx0 >= 0);
-    int crlf1 = crlf_start(s[1]);
+    int crlf1 = crlf_attach(s[1]);
     assert(pfx1 >= 0);
-    thr = mthrottler_start(crlf0, 0, 0, 1000, 10);
+    thr = mthrottler_attach(crlf0, 0, 0, 1000, 10);
     assert(thr >= 0);
     for(i = 0; i != 95; ++i) {
         rc = msend(crlf1, "ABC", 3, -1);

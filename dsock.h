@@ -73,7 +73,7 @@
 /*  UDP protocol.                                                             */
 /******************************************************************************/
 
-DSOCK_EXPORT int udp_socket(
+DSOCK_EXPORT int udp_open(
     struct ipaddr *local,
     const struct ipaddr *remote);
 DSOCK_EXPORT int udp_send(
@@ -104,9 +104,9 @@ DSOCK_EXPORT ssize_t udp_recvl(
 /*  Messages are prefixed by 8-byte size in network byte order.               */
 /******************************************************************************/
 
-DSOCK_EXPORT int pfx_start(
+DSOCK_EXPORT int pfx_attach(
     int s);
-DSOCK_EXPORT int pfx_stop(
+DSOCK_EXPORT int pfx_detach(
     int s,
     int64_t deadline);
 
@@ -115,9 +115,9 @@ DSOCK_EXPORT int pfx_stop(
 /*  Messages are delimited by CRLF (0x0d 0x0a) sequences.                     */
 /******************************************************************************/
 
-DSOCK_EXPORT int crlf_start(
+DSOCK_EXPORT int crlf_attach(
     int s);
-DSOCK_EXPORT int crlf_stop(
+DSOCK_EXPORT int crlf_detach(
     int s,
     int64_t deadline);
 
@@ -125,9 +125,9 @@ DSOCK_EXPORT int crlf_stop(
 /*  HTTP                                                                      */
 /******************************************************************************/
 
-DSOCK_EXPORT int http_start(
+DSOCK_EXPORT int http_attach(
     int s);
-DSOCK_EXPORT int http_stop(
+DSOCK_EXPORT int http_detach(
     int s,
     int64_t deadline);
 DSOCK_EXPORT int http_sendrequest(
@@ -169,11 +169,10 @@ DSOCK_EXPORT int http_recvfield(
 /*  WebSocket protocol.                                                       */
 /******************************************************************************/
 
-DSOCK_EXPORT int websock_client(
-    int s);
-DSOCK_EXPORT int websock_server(
-    int s);
-DSOCK_EXPORT int websock_stop(
+DSOCK_EXPORT int websock_attach(
+    int s,
+    int client);
+DSOCK_EXPORT int websock_detach(
     int s,
     int64_t deadline);
 
@@ -182,12 +181,12 @@ DSOCK_EXPORT int websock_stop(
 /*  Uses crypto_secretbox_xsalsa20poly1305 algorithm. Key is 32B long.        */
 /******************************************************************************/
 
-DSOCK_EXPORT int nacl_start(
+DSOCK_EXPORT int nacl_attach(
     int s,
     const void *key,
     size_t keylen,
     int64_t deadline);
-DSOCK_EXPORT int nacl_stop(
+DSOCK_EXPORT int nacl_detach(
     int s);
 
 /******************************************************************************/
@@ -195,9 +194,9 @@ DSOCK_EXPORT int nacl_stop(
 /*  Compresses data using LZ4 compression algorithm.                          */
 /******************************************************************************/
 
-DSOCK_EXPORT int lz4_start(
+DSOCK_EXPORT int lz4_attach(
     int s);
-DSOCK_EXPORT int lz4_stop(
+DSOCK_EXPORT int lz4_detach(
     int s);
 
 /******************************************************************************/
@@ -205,9 +204,9 @@ DSOCK_EXPORT int lz4_stop(
 /*  Logs both inbound and outbound data into stderr.                          */
 /******************************************************************************/
 
-DSOCK_EXPORT int btrace_start(
+DSOCK_EXPORT int btrace_attach(
     int s);
-DSOCK_EXPORT int btrace_stop(
+DSOCK_EXPORT int btrace_detach(
     int s);
 
 /******************************************************************************/
@@ -215,9 +214,9 @@ DSOCK_EXPORT int btrace_stop(
 /*  Logs both inbound and outbound messages into stderr.                      */
 /******************************************************************************/
 
-DSOCK_EXPORT int mtrace_start(
+DSOCK_EXPORT int mtrace_attach(
     int s);
-DSOCK_EXPORT int mtrace_stop(
+DSOCK_EXPORT int mtrace_detach(
     int s);
 
 /******************************************************************************/
@@ -226,11 +225,11 @@ DSOCK_EXPORT int mtrace_stop(
 /*  'interval' expires.                                                       */
 /******************************************************************************/
 
-DSOCK_EXPORT int nagle_start(
+DSOCK_EXPORT int nagle_attach(
     int s,
     size_t batch,
     int64_t interval);
-DSOCK_EXPORT int nagle_stop(
+DSOCK_EXPORT int nagle_detach(
     int s, int64_t deadline);
 
 /******************************************************************************/
@@ -241,13 +240,13 @@ DSOCK_EXPORT int nagle_stop(
 /*  Receiving quota is recomputed every recv_interval milliseconds.           */
 /******************************************************************************/
 
-DSOCK_EXPORT int bthrottler_start(
+DSOCK_EXPORT int bthrottler_attach(
     int s,
     uint64_t send_throughput,
     int64_t send_interval,
     uint64_t recv_throughput,
     int64_t recv_interval);
-DSOCK_EXPORT int bthrottler_stop(
+DSOCK_EXPORT int bthrottler_detach(
     int s);
 
 /******************************************************************************/
@@ -258,13 +257,13 @@ DSOCK_EXPORT int bthrottler_stop(
 /*  Receiving quota is recomputed every recv_interval milliseconds.           */
 /******************************************************************************/
 
-DSOCK_EXPORT int mthrottler_start(
+DSOCK_EXPORT int mthrottler_attach(
     int s,
     uint64_t send_throughput,
     int64_t send_interval,
     uint64_t recv_throughput,
     int64_t recv_interval);
-DSOCK_EXPORT int mthrottler_stop(
+DSOCK_EXPORT int mthrottler_detach(
     int s);
 
 /******************************************************************************/
@@ -274,11 +273,11 @@ DSOCK_EXPORT int mthrottler_stop(
 /*  recv_interval milliseconds an error is reported.                          */
 /******************************************************************************/
 
-DSOCK_EXPORT int keepalive_start(
+DSOCK_EXPORT int keepalive_attach(
     int s,
     int64_t send_interval,
     int64_t recv_interval);
-DSOCK_EXPORT int keepalive_stop(
+DSOCK_EXPORT int keepalive_detach(
     int s);
 
 /******************************************************************************/
@@ -418,7 +417,7 @@ DSOCK_EXPORT int btls_kp(
     size_t keylen);
 DSOCK_EXPORT const char *btls_error(
     int s);
-DSOCK_EXPORT int btls_start_server(
+DSOCK_EXPORT int btls_attach_server(
     int s,
     uint64_t flags,
     uint64_t ciphers,
@@ -426,17 +425,17 @@ DSOCK_EXPORT int btls_start_server(
     size_t kplen,
     struct btls_ca *ca,
     const char *alpn);
-DSOCK_EXPORT int btls_start_accept(
+DSOCK_EXPORT int btls_attach_accept(
     int s,
     int l);
-DSOCK_EXPORT int btls_start_client(
+DSOCK_EXPORT int btls_attach_client(
     int s,
     uint64_t flags,
     uint64_t ciphers,
     struct btls_ca *ca,
     const char *alpn,
     const char *servername);
-DSOCK_EXPORT int btls_start_client_kp(
+DSOCK_EXPORT int btls_attach_client_kp(
     int s,
     uint64_t flags,
     uint64_t ciphers,
@@ -445,7 +444,7 @@ DSOCK_EXPORT int btls_start_client_kp(
     struct btls_ca *ca,
     const char *alpn,
     const char *servername);
-DSOCK_EXPORT int btls_stop(
+DSOCK_EXPORT int btls_detach(
     int s,
     int64_t deadline);
 DSOCK_EXPORT void btls_reset(

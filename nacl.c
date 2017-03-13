@@ -67,7 +67,7 @@ static void *nacl_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int nacl_start(int s, const void *key, size_t keylen, int64_t deadline) {
+int nacl_attach(int s, const void *key, size_t keylen, int64_t deadline) {
     int err;
     if(dsock_slow(!key || keylen != crypto_secretbox_KEYBYTES)) {
         err = EINVAL; goto error2;}
@@ -108,7 +108,7 @@ error1:
     return -1;
 }
 
-int nacl_stop(int s) {
+int nacl_detach(int s) {
     struct nacl_sock *obj = hquery(s, nacl_type);
     if(dsock_slow(!obj)) return -1;
     free(obj->buf1);

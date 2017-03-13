@@ -57,7 +57,7 @@ static void *btrace_hquery(struct hvfs *hvfs, const void *type) {
     return NULL;
 }
 
-int btrace_start(int s) {
+int btrace_attach(int s) {
     /* Check whether underlying socket is a bytestream. */
     if(dsock_slow(!hquery(s, bsock_type))) return -1;
     /* Create the object. */
@@ -80,7 +80,7 @@ int btrace_start(int s) {
     return h;
 }
 
-int btrace_stop(int s) {
+int btrace_detach(int s) {
     struct btrace_sock *obj = hquery(s, btrace_type);
     if(dsock_slow(!obj)) return -1;
     int u = obj->s;
