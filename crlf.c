@@ -34,7 +34,7 @@ dsock_unique_id(crlf_type);
 
 static void *crlf_hquery(struct hvfs *hvfs, const void *type);
 static void crlf_hclose(struct hvfs *hvfs);
-static int crlf_hdone(struct hvfs *hvfs);
+static int crlf_hdone(struct hvfs *hvfs, int64_t deadline);
 static int crlf_msendl(struct msock_vfs *mvfs,
     struct iolist *first, struct iolist *last, int64_t deadline);
 static ssize_t crlf_mrecvl(struct msock_vfs *mvfs,
@@ -97,12 +97,11 @@ error1:
     return -1;
 }
 
-static int crlf_hdone(struct hvfs *hvfs) {
+static int crlf_hdone(struct hvfs *hvfs, int64_t deadline) {
     struct crlf_sock *obj = (struct crlf_sock*)hvfs;
     if(dsock_slow(obj->outdone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->outerr)) {errno = ECONNRESET; return -1;}
-    /* Send termination message. TODO: Do this asynchronously. */
-    int rc = bsend(obj->u, "\r\n", 2, -1);
+    int rc = bsend(obj->u, "\r\n", 2, deadline);
     if(dsock_slow(rc < 0)) {obj->outerr = 1; return -1;}
     obj->outdone = 1;
     return 0;
@@ -115,7 +114,7 @@ int crlf_detach(int s, int64_t deadline) {
     if(dsock_slow(obj->inerr || obj->outerr)) {err = ECONNRESET; goto error;}
     /* If not done already start the terminal handshake. */
     if(!obj->outdone) {
-        int rc = crlf_hdone(&obj->hvfs);
+        int rc = crlf_hdone(&obj->hvfs, deadline);
         if(dsock_slow(rc < 0)) {err = errno; goto error;}
     }
     /* Drain incoming messages until termination message is received. */

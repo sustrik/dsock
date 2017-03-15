@@ -34,7 +34,7 @@ dsock_unique_id(pfx_type);
 
 static void *pfx_hquery(struct hvfs *hvfs, const void *type);
 static void pfx_hclose(struct hvfs *hvfs);
-static int pfx_hdone(struct hvfs *hvfs);
+static int pfx_hdone(struct hvfs *hvfs, int64_t deadline);
 static int pfx_msendl(struct msock_vfs *mvfs,
     struct iolist *first, struct iolist *last, int64_t deadline);
 static ssize_t pfx_mrecvl(struct msock_vfs *mvfs,
@@ -94,13 +94,13 @@ error1:
     return -1;
 }
 
-static int pfx_hdone(struct hvfs *hvfs) {
+static int pfx_hdone(struct hvfs *hvfs, int64_t deadline) {
     struct pfx_sock *obj = (struct pfx_sock*)hvfs;
     if(dsock_slow(obj->outdone)) {errno = EPIPE; return -1;}
     if(dsock_slow(obj->outerr)) {errno = ECONNRESET; return -1;}
     /* Send termination message. TODO: This should be done asynchronously. */
     uint64_t sz = 0xffffffffffffffff;
-    int rc = bsend(obj->s, &sz, 8, -1);
+    int rc = bsend(obj->s, &sz, 8, deadline);
     if(dsock_slow(rc < 0)) {obj->outerr = 1; return -1;}
     obj->outdone = 1;
     return 0;
@@ -113,7 +113,7 @@ int pfx_detach(int s, int64_t deadline) {
     if(dsock_slow(obj->inerr || obj->outerr)) {err = ECONNRESET; goto error;}
     /* If not done already start the terminal handshake. */
     if(!obj->outdone) {
-        int rc = pfx_hdone(&obj->hvfs);
+        int rc = pfx_hdone(&obj->hvfs, deadline);
         if(dsock_slow(rc < 0)) {err = errno; goto error;}
     }
     /* Drain incoming messages until termination message is received. */

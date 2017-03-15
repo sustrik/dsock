@@ -37,7 +37,7 @@ dsock_unique_id(http_type);
 
 static void *http_hquery(struct hvfs *hvfs, const void *type);
 static void http_hclose(struct hvfs *hvfs);
-static int http_hdone(struct hvfs *hvfs);
+static int http_hdone(struct hvfs *hvfs, int64_t deadline);
 
 struct http_sock {
     struct hvfs hvfs;
@@ -93,11 +93,10 @@ error1:
 
 }
 
-static int http_hdone(struct hvfs *hvfs) {
+static int http_hdone(struct hvfs *hvfs, int64_t deadline) {
     struct http_sock *obj = (struct http_sock*)hvfs;
-    return hdone(obj->s);
+    return hdone(obj->s, deadline);
 }
-
 
 int http_detach(int s, int64_t deadline) {
     struct http_sock *obj = hquery(s, http_type);
