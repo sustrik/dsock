@@ -89,17 +89,6 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = dsock.pc
 
 ################################################################################
-#  tutorial                                                                    #
-################################################################################
-
-noinst_PROGRAMS = \
-    tutorial/step1 \
-    tutorial/step2 \
-    tutorial/step3 \
-    tutorial/step4 \
-    tutorial/step5
-
-################################################################################
 #  compatibility functions for internal libtls                                 #
 ################################################################################
 
