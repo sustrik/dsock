@@ -34,7 +34,6 @@ lib_LTLIBRARIES = libdsock.la
 libdsock_la_SOURCES = \
     bthrottler.c \
     btrace.c \
-    crlf.c \
     fd.h \
     fd.c \
     http.c \
@@ -46,7 +45,6 @@ libdsock_la_SOURCES = \
     mtrace.c \
     nacl.c \
     nagle.c \
-    pfx.c \
     udp.c \
     utils.h \
     utils.c \
@@ -144,8 +142,6 @@ endif
 
 check_PROGRAMS = \
     tests/udp \
-    tests/crlf \
-    tests/pfx \
     tests/btrace \
     tests/mtrace \
     tests/http \

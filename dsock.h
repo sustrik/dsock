@@ -100,28 +100,6 @@ DSOCK_EXPORT ssize_t udp_recvl(
     int64_t deadline);
 
 /******************************************************************************/
-/*  PFX protocol.                                                             */
-/*  Messages are prefixed by 8-byte size in network byte order.               */
-/******************************************************************************/
-
-DSOCK_EXPORT int pfx_attach(
-    int s);
-DSOCK_EXPORT int pfx_detach(
-    int s,
-    int64_t deadline);
-
-/******************************************************************************/
-/*  CRLF protocol.                                                            */
-/*  Messages are delimited by CRLF (0x0d 0x0a) sequences.                     */
-/******************************************************************************/
-
-DSOCK_EXPORT int crlf_attach(
-    int s);
-DSOCK_EXPORT int crlf_detach(
-    int s,
-    int64_t deadline);
-
-/******************************************************************************/
 /*  HTTP                                                                      */
 /******************************************************************************/
 

@@ -98,7 +98,6 @@ int main() {
     rc = http_recvfield(s1, name, sizeof(name), value, sizeof(value), -1);
     assert(rc < 0 && errno == EPIPE);
 
-
     /* Send response. */
     rc = http_sendstatus(s1, 200, "OK", -1);
     assert(rc == 0);
