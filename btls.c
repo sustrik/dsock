@@ -34,7 +34,6 @@
 
 #include "dsock.h"
 #include "iol.h"
-#include "tcp.h"
 #include "utils.h"
 
 /* This symbol is secretly exported from libdill. More thinking should be

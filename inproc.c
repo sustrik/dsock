@@ -131,7 +131,7 @@ static int inproc_new(int data, int ack) {
     return -1;
 }
 
-static int inproc_destroy(struct inproc_sock *obj) {
+static void inproc_destroy(struct inproc_sock *obj) {
     if(dsock_fast(obj->data >= 0)) {
         int rc = chdone(obj->data);
         dsock_assert(rc == 0 || errno == EPIPE);
