@@ -38,6 +38,8 @@
 
 /* This symbol is secretly exported from libdill. More thinking should be
    done on how to do this kind of thing without breaking the encapsulation. */
+extern const void *tcp_type;
+extern const void *tcp_listener_type;
 int tcp_fd(int s);
 
 static int btls_init();
