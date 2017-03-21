@@ -37,6 +37,10 @@
 #include "tcp.h"
 #include "utils.h"
 
+/* This symbol is secretly exported from libdill. More thinking should be
+   done on how to do this kind of thing without breaking encapsulation. */
+int tcp_fd(int s);
+
 static int btls_init();
 static struct tls_config *btls_configure(uint64_t flags, uint64_t ciphers,
       struct btls_kp *kp, size_t kplen, struct btls_ca *ca, const char *alpn);
