@@ -37,7 +37,7 @@
 #include "utils.h"
 
 /* This symbol is secretly exported from libdill. More thinking should be
-   done on how to do this kind of thing without breaking encapsulation. */
+   done on how to do this kind of thing without breaking the encapsulation. */
 int tcp_fd(int s);
 
 static int btls_init();
