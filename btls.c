@@ -681,6 +681,8 @@ static struct tls_config *btls_configure(uint64_t flags, uint64_t ciphers,
                 p = strappend(p, cl, "AES128-SHA256:");
             if(ciphers & DSOCK_BTLS_CIPHERS_CAMELLIA128_SHA256)
                 p = strappend(p, cl, "CAMELLIA128-SHA256:");
+            if(ciphers & DSOCK_BTLS_CIPHERS_AES256_SHA)
+                p = strappend(p, cl, "AES256-SHA:");
             if(p != cl) {
                 dsock_assert(p - cl <= sizeof(cl));
                 *(p - 1) = '\0'; /* remove last ':' */
