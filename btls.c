@@ -452,14 +452,34 @@ int btls_detach(int s, int64_t deadline) {
     struct btls_conn *c = hquery(s, btls_conn_type);
     if(c) {
         int rc = btls_wait_close(c->tls, c->fd, deadline);
+        int tmp_errno = errno;
         if(c->c) tls_config_free(c->c);
-        return rc;
+        int underlying_fd = c->s;
+        c->s = -1;
+        free(c);
+        if(rc < 0) {
+            hclose(underlying_fd);
+            errno = tmp_errno;
+            return -1;
+        } else {
+            return underlying_fd;
+        }
     }
     struct btls_listener *l = hquery(s, btls_listener_type);
     if(l) {
         int rc = btls_wait_close(l->tls, l->fd, deadline);
+        int tmp_errno = errno;
         if(l->c) tls_config_free(l->c);
-        return rc;
+        int underlying_fd = l->s;
+        l->s = -1;
+        free(l);
+        if(rc < 0) {
+            hclose(underlying_fd);
+            errno = tmp_errno;
+            return -1;
+        } else {
+            return underlying_fd;
+        }
     }
     return -1;
 }
