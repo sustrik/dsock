@@ -41,7 +41,7 @@ static int nagle_bsendl(struct bsock_vfs *bvfs,
 static int nagle_brecvl(struct bsock_vfs *bvfs,
     struct iolist *first, struct iolist *last, int64_t deadline);
 static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
-    uint8_t *buf, int sendch, int ackch);
+    uint8_t *buf, int ch);
 
 struct nagle_vec {
     struct iolist *first;
@@ -54,8 +54,7 @@ struct nagle_sock {
     struct bsock_vfs bvfs;
     int s;
     uint8_t *buf;
-    int sendch;
-    int ackch;
+    int ch;
     int sender;
 };
 
@@ -82,12 +81,11 @@ int nagle_attach(int s, size_t batch, int64_t interval) {
     obj->s = s;
     obj->buf = malloc(batch);
     if(dsock_slow(!obj->buf)) {errno = ENOMEM; goto error2;}
-    obj->sendch = chmake(sizeof(struct nagle_vec));
-    if(dsock_slow(obj->sendch < 0)) {err = errno; goto error3;}
-    obj->ackch = chmake(sizeof(int));
-    if(dsock_slow(obj->ackch < 0)) {err = errno; goto error4;}
-    obj->sender = go(nagle_sender(s, batch, interval,
-        obj->buf, obj->sendch, obj->ackch));
+    int ch[2];
+    rc = chmake(ch);
+    if(dsock_slow(rc != 0)) {err = errno; goto error3;}
+    obj->ch = ch[0];
+    obj->sender = go(nagle_sender(s, batch, interval, obj->buf, ch[1]));
     if(dsock_slow(obj->sender < 0)) {err = errno; goto error5;}
     /* Create the handle. */
     int h = hmake(&obj->hvfs);
@@ -96,11 +94,12 @@ int nagle_attach(int s, size_t batch, int64_t interval) {
 error6:
     rc = hclose(obj->sender);
     dsock_assert(rc == 0);
+    goto error4;
 error5:
-    rc = hclose(obj->ackch);
+    rc = hclose(ch[1]);
     dsock_assert(rc == 0);
 error4:
-    rc = hclose(obj->sendch);
+    rc = hclose(ch[0]);
     dsock_assert(rc == 0);
 error3:
     free(obj->buf);
@@ -117,9 +116,7 @@ int nagle_detach(int s, int64_t deadline) {
     /* TODO: Flush the data from the buffer! */
     int rc = hclose(obj->sender);
     dsock_assert(rc == 0);
-    rc = hclose(obj->ackch);
-    dsock_assert(rc == 0);
-    rc = hclose(obj->sendch);
+    rc = hclose(obj->ch);
     dsock_assert(rc == 0);
     free(obj->buf);
     int u = obj->s;
@@ -135,18 +132,18 @@ static int nagle_bsendl(struct bsock_vfs *bvfs,
     if(dsock_slow(rc < 0)) return -1;
     /* Send is done in a worker coroutine. */
     struct nagle_vec vec = {first, last, len};
-    rc = chsend(obj->sendch, &vec, sizeof(vec), deadline);
+    rc = chsend(obj->ch, &vec, sizeof(vec), deadline);
     if(dsock_slow(rc < 0)) return -1;
     /* Wait till worker is done. */
     int err;
-    rc = chrecv(obj->ackch, &err, sizeof(err), deadline);
+    rc = chrecv(obj->ch, &err, sizeof(err), deadline);
     if(dsock_slow(rc < 0)) return -1;
     if(dsock_slow(rc < 0)) {errno = err; return -1;}
     return 0;
 }
 
 static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
-      uint8_t *buf, int sendch, int ackch) {
+      uint8_t *buf, int ch) {
     /* Amount of data in the buffer. */
     size_t len = 0;
     /* Last time at least one byte was sent. */
@@ -154,7 +151,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
     while(1) {
         /* Get data to send from the user coroutine. */
         struct nagle_vec vec;
-        int rc = chrecv(sendch, &vec, sizeof(vec),
+        int rc = chrecv(ch, &vec, sizeof(vec),
             interval >= 0 && len ? last + interval : -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         /* Timeout expired. Flush the data in the buffer. */
@@ -172,7 +169,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
             iol_copy(vec.first, buf + len);
             len += vec.len;
             int err = 0;
-            rc = chsend(ackch, &err, sizeof(err), -1);
+            rc = chsend(ch, &err, sizeof(err), -1);
             if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
             dsock_assert(rc == 0);
             continue;
@@ -184,7 +181,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
             /* Pass the error to the user. */
             if(dsock_slow(rc < 0)) {
                 int err = errno;
-                rc = chsend(ackch, &err, sizeof(err), -1);
+                rc = chsend(ch, &err, sizeof(err), -1);
                 if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
                 dsock_assert(rc == 0);
                 return;
@@ -197,7 +194,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
             iol_copy(vec.first, buf);
             len = vec.len;
             int err = 0;
-            rc = chsend(ackch, &err, sizeof(err), -1);
+            rc = chsend(ch, &err, sizeof(err), -1);
             if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
             dsock_assert(rc == 0);
             continue;
@@ -209,7 +206,7 @@ static coroutine void nagle_sender(int s, size_t batch, int64_t interval,
         dsock_assert(rc == 0);
         last = now();
         int err = 0;
-        rc = chsend(ackch, &err, sizeof(err), -1);
+        rc = chsend(ch, &err, sizeof(err), -1);
         if(dsock_slow(rc < 0 && errno == ECANCELED)) return;
         dsock_assert(rc == 0);
     }
@@ -225,9 +222,7 @@ static void nagle_hclose(struct hvfs *hvfs) {
     struct nagle_sock *obj = (struct nagle_sock*)hvfs;
     int rc = hclose(obj->sender);
     dsock_assert(rc == 0);
-    rc = hclose(obj->ackch);
-    dsock_assert(rc == 0);
-    rc = hclose(obj->sendch);
+    rc = hclose(obj->ch);
     dsock_assert(rc == 0);
     free(obj->buf);
     rc = hclose(obj->s);

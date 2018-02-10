@@ -22,7 +22,7 @@
 
 */
 
-#if defined HAVE_TLS
+#if 1
 
 #include <assert.h>
 #include <string.h>

@@ -74,14 +74,17 @@ AC_ARG_ENABLE([tls], [AS_HELP_STRING([--enable-tls],
 AM_CONDITIONAL([HAVE_TLS], [test "x$enable_tls" = xyes])
 if test "x$enable_tls" = "xyes"; then
     AC_DEFINE(HAVE_TLS)
-    AC_CHECK_LIB([ssl], [SSL_ctrl ], [],
-        AC_MSG_ERROR([libssl not found; install OpenSSL]))
-    AC_CHECK_LIB([crypto], [BIO_read], [],
-        AC_MSG_ERROR([libcrypto not found; install OpenSSL]))
+    #AC_CHECK_LIB([ssl], [SSL_ctrl ], [],
+    #    AC_MSG_ERROR([libssl not found; install OpenSSL]))
+    #AC_CHECK_LIB([crypto], [BIO_read], [],
+    #    AC_MSG_ERROR([libcrypto not found; install OpenSSL]))
+    PKG_CHECK_MODULES([TLS], [libtls], [],
+        AC_MSG_ERROR([TLS not found; install OpenSSL]))
+AC_CHECK_LIB([tls], [BIO_s_mem])
 
     # Compatibility checks with OpenSSL implementation
-    AC_CHECK_FUNCS([SSL_CTX_set_alpn_protos SSL_get0_alpn_selected], [],
-       AC_MSG_ERROR([Incompatible OpenSSL; install OpenSSL>=1.0.2 or LibreSSL]))
+    #AC_CHECK_FUNCS([SSL_CTX_set_alpn_protos SSL_get0_alpn_selected], [],
+    #   AC_MSG_ERROR([Incompatible OpenSSL; install OpenSSL>=1.0.2 or LibreSSL]))
 fi
 
 ################################################################################

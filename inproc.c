@@ -22,6 +22,10 @@
 
 */
 
+/* TODO: Is this needed now that we have bidirectional untyped channels? */
+
+#if 0
+
 #include <errno.h>
 #include <libdillimpl.h>
 #include <stdint.h>
@@ -133,13 +137,13 @@ static int inproc_new(int data, int ack) {
 
 static void inproc_destroy(struct inproc_sock *obj) {
     if(dsock_fast(obj->data >= 0)) {
-        int rc = chdone(obj->data);
+        int rc = hdone(obj->data, -1);
         dsock_assert(rc == 0 || errno == EPIPE);
         rc = hclose(obj->data);
         dsock_assert(rc == 0);
     }
     if(dsock_fast(obj->ack >= 0)) {
-        int rc = chdone(obj->ack);
+        int rc = hdone(obj->ack, -1);
         dsock_assert(rc == 0 || errno == EPIPE);
         rc = hclose(obj->ack);
         dsock_assert(rc == 0);
@@ -233,3 +237,4 @@ static int inproc_msendl(struct msock_vfs *mvfs,
     return 0;
 }
 
+#endif
