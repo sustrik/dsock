@@ -287,7 +287,7 @@ DSOCK_EXPORT int keepalive_detach(
 #define DSOCK_BTLS_DHEPARAMS_NONE         (0 << 13) /* default */
 #define DSOCK_BTLS_DHEPARAMS_AUTO         (1 << 13)
 #define DSOCK_BTLS_DHEPARAMS_LEGACY       (2 << 13)
-#define DSOCK_BTLS_DHEPARAMS_VALUE(x)     ((x >> 13) & 0x3)
+#define DSOCK_BTLS_DHEPARAMS_VALUE(x)     ((x) & (0x3 << 13))
 
 #define DSOCK_BTLS_ECDHECURVE_NONE        (1 << 15)
 #define DSOCK_BTLS_ECDHECURVE_AUTO        (0 << 15) /* default */
@@ -298,7 +298,7 @@ DSOCK_EXPORT int keepalive_detach(
 #define DSOCK_BTLS_ECDHECURVE_SECP256K1   (6 << 15)
 #define DSOCK_BTLS_ECDHECURVE_SECP384R1   (7 << 15)
 #define DSOCK_BTLS_ECDHECURVE_SECP521R1   (8 << 15)
-#define DSOCK_BTLS_ECDHECURVE_VALUE(x)    ((x >> 15) & 0xf)
+#define DSOCK_BTLS_ECDHECURVE_VALUE(x)    ((x) & (0xf << 15))
 
 #define DSOCK_BTLS_CIPHERS_DEFAULT        (1 << 19)
 #define DSOCK_BTLS_CIPHERS_SECURE         (1 << 19) /* default */
@@ -306,12 +306,12 @@ DSOCK_EXPORT int keepalive_detach(
 #define DSOCK_BTLS_CIPHERS_LEGACY         (3 << 19)
 #define DSOCK_BTLS_CIPHERS_INSECURE       (4 << 19)
 #define DSOCK_BTLS_CIPHERS_SPECIFIC       (5 << 19) /* see list below */
-#define DSOCK_BTLS_CIPHERS_VALUE(x)       ((x >> 19) & 0x7)
+#define DSOCK_BTLS_CIPHERS_VALUE(x)       ((x) & (0x7 << 19))
 
 #define DSOCK_BTLS_VERIFY_DEPTH_DEFAULT   (6 << 22)
 #define DSOCK_BTLS_VERIFY_DEPTH(X)        (X << 22)
 #define DSOCK_BTLS_VERIFY_DEPTH_MAX       (1 << 27)
-#define DSOCK_BTLS_VERIFY_VALUE(x)        ((x >> 22) & 0x1f)
+#define DSOCK_BTLS_VERIFY_VALUE(x)        ((x) & (0x1f << 22))
 
 /* BTLS v1.2 ciphers */
 #define DSOCK_BTLS_CIPHERS_ECDHE_RSA_AES256_GCM_SHA384       (1ull <<  0)
@@ -354,6 +354,7 @@ DSOCK_EXPORT int keepalive_detach(
 #define DSOCK_BTLS_CIPHERS_AES128_GCM_SHA256                 (1ull << 36)
 #define DSOCK_BTLS_CIPHERS_AES128_SHA256                     (1ull << 37)
 #define DSOCK_BTLS_CIPHERS_CAMELLIA128_SHA256                (1ull << 38)
+#define DSOCK_BTLS_CIPHERS_AES256_SHA                        (1ull << 39)
 
 #define DSOCK_BTLS_DEFAULT \
     (DSOCK_BTLS_PROTO_DEFAULT| \
